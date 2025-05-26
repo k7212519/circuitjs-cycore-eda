@@ -5,6 +5,13 @@ war/circuitjs1/circuits/
 war/e-*.html
 war/WEB-INF/
 
+
+.gradle/
+build/
+.project
+.settings/
+site/
+
 # GWT command line tools
 codeserver.log
 webserver.log
