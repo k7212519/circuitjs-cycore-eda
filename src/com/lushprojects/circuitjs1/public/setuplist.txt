@@ -1,4 +1,7 @@
 ### setuplist.txt first line must be a comment
++cycore
+cd4026-decoder.txt CD4026 Decoder Example
+-
 +Basics
 ohms.txt Ohm's Law
 resistors.txt Resistors

@@ -287,7 +287,7 @@ MouseOutHandler, MouseWheelHandler {
     // canvas width/height in px (before device pixel ratio scaling)
     int canvasWidth, canvasHeight;
 
-    static final int MENUBARHEIGHT = 30;
+            static final int MENUBARHEIGHT = 35;
     static final int TOOLBARHEIGHT = 40;
     static int VERTICALPANELWIDTH = 166; // default
     static final int POSTGRABSQ = 25;
@@ -1233,6 +1233,7 @@ MouseOutHandler, MouseWheelHandler {
     	mainMenuBar.addItem(SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml+Locale.LS("&nbsp;</div>Logic Gates, Input and Output")), gateMenuBar);
 
     	MenuBar chipMenuBar = new MenuBar(true);
+    	chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add CD4026 Counter"), "CD4026Elm"));
     	chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add D Flip-Flop"), "DFlipFlopElm"));
     	chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add JK Flip-Flop"), "JKFlipFlopElm"));
     	chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add T Flip-Flop"), "TFlipFlopElm"));
@@ -5956,6 +5957,7 @@ MouseOutHandler, MouseWheelHandler {
     	case 428: return new MotorProtectionSwitchElm(x1, y1, x2, y2, f, st);
     	case 429: return new DPDTSwitchElm(x1, y1, x2, y2, f, st);
     	case 430: return new CrossSwitchElm(x1, y1, x2, y2, f, st);
+    	case 4026: return new CD4026Elm(x1, y1, x2, y2, f, st);
         }
     	return null;
     }
@@ -6232,6 +6234,8 @@ MouseOutHandler, MouseWheelHandler {
 		return (CircuitElm) new DPDTSwitchElm(x1, y1);
     	if (n=="CrossSwitchElm")
 		return (CircuitElm) new CrossSwitchElm(x1, y1);
+    	if (n=="CD4026Elm")
+		return (CircuitElm) new CD4026Elm(x1, y1);
     	
     	// handle CustomCompositeElm:modelname
     	if (n.startsWith("CustomCompositeElm:")) {

@@ -19,63 +19,123 @@
 
 package com.lushprojects.circuitjs1.client;
 
+/**
+ * 芯片元素的抽象基类
+ * 这个类为电路模拟中的集成芯片提供基础实现
+ * 它处理芯片的绘制、引脚布局、电压和电流的计算等
+ * 所有具体的芯片类型（如逻辑门、触发器等）都继承自此类
+ */
 abstract class ChipElm extends CircuitElm {
-	int csize, cspc, cspc2;
-	int bits;
-	double highVoltage;
+	// 芯片大小和间距参数
+	int csize, // 芯片大小单位
+	    cspc,  // 芯片间距
+	    cspc2; // 芯片间距的两倍
+	int bits; // 位数，对于需要位数的芯片（如计数器、移位寄存器等）
+	double highVoltage; // 高电平电压值，默认为5V
 	
-	static final int FLAG_SMALL = 1;
-	static final int FLAG_FLIP_X = 1<<10;
-	static final int FLAG_FLIP_Y = 1<<11;
-	static final int FLAG_FLIP_XY = 1<<12;
-	static final int FLAG_CUSTOM_VOLTAGE = 1<<13;
+	// 芯片的标志位常量
+	static final int FLAG_SMALL = 1;            // 小型芯片标志
+	static final int FLAG_FLIP_X = 1<<10;       // X轴翻转标志
+	static final int FLAG_FLIP_Y = 1<<11;       // Y轴翻转标志
+	static final int FLAG_FLIP_XY = 1<<12;      // XY轴互换标志
+	static final int FLAG_CUSTOM_VOLTAGE = 1<<13; // 自定义电压标志
+	/**
+	 * 芯片元素的基本构造函数
+	 * @param xx 芯片的x坐标
+	 * @param yy 芯片的y坐标
+	 */
 	public ChipElm(int xx, int yy) {
 	    super(xx, yy);
 	    if (needsBits())
-		bits = defaultBitCount();
-	    highVoltage = 5;
-	    noDiagonal = true;
-	    setupPins();
-	    setSize(sim.smallGridCheckItem.getState() ? 1 : 2);
+		bits = defaultBitCount(); // 如果芯片需要位数，设置默认位数
+	    highVoltage = 5; // 默认高电平为5V
+	    noDiagonal = true; // 禁止对角线连接
+	    setupPins(); // 设置芯片引脚
+	    setSize(sim.smallGridCheckItem.getState() ? 1 : 2); // 根据网格大小设置芯片大小
 	}
+	/**
+	 * 从保存状态恢复芯片元素的构造函数
+	 * @param xa 起点x坐标
+	 * @param ya 起点y坐标
+	 * @param xb 终点x坐标
+	 * @param yb 终点y坐标
+	 * @param f 标志位
+	 * @param st 包含芯片状态的字符串标记
+	 */
 	public ChipElm(int xa, int ya, int xb, int yb, int f,
 		       StringTokenizer st) {
 	    super(xa, ya, xb, yb, f);
 	    if (needsBits())
 	    	if (st.hasMoreTokens())
-	    		bits = new Integer(st.nextToken()).intValue();
+	    		bits = new Integer(st.nextToken()).intValue(); // 从标记中读取位数
 	    	else
-	    		bits = defaultBitCount();
-	    highVoltage = (hasCustomVoltage()) ? Double.parseDouble(st.nextToken()) : 5;
-	    noDiagonal = true;
-	    setupPins();
-	    setSize((f & FLAG_SMALL) != 0 ? 1 : 2);
+	    		bits = defaultBitCount(); // 使用默认位数
+	    highVoltage = (hasCustomVoltage()) ? Double.parseDouble(st.nextToken()) : 5; // 读取自定义电压或使用默认值
+	    noDiagonal = true; // 禁止对角线连接
+	    setupPins(); // 设置芯片引脚
+	    setSize((f & FLAG_SMALL) != 0 ? 1 : 2); // 根据标志设置芯片大小
 	    int i;
-	    for (i = 0; i != getPostCount(); i++) {
+	    for (i = 0; i != getPostCount(); i++) { // 遍历所有引脚
 		if (pins == null)
-		    volts[i] = new Double(st.nextToken()).doubleValue();
+		    volts[i] = new Double(st.nextToken()).doubleValue(); // 读取电压值
 		else if (pins[i].state) {
-		    volts[i] = new Double(st.nextToken()).doubleValue();
-		    pins[i].value = volts[i] > getThreshold();
+		    volts[i] = new Double(st.nextToken()).doubleValue(); // 读取有状态引脚的电压值
+		    pins[i].value = volts[i] > getThreshold(); // 根据阈值确定逻辑值
 		}
 	    }
 	}
+	/**
+	 * 判断芯片是否需要位数设置
+	 * @return 默认返回false，子类可重写此方法
+	 */
 	boolean needsBits() { return false; }
+	
+	/**
+	 * 判断芯片是否使用自定义电压
+	 * @return 如果设置了自定义电压标志，则返回true
+	 */
 	boolean hasCustomVoltage() { return (flags & FLAG_CUSTOM_VOLTAGE) != 0; }
+	
+	/**
+	 * 判断是否为数字芯片
+	 * @return 默认返回true，对于模拟芯片，子类应重写为false
+	 */
 	boolean isDigitalChip() { return true; }
+	
+	/**
+	 * 获取逻辑阈值电压
+	 * @return 返回高电平电压的一半作为阈值
+	 */
 	double getThreshold() { return highVoltage/2; }
 	
+	/**
+	 * 获取默认位数
+	 * @return 默认返回4位，子类可重写此方法
+	 */
 	int defaultBitCount() { return 4; }
+	
+	/**
+	 * 设置芯片大小
+	 * @param s 大小参数：1表示小型，2表示标准大小
+	 */
 	void setSize(int s) {
-	    csize = s;
-	    cspc = 8*s;
-	    cspc2 = cspc*2;
-	    flags &= ~FLAG_SMALL;
-	    flags |= (s == 1) ? FLAG_SMALL : 0;
+	    csize = s; // 设置大小单位
+	    cspc = 8*s; // 计算间距（8倍于大小单位）
+	    cspc2 = cspc*2; // 计算两倍间距
+	    flags &= ~FLAG_SMALL; // 清除小型标志
+	    flags |= (s == 1) ? FLAG_SMALL : 0; // 如果s为1，设置小型标志
 	}
+	/**
+	 * 设置芯片引脚布局
+	 * 这是一个抽象方法，必须由子类实现以定义特定芯片的引脚布局
+	 */
 	abstract void setupPins();
+	/**
+	 * 绘制芯片
+	 * @param g 图形上下文
+	 */
 	void draw(Graphics g) {
-	    drawChip(g);
+	    drawChip(g); // 调用芯片绘制方法
 	}
 	void drawChip(Graphics g) {
 	    int i;
@@ -257,43 +317,62 @@ abstract class ChipElm extends CircuitElm {
 	    }
 	    System.out.println("setVoltageSource failed for " + this);
 	}
+	/**
+	 * 在电路中添加芯片的电压源
+	 * 这个方法为芯片的每个输出引脚在模拟矩阵中添加电压源
+	 */
 	void stamp() {
 	    int i;
-	    int vsc = 0;
-	    for (i = 0; i != getPostCount(); i++) {
+	    int vsc = 0; // 电压源计数器
+	    for (i = 0; i != getPostCount(); i++) { // 遍历所有引脚
 		Pin p = pins[i];
-		if (p.output) {
-		    sim.stampVoltageSource(0, nodes[i], p.voltSource);
-		    vsc++;
+		if (p.output) { // 如果是输出引脚
+		    sim.stampVoltageSource(0, nodes[i], p.voltSource); // 在矩阵中添加电压源
+		    vsc++; // 电压源计数增加
 		}
 	    }
+	    // 检查电压源数量是否与输出引脚数量匹配
 	    if (vsc != getVoltageSourceCount())
 		CirSim.console("voltage source count does not match number of outputs");
 	}
+	/**
+	 * 执行芯片逻辑
+	 * 空实现，由子类重写以实现特定芯片的逻辑功能
+	 */
 	void execute() {}
+	/**
+	 * 执行一个模拟步骤
+	 * 读取输入引脚状态，执行芯片逻辑，更新输出引脚电压
+	 */
 	void doStep() {
 	    int i;
+	    // 读取所有输入引脚的状态
 	    for (i = 0; i != getPostCount(); i++) {
 		Pin p = pins[i];
-		if (!p.output)
-		    p.value = volts[i] > getThreshold();
+		if (!p.output) // 如果是输入引脚
+		    p.value = volts[i] > getThreshold(); // 根据电压和阈值确定逻辑值
 	    }
-	    execute();
+	    execute(); // 执行芯片特定逻辑
+	    // 更新所有输出引脚的电压
 	    for (i = 0; i != getPostCount(); i++) {
 		Pin p = pins[i];
-		if (p.output)
+		if (p.output) // 如果是输出引脚
 		    sim.updateVoltageSource(0, nodes[i], p.voltSource,
-					p.value ? highVoltage : 0);
+					p.value ? highVoltage : 0); // 根据逻辑值设置输出电压
 	    }
 	}
+	/**
+	 * 重置芯片状态
+	 * 将所有引脚的值、电流计数和电压重置为初始状态
+	 */
 	void reset() {
 	    int i;
-	    for (i = 0; i != getPostCount(); i++) {
-		pins[i].value = false;
-		pins[i].curcount = 0;
-		volts[i] = 0;
+	    for (i = 0; i != getPostCount(); i++) { // 遍历所有引脚
+		pins[i].value = false; // 重置逻辑值为false
+		pins[i].curcount = 0; // 重置电流计数
+		volts[i] = 0; // 重置电压为0
 	    }
-	    lastClock = false;
+	    lastClock = false; // 重置时钟状态
 	}
 	
 	String dump() {

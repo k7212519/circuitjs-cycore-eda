@@ -1,5 +1,19 @@
 @charset "UTF-8";
 
+.gwt-MenuBar-horizontal {
+    background: #e6f2ff; /* 设置纯色背景 */
+    background-image: none; /* 移除渐变 */
+}
+
+.gwt-MenuBar-horizontal .gwt-MenuItem {
+    padding: 0 15px; /* 设置水平内边距 */
+    vertical-align: middle; /* 垂直居中单元格内容 */
+}
+
+.gwt-MenuBar-horizontal table {
+    height: 100%; /* 让表格高度填满父容器 */
+}
+
 /*Hide all mobile elements when in desktop usage*/
 .trigger, .toptrigger, .triggerLabel, toptriggerlabel {
 	display: none;
@@ -9,7 +23,7 @@
 	.triggerLabel {
 		display: initial;
 		border-radius: 10px 0px 0px 10px;
-		background: white;
+		background: #e6f2ff;
 		width: 20px;
 		height: 50px;
 		position: absolute;
@@ -66,7 +80,7 @@
 	/* selects the side panel */
 	.trigger+.triggerLabel+div {
 		width: 0 !important;
-		background: white;
+		background: #e6f2ff;
 		z-index: 1;
 		transition: width 1s;
 	}
@@ -81,7 +95,7 @@
 		width: 100%;
 		text-align: center;
 		top: 30px;
-		background: white;
+		background: #e6f2ff;
 		z-index: 2;
 	}
 	.gwt-MenuBar-horizontal * {
@@ -98,7 +112,7 @@
 		width: 100%;
 		height: 300px;
 		position: fixed;
-		top: 30px;
+		top: 40px;
 		/* trick to prevent sub menus from opening in the same touch */
 		transition:all 0.1s;
 	}
@@ -113,7 +127,7 @@
 	.menuPopupTopLeft, .menuPopupTopCenter, .menuPopupTopRight,
 		.menuPopupMiddleLeft, .menuPopupMiddleRight, .menuPopupMiddleCenter,
 		.menuPopupBottomLeft, .menuPopupBottomCenter, .menuPopupBottomRight {
-		background: white !important;
+		background: #e6f2ff !important;
 	}
 
 	/* selects the div containing the canvas */
