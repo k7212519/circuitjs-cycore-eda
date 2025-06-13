@@ -15,6 +15,16 @@
     vertical-align: middle; /* 垂直居中单元格内容 */
 }
 
+.toolbarButton {
+    margin: 0px 10px;
+}
+
+.toolbar-icon svg {
+    width: 24px;
+    height: 24px;
+    vertical-align: middle;
+}
+
 .gwt-MenuBar-horizontal .gwt-MenuItem-selected {
     background-color: #1c74c2 !important;
 }
