@@ -36,6 +36,7 @@ import com.google.gwt.canvas.client.Canvas;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.CellPanel;
 import com.google.gwt.user.client.ui.DockLayoutPanel;
+import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.RootLayoutPanel;
 import com.google.gwt.user.client.ui.RootPanel;
@@ -62,6 +63,7 @@ import com.google.gwt.core.client.JavaScriptObject;
 import com.google.gwt.core.client.JsArray;
 import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.core.client.ScriptInjector;
+
 import com.google.gwt.dom.client.Style.Unit;
 import com.google.gwt.http.client.Request;
 import com.google.gwt.http.client.RequestException;
@@ -77,6 +79,7 @@ import com.google.gwt.user.client.Event;
 import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.VerticalPanel;
+import com.google.gwt.user.client.ui.Image;
 import com.google.gwt.user.client.ui.HorizontalPanel;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.dom.client.ClickEvent;
@@ -93,6 +96,8 @@ import com.google.gwt.storage.client.Storage;
 import com.google.gwt.user.client.ui.PopupPanel;
 import static com.google.gwt.event.dom.client.KeyCodes.*;
 import com.google.gwt.user.client.ui.Frame;
+import com.google.gwt.user.client.ui.Grid;
+import com.google.gwt.user.client.ui.HTML;
 import com.google.gwt.user.client.ui.Widget;
 import com.lushprojects.circuitjs1.client.util.Locale;
 import com.lushprojects.circuitjs1.client.util.PerfMonitor;
@@ -468,6 +473,30 @@ MouseOutHandler, MouseWheelHandler {
 
 	layoutPanel = new DockLayoutPanel(Unit.PX);
 
+	FlowPanel logoPanel = new FlowPanel();
+	logoPanel.setStyleName("logo-panel");
+	logoPanel.getElement().getStyle().setDisplay(com.google.gwt.dom.client.Style.Display.FLEX);
+		logoPanel.getElement().getStyle().setProperty("alignItems", "center");
+	logoPanel.getElement().getStyle().setHeight(100, Unit.PCT);
+	logoPanel.getElement().getStyle().setBackgroundColor("#0fa1ff");  //顶部logo和标题的父容器背景颜色
+
+	Image logo = new Image("/circuitjs1/img/subcircuits/cycore-logo.png");
+	logo.setStyleName("logo-image");
+	logo.getElement().getStyle().setHeight(32, Unit.PX);
+	logo.getElement().getStyle().setProperty("flexShrink", "0");
+
+	HTML title = new HTML("<span style=\"text-transform: uppercase;\">cycore-eda-</span>Cloud");
+	title.setStyleName("logo-title");
+	title.getElement().getStyle().setColor("white");
+	title.getElement().getStyle().setFontSize(20, Unit.PX);
+	title.getElement().getStyle().setMarginLeft(15, Unit.PX);
+	title.getElement().getStyle().setFontWeight(com.google.gwt.dom.client.Style.FontWeight.BOLD);
+	title.getElement().getStyle().setProperty("letterSpacing", "1px");
+
+	logoPanel.add(logo);
+	logoPanel.add(title);
+	layoutPanel.addNorth(logoPanel, 40);
+
 	fileMenuBar = new MenuBar(true);
 	if (isElectron())
 	    fileMenuBar.addItem(menuItemWithShortcut("window", "New Window...", Locale.LS(ctrlMetaKey + "N"),
@@ -669,7 +698,8 @@ MouseOutHandler, MouseWheelHandler {
 	if (isElectron())
 	    m.addItem(new CheckboxAlignedMenuItem(Locale.LS("Toggle Dev Tools"), new MyCommand("options","devtools")));
 
-	mainMenuBar = new MenuBar(true);
+	mainMenuBar = new MenuBar(false);
+
 	mainMenuBar.setAutoOpen(true);
 	composeMainMenu(mainMenuBar, 0);
 	composeMainMenu(drawMenuBar, 1);
@@ -3311,6 +3341,13 @@ MouseOutHandler, MouseWheelHandler {
     }
     
     public void menuPerformed(String menu, String item) {
+	if (menu.equals("main") && item.equals("select")) {
+	    setMouseMode(MODE_SELECT);
+	    mouseModeStr = "Select";
+	    updateToolbar();
+	    return;
+	}
+
 	if ((menu=="edit" || menu=="main" || menu=="scopes") && noEditCheckItem.getState()) {
 	    Window.alert(Locale.LS("Editing disabled.  Re-enable from the Options menu."));
 	    return;
@@ -5152,8 +5189,9 @@ MouseOutHandler, MouseWheelHandler {
     }
 
     void setMouseMode(int mode)
-    {
-    	mouseMode = mode;
+{
+	
+	mouseMode = mode;
     	if ( mode == MODE_ADD_ELM ) {
     		setCursorStyle("cursorCross");
     	} else {

@@ -224,6 +224,19 @@ class CD4026Elm extends ChipElm {
         return super.dump() + " " + counter + " " + lastClock + " " + 
                lastReset + " " + clockInhibit + " " + enableDisplay;
     }
+
+    /**
+     * 重置芯片状态
+     */
+    @Override
+    void reset() {
+        super.reset();
+        counter = 0;
+        lastClock = false;
+        lastReset = false;
+        clockInhibit = false;
+        enableDisplay = true;
+    }
     
     /**
      * 获取芯片信息

@@ -35,42 +35,44 @@ public class Toolbar extends HorizontalPanel {
         style.setDisplay(Style.Display.FLEX);
 	setVerticalAlignment(ALIGN_MIDDLE);
 
+	add(createIconButton(selectIcon, "Select/Drag", new MyCommand("main", "select")));
 	add(createIconButton("ccw", "Undo", new MyCommand("edit", "undo")));
 	add(createIconButton("cw",  "Redo", new MyCommand("edit", "redo")));
-	add(createIconButton("scissors", "Cut", new MyCommand("edit", "cut")));
-	add(createIconButton("copy", "Copy", new MyCommand("edit", "copy")));
-	add(createIconButton("paste", "Paste", new MyCommand("edit", "paste")));
-	add(createIconButton("clone", "Duplicate", new MyCommand("edit", "duplicate")));
+	// add(createIconButton("scissors", "Cut", new MyCommand("edit", "cut")));
+	// add(createIconButton("copy", "Copy", new MyCommand("edit", "copy")));
+	// add(createIconButton("paste", "Paste", new MyCommand("edit", "paste")));
+	// add(createIconButton("clone", "Duplicate", new MyCommand("edit", "duplicate")));
 	add(createIconButton("search", "Find Component...", new MyCommand("edit", "search")));
 
-	add(createIconButton("zoom-11", "Zoom 100%", new MyCommand("zoom", "zoom100")));
+	// add(createIconButton("zoom-11", "Zoom 100%", new MyCommand("zoom", "zoom100")));
 	add(createIconButton("zoom-in", "Zoom In", new MyCommand("zoom", "zoomin")));
 	add(createIconButton("zoom-out", "Zoom Out", new MyCommand("zoom", "zoomout")));
 
 	add(createIconButton(wireIcon, "WireElm"));
 	add(resistorButton = createIconButton(resistorIcon, "ResistorElm"));
+	add(createIconButton(ledIcon, "LEDElm"));
 	add(createIconButton(groundIcon, "GroundElm"));
-	add(createIconButton(capacitorIcon, "CapacitorElm"));
-	add(createIconButton(inductIcon, "InductorElm"));
-	add(createIconButton(diodeIcon, "DiodeElm"));
+	add(createIconButton(railIcon, "RailElm"));
+	//	add(createIconButton(inductIcon, "InductorElm"));
+	// add(createIconButton(diodeIcon, "DiodeElm"));
 	String srcInfo[] = { voltage2Icon, "DCVoltageElm", acSrcIcon, "ACVoltageElm" };
 	add(createButtonSet(srcInfo));
-	add(createIconButton(railIcon, "RailElm"));
+	add(createIconButton(capacitorIcon, "CapacitorElm"));
 
 	String switchInfo[] = { switchIcon, "SwitchElm", spdtIcon, "Switch2Elm", aswitch1Icon, "AnalogSwitchElm",
 				aswitch2Icon, "AnalogSwitch2Elm" };
 	add(createButtonSet(switchInfo));
 
-	String opAmpInfo[] = { opAmpBotIcon, "OpAmpElm", opAmpTopIcon, "OpAmpSwapElm" };
-	add(createButtonSet(opAmpInfo));
+	//	String opAmpInfo[] = { opAmpBotIcon, "OpAmpElm", opAmpTopIcon, "OpAmpSwapElm" };
+	//	add(createButtonSet(opAmpInfo));
 
 	String transistorInfo[] = { transistorIcon, "NTransistorElm", pnpTransistorIcon, "PTransistorElm" };
 	add(createButtonSet(transistorInfo));
 
-	String fetInfo[] = { fetIcon, "NMosfetElm", fetIcon2, "PMosfetElm" };
-	add(createButtonSet(fetInfo));
+	//	String fetInfo[] = { fetIcon, "NMosfetElm", fetIcon2, "PMosfetElm" };
+	//	add(createButtonSet(fetInfo));
 
-	add(createIconButton(inverterIcon, "InverterElm"));
+	//	add(createIconButton(inverterIcon, "InverterElm"));
 	String gateInfo[] = { andIcon, "AndGateElm", nandIcon, "NandGateElm", 
 			      orIcon, "OrGateElm", norIcon, "NorGateElm", xorIcon, "XorGateElm" };
 	add(createButtonSet(gateInfo));
@@ -293,6 +295,8 @@ public class Toolbar extends HorizontalPanel {
     final String acSrcIcon = "<svg><g transform='translate(-104.09,-66.93) scale(0.266667)'><path fill='none' stroke='currentColor' d=' M 432 336 L 432 313' stroke-linecap='round' stroke-width='3' /><path fill='none' stroke='currentColor' d=' M 432 279 L 432 256' stroke-linecap='round' stroke-width='3' /><path fill='none' stroke='currentColor' d=' M 448.66 296 A 16.66 16.66 0 1 1 448.6599916700007 295.98334000277663' stroke-linecap='round' stroke-width='3' /><path fill='none' stroke='currentColor' d=' M 422 296 L 423 294 L 424 292 L 425 290 L 426 289 L 427 289 L 428 289 L 429 290 L 430 292 L 431 294 L 432 296 L 433 298 L 434 300 L 435 302 L 436 303 L 437 303 L 438 303 L 439 302 L 440 300 L 441 298 L 442 296' stroke-linecap='round' stroke-width='3' /></g></svg>";
     final String opAmpTopIcon = "<svg><g transform='translate(-169.33,-86.13) scale(0.266667)'><path fill='none' stroke='currentColor' d=' M 640 384 L 654 384' stroke-linecap='round' stroke-width='3' /><path fill='none' stroke='currentColor' d=' M 640 352 L 654 352' stroke-linecap='round' stroke-width='3' /><path fill='none' stroke='currentColor' d=' M 706 368 L 720 368' stroke-linecap='round' stroke-width='3' /><path fill='none' stroke='currentColor' d=' M 654 400 L 654 336 L 706 368 Z' stroke-linecap='round' stroke-width='3' /><g><text fill='currentColor' stroke='currentColor' font-family='sans-serif' font-size='14px' font-style='normal' font-weight='normal' text-decoration='normal' x='664' y='382' text-anchor='middle' dominant-baseline='central'>-</text></g><g><text fill='currentColor' stroke='currentColor' font-family='sans-serif' font-size='14px' font-style='normal' font-weight='normal' text-decoration='normal' x='664' y='352' text-anchor='middle' dominant-baseline='central'>+</text></g></g></svg>";
     final String opAmpBotIcon = "<svg><g transform='translate(-169.33,-86.13) scale(0.266667)'><path fill='none' stroke='currentColor' d=' M 640 352 L 654 352' stroke-linecap='round' stroke-width='3' /><path fill='none' stroke='currentColor' d=' M 640 384 L 654 384' stroke-linecap='round' stroke-width='3' /><path fill='none' stroke='currentColor' d=' M 706 368 L 720 368' stroke-linecap='round' stroke-width='3' /><path fill='none' stroke='currentColor' d=' M 654 336 L 654 400 L 706 368 Z' stroke-linecap='round' stroke-width='3' /><g><text fill='currentColor' stroke='currentColor' font-family='sans-serif' font-size='14px' font-style='normal' font-weight='normal' text-decoration='normal' x='664' y='350' text-anchor='middle' dominant-baseline='central'>-</text></g><g><text fill='currentColor' stroke='currentColor' font-family='sans-serif' font-size='14px' font-style='normal' font-weight='normal' text-decoration='normal' x='664' y='384' text-anchor='middle' dominant-baseline='central'>+</text></g></g></svg>";
+	final String ledIcon = "<svg><g transform='translate(-169.33,-102.13) scale(0.266667)'><path fill='none' stroke='currentColor' d=' M 640 448 L 654 448' stroke-linecap='round' stroke-width='3' /><path fill='none' stroke='currentColor' d=' M 706 448 L 720 448' stroke-linecap='round' stroke-width='3' /><path fill='none' stroke='currentColor' d=' M 654 464 L 654 432 L 706 448 Z' stroke-linecap='round' stroke-width='3' /><path fill='none' stroke='currentColor' d=' M 706 432 L 706 464' stroke-linecap='round' stroke-width='3' /><path fill='none' stroke='currentColor' d='M 675 428 L 690 413' stroke-linecap='round' stroke-width='2' /><path fill='none' stroke='currentColor' d='M 675 468 L 690 483' stroke-linecap='round' stroke-width='2' /></g></svg>";
+	final String selectIcon = "<svg><g transform='scale(0.5) translate(5,5)'><path fill='currentColor' d='M 10,34 L 10,4 L 24,18 L 16,18 L 10,34 Z' stroke='currentColor' stroke-width='2' /></g></svg>";
 
 }
 
