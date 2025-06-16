@@ -62,6 +62,26 @@ html, body {
     color: #333;
 }
 
+.toolbar-panel {
+    background-color: #ffffff; /* Set toolbar background to white */
+    width: 100%;
+}
+
+.toolbar-icon-label {
+    height: 44px;
+    width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    box-sizing: border-box;
+}
+
+.toolbar-icon-label svg {
+    width: 100%;
+    height: 100%;
+}
+
 /*Hide all mobile elements when in desktop usage*/
 .trigger, .toptrigger, .triggerLabel, toptriggerlabel {
 	display: none;

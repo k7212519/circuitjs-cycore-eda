@@ -6,7 +6,6 @@ import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.dom.client.MouseOutEvent;
 import com.google.gwt.event.dom.client.MouseOverEvent;
 import com.google.gwt.user.client.ui.*;
-import com.lushprojects.circuitjs1.client.IconResources;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 import java.util.HashMap;
@@ -21,12 +20,9 @@ public class Toolbar extends HorizontalPanel {
 
     public Toolbar() {
         // Set the overall style of the toolbar
+        setStyleName("toolbar-panel");
         Style style = getElement().getStyle();
         style.setPadding(2, Style.Unit.PX);
-        style.setBackgroundColor("#f8f8f8");
-        style.setBorderWidth(1, Style.Unit.PX);
-        style.setBorderStyle(Style.BorderStyle.SOLID);
-        style.setBorderColor("#ccc");
         style.setDisplay(Style.Display.FLEX);
         setVerticalAlignment(ALIGN_MIDDLE);
 
@@ -74,6 +70,7 @@ public class Toolbar extends HorizontalPanel {
     private Label createIconButton(String iconClass, String tooltip, MyCommand command) {
         // Create a label to hold the icon
         Label iconLabel = new Label();
+        iconLabel.addStyleName("toolbar-icon-label"); // Add style for CSS targeting
         iconLabel.setText(""); // No text, just an icon
         if (iconClass.startsWith("<svg"))
             iconLabel.getElement().setInnerHTML(makeSvg(iconClass, 24));
@@ -83,13 +80,9 @@ public class Toolbar extends HorizontalPanel {
 
         // Style the icon button
         Style style = iconLabel.getElement().getStyle();
-        style.setFontSize(24, Style.Unit.PX);
         style.setColor("#333");
-        style.setPadding(1, Style.Unit.PX);
         style.setMarginRight(5, Style.Unit.PX);
         style.setCursor(Style.Cursor.POINTER);
-        if (iconClass.startsWith("<svg"))
-            style.setPaddingTop(5, Style.Unit.PX);
 
         // Add hover effect for the button
         iconLabel.addMouseOverHandler(event -> iconLabel.getElement().getStyle().setColor("#007bff"));
@@ -117,9 +110,45 @@ public class Toolbar extends HorizontalPanel {
     }
 
     String makeSvg(String s, int size) {
-        double scale = size / 24.0;
-        return "<svg xmlns='http://www.w3.org/2000/svg' width='" + size + "' height='" + size + "'><g transform='scale("
-                + scale + ")'>" + s.substring(5, s.length() - 5) + "<g></svg>";
+        // Find the end of the opening <svg> tag
+        int tagEnd = s.indexOf('>');
+        if (tagEnd == -1) {
+            return s; // Not a valid SVG
+        }
+
+        String svgOpenTag = s.substring(0, tagEnd);
+        String originalWidth = "300"; // Default size
+        String originalHeight = "300";
+
+        // Extract original width and height to create the viewBox
+        try {
+            int widthStart = svgOpenTag.indexOf("width=\"");
+            if (widthStart != -1) {
+                widthStart += "width=\"".length();
+                int widthEnd = svgOpenTag.indexOf("\"", widthStart);
+                originalWidth = svgOpenTag.substring(widthStart, widthEnd);
+            }
+            int heightStart = svgOpenTag.indexOf("height=\"");
+            if (heightStart != -1) {
+                heightStart += "height=\"".length();
+                int heightEnd = svgOpenTag.indexOf("\"", heightStart);
+                originalHeight = svgOpenTag.substring(heightStart, heightEnd);
+            }
+        } catch (Exception e) {
+            // Fallback to default if parsing fails
+        }
+
+        String viewBox = "0 0 " + originalWidth + " " + originalHeight;
+
+        // Remove width and height attributes from the original tag using regex
+        String modifiedSvgOpenTag = svgOpenTag.replaceAll("width=\"[^\"]*\"", "")
+                                            .replaceAll("height=\"[^\"]*\"", "");
+
+        // Add the new attributes
+        String finalSvgOpenTag = modifiedSvgOpenTag + " viewBox='" + viewBox + "' preserveAspectRatio='xMidYMid meet'";
+
+        // Reconstruct the full SVG
+        return finalSvgOpenTag + s.substring(tagEnd);
     }
 
     // New method for creating variant buttons

@@ -293,7 +293,7 @@ MouseOutHandler, MouseWheelHandler {
     int canvasWidth, canvasHeight;
 
             static final int MENUBARHEIGHT = 35;
-    static final int TOOLBARHEIGHT = 40;
+    static final int TOOLBARHEIGHT = 50;
     static int VERTICALPANELWIDTH = 166; // default
     static final int POSTGRABSQ = 25;
     static final int MINPOSTGRABSIZE = 256;
