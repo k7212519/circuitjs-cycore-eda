@@ -1,7 +1,7 @@
 @charset "UTF-8";
 
 .gwt-MenuBar-horizontal {
-    background-color: #0fa1ff !important;
+    background-color: #1075de !important;
     color: white !important;
     background-image: none !important;
     border: none !important;
@@ -63,7 +63,7 @@ html, body {
 }
 
 .toolbar-panel {
-    background-color: #0fa1ff; /* Set toolbar background to blue */
+    background-color: #1075de; /* Set toolbar background to blue */
     width: 100%;
 }
 

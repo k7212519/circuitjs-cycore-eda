@@ -478,7 +478,7 @@ MouseOutHandler, MouseWheelHandler {
 	logoPanel.getElement().getStyle().setDisplay(com.google.gwt.dom.client.Style.Display.FLEX);
 		logoPanel.getElement().getStyle().setProperty("alignItems", "center");
 	logoPanel.getElement().getStyle().setHeight(100, Unit.PCT);
-	logoPanel.getElement().getStyle().setBackgroundColor("#0fa1ff");  //顶部logo和标题的父容器背景颜色
+	logoPanel.getElement().getStyle().setBackgroundColor("#1075de");  //顶部logo和标题的父容器背景颜色
 
 	Image logo = new Image("/circuitjs1/img/subcircuits/cycore-logo.png");
 	logo.setStyleName("logo-image");
@@ -550,6 +550,7 @@ MouseOutHandler, MouseWheelHandler {
 	    VERTICALPANELWIDTH = 128;
 
 	menuBar = new MenuBar();
+	menuBar.getElement().getStyle().setBackgroundColor("#1075de");
 	menuBar.addItem(Locale.LS("File"), fileMenuBar);
 	verticalPanel=new VerticalPanel();
 

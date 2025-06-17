@@ -25,6 +25,7 @@ public class Toolbar extends HorizontalPanel {
         style.setPadding(2, Style.Unit.PX);
         style.setDisplay(Style.Display.FLEX);
         setVerticalAlignment(ALIGN_MIDDLE);
+        getElement().getStyle().setBackgroundColor("#1075de");
 
         add(createIconButton(IconResources.INSTANCE.select().getText(), "Select/Drag", new MyCommand("main", "select")));
         add(createIconButton(IconResources.INSTANCE.undo().getText(), "Undo", new MyCommand("edit", "undo")));
@@ -54,6 +55,7 @@ public class Toolbar extends HorizontalPanel {
 
         // Create and style the mode label
         modeLabel = new Label("Default Mode");
+        modeLabel.addStyleName("toolbar-mode-label");
         styleModeLabel(modeLabel);
         add(modeLabel);
     }
@@ -85,8 +87,16 @@ public class Toolbar extends HorizontalPanel {
         style.setCursor(Style.Cursor.POINTER);
 
         // Add hover effect for the button
-        iconLabel.addMouseOverHandler(event -> iconLabel.getElement().getStyle().setColor("#007bff"));
-        iconLabel.addMouseOutHandler(event -> iconLabel.getElement().getStyle().setColor("#333"));
+        iconLabel.addMouseOverHandler(event -> {
+            if (iconLabel != activeButton) {
+                iconLabel.getElement().getStyle().setColor("black"); // Darken icon on hover
+            }
+        });
+        iconLabel.addMouseOutHandler(event -> {
+            if (iconLabel != activeButton) {
+                iconLabel.getElement().getStyle().setColor("#333"); // Reset color on mouse out
+            }
+        });
 
         // Add a click handler to perform the action
         iconLabel.addClickHandler(new ClickHandler() {
@@ -235,7 +245,7 @@ public class Toolbar extends HorizontalPanel {
     private void styleModeLabel(Label label) {
         Style style = label.getElement().getStyle();
         style.setFontSize(16, Style.Unit.PX);
-        style.setColor("#333");
+        style.setColor("white"); //mode文字颜色
         style.setPaddingRight(10, Style.Unit.PX);
         style.setProperty("whiteSpace", "nowrap");
     }
@@ -248,11 +258,13 @@ public class Toolbar extends HorizontalPanel {
         }
 
         // Activate the new button
-        Label newActiveButton = highlightableButtons.get(key);
-        if (newActiveButton != null) {
-            newActiveButton.getElement().getStyle().setColor("#007bff"); // Active color
-            newActiveButton.getElement().getStyle().setBackgroundColor("#e6f7ff");
-            activeButton = newActiveButton;
+        Label buttonToActivate = highlightableButtons.get(key);
+        if (buttonToActivate != null) {
+            buttonToActivate.getElement().getStyle().setColor("black"); // Set selected color to black
+            buttonToActivate.getElement().getStyle().setBackgroundColor(null); // Ensure no background color
+            activeButton = buttonToActivate;
+        } else {
+            activeButton = null;
         }
     }
 
