@@ -102,13 +102,13 @@ public class Toolbar extends HorizontalPanel {
         iconLabel.addClickHandler(new ClickHandler() {
             @Override
             public void onClick(ClickEvent event) {
-                // un-highlight
-                iconLabel.getElement().getStyle().setColor("#333");
                 if (iconLabel == activeButton) {
+                    // If clicking the active button, deselect it by switching to the "Select" tool
                     new MyCommand("main", "Select").execute();
-                    activeButton = null;
-                } else
+                } else {
+                    // Otherwise, execute the command for the clicked button
                     command.execute();
+                }
             }
         });
 
@@ -253,15 +253,15 @@ public class Toolbar extends HorizontalPanel {
     public void highlightButton(String key) {
         // Deactivate the currently active button
         if (activeButton != null) {
-            activeButton.getElement().getStyle().setColor("#333"); // Reset color
-            activeButton.getElement().getStyle().setBackgroundColor(null);
+            activeButton.getElement().getStyle().setColor("#333"); // Reset icon color
+            activeButton.getElement().getStyle().setBackgroundColor(null); // Remove background
         }
 
         // Activate the new button
         Label buttonToActivate = highlightableButtons.get(key);
         if (buttonToActivate != null) {
-            buttonToActivate.getElement().getStyle().setColor("black"); // Set selected color to black
-            buttonToActivate.getElement().getStyle().setBackgroundColor(null); // Ensure no background color
+            buttonToActivate.getElement().getStyle().setColor("white"); // Set icon color to white for contrast
+            buttonToActivate.getElement().getStyle().setBackgroundColor("#0051a8"); // Dark blue background
             activeButton = buttonToActivate;
         } else {
             activeButton = null;
