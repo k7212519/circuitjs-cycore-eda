@@ -553,7 +553,7 @@ MouseOutHandler, MouseWheelHandler {
 	menuBar.getElement().getStyle().setBackgroundColor("#1075de");
 	menuBar.addItem(Locale.LS("File"), fileMenuBar);
 	verticalPanel=new VerticalPanel();
-
+	verticalPanel.getElement().getStyle().setBackgroundColor("#ffffff");
 	verticalPanel.getElement().addClassName("verticalPanel");
 	verticalPanel.getElement().setId("painel");
 	Element sidePanelCheckbox = DOM.createInputCheck();
@@ -699,7 +699,7 @@ MouseOutHandler, MouseWheelHandler {
 	if (isElectron())
 	    m.addItem(new CheckboxAlignedMenuItem(Locale.LS("Toggle Dev Tools"), new MyCommand("options","devtools")));
 
-	mainMenuBar = new MenuBar(false);
+		mainMenuBar = new MenuBar(true); //true右键菜单竖向排列  false水平排列
 
 	mainMenuBar.setAutoOpen(true);
 	composeMainMenu(mainMenuBar, 0);
@@ -714,14 +714,16 @@ MouseOutHandler, MouseWheelHandler {
 	if (!hideMenu)
 	    layoutPanel.addNorth(menuBar, MENUBARHEIGHT);
 
+	DockLayoutPanel centerPanel = new DockLayoutPanel(Unit.PX);
 	if (hideSidebar)
 	    VERTICALPANELWIDTH = 0;
 	else {
 		DOM.appendChild(layoutPanel.getElement(), sidePanelCheckbox);
 		DOM.appendChild(layoutPanel.getElement(), sidePanelCheckboxLabel);
-	    layoutPanel.addEast(verticalPanel, VERTICALPANELWIDTH);
+	    centerPanel.addEast(verticalPanel, VERTICALPANELWIDTH);
 	}
 	layoutPanel.addNorth(toolbar, TOOLBARHEIGHT);
+	layoutPanel.add(centerPanel);
 	menuBar.getElement().insertFirst(menuBar.getElement().getChild(1));
 	menuBar.getElement().getFirstChildElement().setAttribute("onclick", "document.getElementsByClassName('toptrigger')[0].checked = false");
 	RootLayoutPanel.get().add(layoutPanel);
@@ -740,7 +742,7 @@ MouseOutHandler, MouseWheelHandler {
 
 	cvcontext=cv.getContext2d();
 	setToolbar(); // calls setCanvasSize()
-	layoutPanel.add(cv);
+	centerPanel.add(cv);
 	verticalPanel.add(buttonPanel);
 	buttonPanel.add(resetButton = new Button(Locale.LS("Reset")));
 	resetButton.addClickHandler(new ClickHandler() {
@@ -1265,6 +1267,7 @@ MouseOutHandler, MouseWheelHandler {
 
     	MenuBar chipMenuBar = new MenuBar(true);
     	chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add CD4026 Counter"), "CD4026Elm"));
+	chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add CD4017 Decade Counter"), "CD4017Elm"));
     	chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add D Flip-Flop"), "DFlipFlopElm"));
     	chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add JK Flip-Flop"), "JKFlipFlopElm"));
     	chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add T Flip-Flop"), "TFlipFlopElm"));
@@ -5997,6 +6000,7 @@ MouseOutHandler, MouseWheelHandler {
     	case 429: return new DPDTSwitchElm(x1, y1, x2, y2, f, st);
     	case 430: return new CrossSwitchElm(x1, y1, x2, y2, f, st);
     	case 4026: return new CD4026Elm(x1, y1, x2, y2, f, st);
+    	case 4017: return new CD4017Elm(x1, y1, x2, y2, f, st);
         }
     	return null;
     }
@@ -6275,6 +6279,8 @@ MouseOutHandler, MouseWheelHandler {
 		return (CircuitElm) new CrossSwitchElm(x1, y1);
     	if (n=="CD4026Elm")
 		return (CircuitElm) new CD4026Elm(x1, y1);
+    	if (n=="CD4017Elm")
+		return (CircuitElm) new CD4017Elm(x1, y1);
     	
     	// handle CustomCompositeElm:modelname
     	if (n.startsWith("CustomCompositeElm:")) {
