@@ -118,7 +118,6 @@ MouseOutHandler, MouseWheelHandler {
     MenuItem aboutItem;
     MenuItem importFromLocalFileItem, importFromTextItem, exportAsUrlItem, exportAsLocalFileItem, exportAsTextItem,
             printItem, recoverItem, saveFileItem;
-    MenuItem importFromDropboxItem;
     MenuItem undoItem, redoItem, cutItem, copyItem, pasteItem, selectAllItem, optionsItem, flipXItem, flipYItem, flipXYItem;
     MenuBar optionsMenuBar;
     CheckboxMenuItem dotsCheckItem;
@@ -509,8 +508,6 @@ MouseOutHandler, MouseWheelHandler {
 	fileMenuBar.addItem(importFromLocalFileItem);
 	importFromTextItem = iconMenuItem("doc-text", "Import From Text...", new MyCommand("file","importfromtext"));
 	fileMenuBar.addItem(importFromTextItem);
-	importFromDropboxItem = iconMenuItem("dropbox", "Import From Dropbox...", new MyCommand("file", "importfromdropbox"));
-	fileMenuBar.addItem(importFromDropboxItem);
 	if (isElectron()) {
 	    saveFileItem = fileMenuBar.addItem(menuItemWithShortcut("floppy", "Save", Locale.LS(ctrlMetaKey + "S"),
 		    new MyCommand("file", "save")));
@@ -733,6 +730,9 @@ MouseOutHandler, MouseWheelHandler {
 	    RootPanel.get().add(new Label("Not working. You need a browser that supports the CANVAS element."));
 	    return;
 	}
+	
+	// 移除Canvas元素的焦点边框
+	cv.getElement().getStyle().setProperty("outline", "none");
 
 	Window.addResizeHandler(new ResizeHandler() {
 	    public void onResize(ResizeEvent event) {
@@ -758,7 +758,7 @@ MouseOutHandler, MouseWheelHandler {
 	    }
 	});
 
-	
+
 /*
 	dumpMatrixButton = new Button("Dump Matrix");
 	dumpMatrixButton.addClickHandler(new ClickHandler() {
@@ -871,20 +871,13 @@ MouseOutHandler, MouseWheelHandler {
 	    readCircuit(startCircuitText);
 	    unsavedChanges = false;
 	} else {
-	    if (stopMessage == null && startCircuitLink!=null) {
-		readCircuit("");
+	    readCircuit("");
+	    if (stopMessage == null && startCircuit != null) {
 		getSetupList(false);
-		ImportFromDropboxDialog.setSim(this);
-		ImportFromDropboxDialog.doImportDropboxLink(startCircuitLink, false);
-	    } else {
-		readCircuit("");
-		if (stopMessage == null && startCircuit != null) {
-		    getSetupList(false);
-		    readSetupFile(startCircuit, startLabel);
-		}
-		else
-		    getSetupList(true);
+		readSetupFile(startCircuit, startLabel);
 	    }
+	    else
+		getSetupList(true);
 	}
 
 	if (mouseModeReq != null)
@@ -1265,6 +1258,10 @@ MouseOutHandler, MouseWheelHandler {
     	gateMenuBar.addItem(getClassCheckItem(Locale.LS("Add XOR Gate"), "XorGateElm"));
     	mainMenuBar.addItem(SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml+Locale.LS("&nbsp;</div>Logic Gates, Input and Output")), gateMenuBar);
 
+    	MenuBar logicChipMenuBar = new MenuBar(true);
+    	logicChipMenuBar.addItem(getClassCheckItem(Locale.LS("Add 74LS11 Triple 3-Input AND Gate"), "LS7411Elm"));
+    	mainMenuBar.addItem(SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml+Locale.LS("&nbsp;</div>Logic Gate Chips")), logicChipMenuBar);
+    	
     	MenuBar chipMenuBar = new MenuBar(true);
     	chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add CD4026 Counter"), "CD4026Elm"));
 	chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add CD4017 Decade Counter"), "CD4017Elm"));
@@ -1426,7 +1423,7 @@ MouseOutHandler, MouseWheelHandler {
     
     
 
-    
+
     void centreCircuit() {
 	if (elmList == null)  // avoid exception if called during initialization
 	    return;
@@ -3375,9 +3372,6 @@ MouseOutHandler, MouseWheelHandler {
     	if (item=="importfromtext") {
     		dialogShowing = new ImportFromTextDialog(this);
     	}
-    	if (item=="importfromdropbox") {
-    		dialogShowing = new ImportFromDropboxDialog(this);
-    	}
     	if (item=="exportasurl") {
     		doExportAsUrl();
     		unsavedChanges = false;
@@ -3456,11 +3450,6 @@ MouseOutHandler, MouseWheelHandler {
     	    doSplit(menuElm);
     	if (item=="selectAll")
     		doSelectAll();
-    	//	if (e.getSource() == exitItem) {
-    	//	    destroyFrame();
-    	//	    return;
-    	//	}
-    	
     	if (item=="centrecircuit") {
     		pushUndo();
     		centreCircuit();
@@ -3513,7 +3502,6 @@ MouseOutHandler, MouseWheelHandler {
     			scopeCount++;
     			scopes[i] = new Scope(this);
     			scopes[i].position = i;
-    			//handleResize();
     		}
     		scopes[i].setElm(menuElm);
     		if (i > 0)
@@ -3580,7 +3568,6 @@ MouseOutHandler, MouseWheelHandler {
     			s.speedUp();
     		if (item=="speed1/2")
     			s.slowDown();
-//    		if (item=="scale")
 //    			scopes[menuScope].adjustScale(.5);
     		if (item=="maxscale")
     			s.maxScale();
@@ -6001,6 +5988,7 @@ MouseOutHandler, MouseWheelHandler {
     	case 430: return new CrossSwitchElm(x1, y1, x2, y2, f, st);
     	case 4026: return new CD4026Elm(x1, y1, x2, y2, f, st);
     	case 4017: return new CD4017Elm(x1, y1, x2, y2, f, st);
+    	case 7411: return new LS7411Elm(x1, y1, x2, y2, f, st);
         }
     	return null;
     }
@@ -6263,6 +6251,8 @@ MouseOutHandler, MouseWheelHandler {
 		return (CircuitElm) new ExtVoltageElm(x1, y1);
     	if (n=="DecimalDisplayElm")
 		return (CircuitElm) new DecimalDisplayElm(x1, y1);
+    	if (n=="LS7411Elm")
+		return (CircuitElm) new LS7411Elm(x1, y1);
     	if (n=="WattmeterElm")
 		return (CircuitElm) new WattmeterElm(x1, y1);
     	if (n=="Counter2Elm")

@@ -29,25 +29,40 @@ public class Toolbar extends HorizontalPanel {
 
         add(createIconButton(IconResources.INSTANCE.select().getText(), "Select/Drag", new MyCommand("main", "select")));
         add(createIconButton(IconResources.INSTANCE.undo().getText(), "Undo", new MyCommand("edit", "undo")));
-        add(createIconButton(IconResources.INSTANCE.redo().getText(), "Redo", new MyCommand("edit", "redo")));
-        add(createIconButton(IconResources.INSTANCE.search().getText(), "Find Component...", new MyCommand("edit", "search")));
+        // add(createIconButton(IconResources.INSTANCE.redo().getText(), "Redo", new MyCommand("edit", "redo")));
+        // 搜索组件功能暂时禁用
+        // add(createIconButton(IconResources.INSTANCE.search().getText(), "Find Component...", new MyCommand("edit", "search")));
 
         add(createIconButton(IconResources.INSTANCE.wire().getText(), "WireElm"));
         add(resistorButton = createIconButton(IconResources.INSTANCE.resistor().getText(), "ResistorElm"));
         add(createIconButton(IconResources.INSTANCE.led().getText(), "LEDElm"));
         add(createIconButton(IconResources.INSTANCE.ground().getText(), "GroundElm"));
         add(createIconButton(IconResources.INSTANCE.voltage().getText(), "RailElm"));
-
+        
+        // 定义电源元素的下拉菜单选项 (保留供后续使用)
         String srcInfo[] = { IconResources.INSTANCE.voltage2().getText(), "DCVoltageElm", IconResources.INSTANCE.acSrc().getText(), "ACVoltageElm" };
-        add(createButtonSet(srcInfo));
+        // 暂时禁用下拉菜单，改用单独按钮
+        // add(createButtonSet(srcInfo));
+        add(createIconButton(IconResources.INSTANCE.voltage2().getText(), "DCVoltageElm"));
+        // add(createIconButton(IconResources.INSTANCE.acSrc().getText(), "ACVoltageElm"));
         add(createIconButton(IconResources.INSTANCE.capacitor().getText(), "CapacitorElm"));
 
+        // 定义开关元素的下拉菜单选项 (保留供后续使用)
         String switchInfo[] = { IconResources.INSTANCE.switchIcon().getText(), "SwitchElm", IconResources.INSTANCE.spdt().getText(), "Switch2Elm", IconResources.INSTANCE.aswitch1().getText(), "AnalogSwitchElm",
                 IconResources.INSTANCE.aswitch2().getText(), "AnalogSwitch2Elm" };
-        add(createButtonSet(switchInfo));
+        // 暂时禁用下拉菜单，改用单独按钮
+        // add(createButtonSet(switchInfo));
+        add(createIconButton(IconResources.INSTANCE.switchIcon().getText(), "SwitchElm"));
+        // add(createIconButton(IconResources.INSTANCE.spdt().getText(), "Switch2Elm"));
+        // add(createIconButton(IconResources.INSTANCE.aswitch1().getText(), "AnalogSwitchElm"));
+        // add(createIconButton(IconResources.INSTANCE.aswitch2().getText(), "AnalogSwitch2Elm"));
 
+        // 定义晶体管元素的下拉菜单选项 (保留供后续使用)
         String transistorInfo[] = { IconResources.INSTANCE.transistor().getText(), "NTransistorElm", IconResources.INSTANCE.pnpTransistor().getText(), "PTransistorElm" };
-        add(createButtonSet(transistorInfo));
+        // 暂时禁用下拉菜单，改用单独按钮
+        // add(createButtonSet(transistorInfo));
+        add(createIconButton(IconResources.INSTANCE.transistor().getText(), "NTransistorElm"));
+        // add(createIconButton(IconResources.INSTANCE.pnpTransistor().getText(), "PTransistorElm"));
 
         // Spacer to push the mode label to the right
         HorizontalPanel spacer = new HorizontalPanel();
