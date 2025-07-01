@@ -116,20 +116,20 @@ class CD4026Elm extends ChipElm {
 
         // 右侧引脚 - 按图片显示的顺序
         pins[15] = new Pin(0, SIDE_E, usePinNames() ? "VCC" : "16");     // 电源 (16)
-        pins[11] = new Pin(1, SIDE_E, usePinNames() ? "b" : "12");       // b段输出 (12)       // f段输出 (12)
-        pins[11].output = true;
-        pins[9] = new Pin(2, SIDE_E, usePinNames() ? "a" : "10");        // a段输出 (10)        // d段输出 (10)
+        pins[9] = new Pin(1, SIDE_E, usePinNames() ? "a" : "10");        // a段输出 (10)
         pins[9].output = true;
-        pins[5] = new Pin(3, SIDE_E, usePinNames() ? "f" : "6");        // f段输出 (6)        // a段输出 (6)
-        pins[5].output = true;
-        pins[6] = new Pin(4, SIDE_E, usePinNames() ? "g" : "7");        // g段输出 (7)        // b段输出 (7)
-        pins[6].output = true;
-        pins[8] = new Pin(6, SIDE_E, usePinNames() ? "d" : "9");        // d段输出 (9)        // c段输出 (9)
-        pins[8].output = true;
-        pins[10] = new Pin(5, SIDE_E, usePinNames() ? "e" : "11");       // e段输出 (11) - 保持不变       // e段输出 (11)
-        pins[10].output = true;
-        pins[12] = new Pin(7, SIDE_E, usePinNames() ? "c" : "13");       // c段输出 (13)       // g段输出 (13)
+        pins[11] = new Pin(2, SIDE_E, usePinNames() ? "b" : "12");       // b段输出 (12)
+        pins[11].output = true;
+        pins[12] = new Pin(3, SIDE_E, usePinNames() ? "c" : "13");       // c段输出 (13)
         pins[12].output = true;
+        pins[8] = new Pin(4, SIDE_E, usePinNames() ? "d" : "9");        // d段输出 (9)
+        pins[8].output = true;
+        pins[10] = new Pin(5, SIDE_E, usePinNames() ? "e" : "11");       // e段输出 (11)
+        pins[10].output = true;
+        pins[5] = new Pin(6, SIDE_E, usePinNames() ? "f" : "6");        // f段输出 (6)
+        pins[5].output = true;
+        pins[6] = new Pin(7, SIDE_E, usePinNames() ? "g" : "7");        // g段输出 (7)
+        pins[6].output = true;
         
         // DEO引脚(引脚4)放在8号引脚下方
         pins[3] = new Pin(7, SIDE_W, usePinNames() ? "DEO" : "4");      // 使能输出 (4)

@@ -92,8 +92,8 @@ class CD4017Elm extends ChipElm {
             int pinIdx = getQPinIndex(i);
             writeOutput(pinIdx, counter == i);
         }
-        // CO输出：Q9输出高时CO高，否则低
-        writeOutput(2, counter == 9);
+        // CO输出：Q0~Q4输出高时CO高，Q5~Q9输出高时CO低
+        writeOutput(2, counter < 5);
     }
 
     private int getQPinIndex(int n) {
