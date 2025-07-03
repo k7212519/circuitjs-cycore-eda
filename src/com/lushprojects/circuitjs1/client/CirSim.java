@@ -398,7 +398,7 @@ MouseOutHandler, MouseWheelHandler {
 	node.getItem(0).appendChild(meta);
 
 	
-	boolean printable = false;
+	boolean printable = true;
 	boolean convention = true;
 	boolean euroRes = false;
 	boolean usRes = false;
@@ -441,7 +441,7 @@ MouseOutHandler, MouseWheelHandler {
 	    running = qp.getBooleanValue("running", true);
 	    hideSidebar = qp.getBooleanValue("hideSidebar", false);
 	    hideMenu = qp.getBooleanValue("hideMenu", false);
-	    printable = qp.getBooleanValue("whiteBackground", getOptionFromStorage("whiteBackground", false));
+	    printable = qp.getBooleanValue("whiteBackground", getOptionFromStorage("whiteBackground", true));
 	    convention = qp.getBooleanValue("conventionalCurrent",
 		    getOptionFromStorage("conventionalCurrent", true));
 	    noEditing = !qp.getBooleanValue("editable", true);
@@ -3926,7 +3926,7 @@ MouseOutHandler, MouseWheelHandler {
     	int stackptr = 0;
     	currentMenuBar=new MenuBar(true);
     	currentMenuBar.setAutoOpen(true);
-    	menuBar.addItem(Locale.LS("Circuits"), currentMenuBar);
+    	menuBar.addItem(Locale.LS("Lessons"), currentMenuBar);
     	stack[stackptr++] = currentMenuBar;
     	int p;
     	for (p = 0; p < len; ) {

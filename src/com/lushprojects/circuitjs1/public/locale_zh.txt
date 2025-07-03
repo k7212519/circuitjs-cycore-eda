@@ -11,6 +11,7 @@
 "<strong>RUN</strong>&nbsp;/&nbsp;Stop"="<strong>运行</strong>&nbsp;/&nbsp;停止"
 "Run&nbsp;/&nbsp;<strong>STOP</strong>"="运行&nbsp;/&nbsp;<strong>停止</strong>"
 "custom logic"="自定义逻辑"
+"Lessons"="课程"
 "Add Custom Logic"="添加自定义逻辑"
 "Show Negative Peak Value"="显示负峰值"
 "Stack"="堆叠"
