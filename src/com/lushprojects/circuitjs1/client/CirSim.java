@@ -163,7 +163,7 @@ MouseOutHandler, MouseWheelHandler {
     MenuItem scopeRemovePlotMenuItem;
     MenuItem scopeSelectYMenuItem;
     ScopePopupMenu scopePopupMenu;
-    Element sidePanelCheckboxLabel;
+    // Element sidePanelCheckboxLabel; // 已移除
    
     String lastCursorStyle;
     boolean mouseWasOverSplitter = false;
@@ -319,12 +319,10 @@ MouseOutHandler, MouseWheelHandler {
             setCanvasSize();
     }
 
-    native boolean isMobile(Element element) /*-{
-	if (!element)
-	    return false;
-	var style = getComputedStyle(element);
-	return style.display != 'none';
-    }-*/;
+    // 修改isMobile方法，改为直接检查窗口宽度
+    boolean isMobile() {
+        return Window.getClientWidth() <= 600;
+    }
     
     public void setCanvasSize(){
     	int width, height;
@@ -332,9 +330,9 @@ MouseOutHandler, MouseWheelHandler {
     	height=(int)RootLayoutPanel.get().getOffsetHeight();
     	height=height-(hideMenu?0:MENUBARHEIGHT);
 
-    	//not needed on mobile since the width of the canvas' container div is set to 100% in ths CSS file
-    	if (!isMobile(sidePanelCheckboxLabel))
-    	    width=width-VERTICALPANELWIDTH;
+    	    //not needed on mobile since the width of the canvas' container div is set to 100% in ths CSS file
+    if (!isMobile())
+    	width=width-VERTICALPANELWIDTH;
 	if (toolbarCheckItem.getState())
 	    height -= TOOLBARHEIGHT;
 
@@ -553,18 +551,7 @@ MouseOutHandler, MouseWheelHandler {
 	verticalPanel.getElement().getStyle().setBackgroundColor("#ffffff");
 	verticalPanel.getElement().addClassName("verticalPanel");
 	verticalPanel.getElement().setId("painel");
-	Element sidePanelCheckbox = DOM.createInputCheck();
-	sidePanelCheckboxLabel = DOM.createLabel();
-	sidePanelCheckboxLabel.addClassName("triggerLabel");
-	sidePanelCheckbox.setId("trigger");
-	sidePanelCheckboxLabel.setAttribute("for", "trigger" );
-	sidePanelCheckbox.addClassName("trigger");
-	Element topPanelCheckbox = DOM.createInputCheck(); 
-	Element topPanelCheckboxLabel = DOM.createLabel();
-	topPanelCheckbox.setId("toptrigger");
-	topPanelCheckbox.addClassName("toptrigger");
-	topPanelCheckboxLabel.addClassName("toptriggerlabel");
-	topPanelCheckboxLabel.setAttribute("for", "toptrigger");
+	// 移除菜单栏的折叠功能
 
 	// make buttons side by side if there's room
 	buttonPanel=(VERTICALPANELWIDTH == 166) ? new HorizontalPanel() : new VerticalPanel();
@@ -703,8 +690,7 @@ MouseOutHandler, MouseWheelHandler {
 	composeMainMenu(drawMenuBar, 1);
 	loadShortcuts();
 
-	DOM.appendChild(layoutPanel.getElement(), topPanelCheckbox);
-	DOM.appendChild(layoutPanel.getElement(), topPanelCheckboxLabel);	
+	// 移除topPanelCheckbox和topPanelCheckboxLabel的添加
 
 	toolbar = new Toolbar();
 	toolbar.setEuroResistors(euroSetting);
@@ -715,14 +701,11 @@ MouseOutHandler, MouseWheelHandler {
 	if (hideSidebar)
 	    VERTICALPANELWIDTH = 0;
 	else {
-		DOM.appendChild(layoutPanel.getElement(), sidePanelCheckbox);
-		DOM.appendChild(layoutPanel.getElement(), sidePanelCheckboxLabel);
 	    centerPanel.addEast(verticalPanel, VERTICALPANELWIDTH);
 	}
 	layoutPanel.addNorth(toolbar, TOOLBARHEIGHT);
 	layoutPanel.add(centerPanel);
 	menuBar.getElement().insertFirst(menuBar.getElement().getChild(1));
-	menuBar.getElement().getFirstChildElement().setAttribute("onclick", "document.getElementsByClassName('toptrigger')[0].checked = false");
 	RootLayoutPanel.get().add(layoutPanel);
 
 	cv =Canvas.createIfSupported();
@@ -5127,7 +5110,10 @@ MouseOutHandler, MouseWheelHandler {
     }
 
     void setToolbar() {
-	layoutPanel.setWidgetHidden(toolbar, !toolbarCheckItem.getState());
+	// 在窄屏情况下，始终显示toolbar
+	boolean isNarrowScreen = Window.getClientWidth() <= 600;
+	boolean shouldShowToolbar = isNarrowScreen || toolbarCheckItem.getState();
+	layoutPanel.setWidgetHidden(toolbar, !shouldShowToolbar);
 	setCanvasSize();
     }
 
