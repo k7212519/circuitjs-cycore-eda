@@ -64,6 +64,7 @@ import com.google.gwt.core.client.JsArray;
 import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.core.client.ScriptInjector;
 
+import com.google.gwt.dom.client.Style;
 import com.google.gwt.dom.client.Style.Unit;
 import com.google.gwt.http.client.Request;
 import com.google.gwt.http.client.RequestException;
@@ -293,7 +294,7 @@ MouseOutHandler, MouseWheelHandler {
 
             static final int MENUBARHEIGHT = 35;
     static final int TOOLBARHEIGHT = 50;
-    static int VERTICALPANELWIDTH = 166; // default
+    static int VERTICALPANELWIDTH = 140; // default
     static final int POSTGRABSQ = 25;
     static final int MINPOSTGRABSIZE = 256;
     final Timer timer = new Timer() {
@@ -539,10 +540,10 @@ MouseOutHandler, MouseWheelHandler {
 
 	int width=(int)RootLayoutPanel.get().getOffsetWidth();
 	VERTICALPANELWIDTH = width/5;
-	if (VERTICALPANELWIDTH > 166)
-	    VERTICALPANELWIDTH = 166;
-	if (VERTICALPANELWIDTH < 128)
-	    VERTICALPANELWIDTH = 128;
+	if (VERTICALPANELWIDTH > 140)
+	    VERTICALPANELWIDTH = 140;
+	if (VERTICALPANELWIDTH < 140)
+	    VERTICALPANELWIDTH = 140;
 
 	menuBar = new MenuBar();
 	menuBar.getElement().getStyle().setBackgroundColor("#1075de");
@@ -733,15 +734,29 @@ MouseOutHandler, MouseWheelHandler {
 	setToolbar(); // calls setCanvasSize()
 	centerPanel.add(cv);
 	verticalPanel.add(buttonPanel);
-	// 先添加运行/停止按钮
-	buttonPanel.add(runStopButton = new Button(Locale.LSHTML("<Strong>RUN</Strong>&nbsp;/&nbsp;Stop")));
+	// 先添加运行/停止按钮，使用SVG图标
+	runStopButton = new Button("");
+	runStopButton.addStyleName("toolbar-icon-label");
+	// 完全去除按钮的所有边框和背景样式
+	runStopButton.getElement().getStyle().setBorderWidth(0, Unit.PX);
+	runStopButton.getElement().getStyle().setBorderStyle(Style.BorderStyle.NONE);
+	runStopButton.getElement().getStyle().setBackgroundColor("transparent");
+	runStopButton.getElement().getStyle().setBackgroundImage("none");
+	runStopButton.getElement().getStyle().setProperty("boxShadow", "none");
+	runStopButton.getElement().getStyle().setProperty("outline", "none");
+	runStopButton.getElement().getStyle().setPadding(0, Unit.PX);
+	runStopButton.getElement().getStyle().setMarginTop(10, Unit.PX);
+	// 设置按钮尺寸
+	runStopButton.setHeight("100px");
+	runStopButton.setWidth("100px");
+	// 初始设置按钮图标
+	updateRunStopButtonIcon();
 	runStopButton.addClickHandler(new ClickHandler() {
 	    public void onClick(ClickEvent event) {
 		setSimRunning(!simIsRunning());
 	    }
 	});
-	runStopButton.setStylePrimaryName("topButton");
-	runStopButton.setWidth("100%");
+	buttonPanel.add(runStopButton);
 	// 再添加重置按钮
 	buttonPanel.add(resetButton = new Button(Locale.LS("Reset")));
 	resetButton.addClickHandler(new ClickHandler() {
@@ -749,8 +764,19 @@ MouseOutHandler, MouseWheelHandler {
 		resetAction();
 	    }
 	});
-	resetButton.setStylePrimaryName("topButton");
-	resetButton.setWidth("100%");
+	resetButton.getElement().getStyle().setBorderWidth(0, Unit.PX);
+	resetButton.getElement().getStyle().setProperty("background", "#FF6464");
+	resetButton.getElement().getStyle().setProperty("backgroundImage", "none");
+	resetButton.getElement().getStyle().setProperty("borderRadius", "50px");
+	resetButton.getElement().getStyle().setHeight(38, Unit.PX);
+	resetButton.getElement().getStyle().setWidth(90, Unit.PX);
+	resetButton.getElement().getStyle().setProperty("display", "flex");
+	resetButton.getElement().getStyle().setProperty("alignItems", "center");
+	resetButton.getElement().getStyle().setProperty("justifyContent", "center");
+	resetButton.getElement().getStyle().setTextAlign(Style.TextAlign.CENTER);
+	resetButton.getElement().getStyle().setMarginTop(6, Unit.PX);
+	// 初始设置复位按钮图标
+	updateResetButtonIcon();
 
 
 /*
@@ -1479,18 +1505,46 @@ MouseOutHandler, MouseWheelHandler {
     static CirSim theSim;
 
     
+    // 更新运行/停止按钮图标
+    private void updateRunStopButtonIcon() {
+        if (runStopButton == null) return;
+        
+        runStopButton.getElement().setInnerHTML("");
+        String svgContent;
+        
+                 if (simRunning) {
+             // 使用暂停图标
+             svgContent = IconResources.makeSvg(IconResources.INSTANCE.pause().getText(), 100);
+         } else {
+             // 使用播放图标
+             svgContent = IconResources.makeSvg(IconResources.INSTANCE.play().getText(), 100);
+         }
+        
+        runStopButton.getElement().setInnerHTML(svgContent);
+    }
+    
+    // 更新复位按钮图标
+    private void updateResetButtonIcon() {
+        if (resetButton == null) return;
+        
+        resetButton.getElement().setInnerHTML("");
+        String svgContent = IconResources.makeSvg(IconResources.INSTANCE.reset().getText(), 20);
+        // 在SVG图标后添加"复位"文字
+        String htmlContent = svgContent.replace("#FF6464", "white") + 
+                             "<span style='color:white; font-size:18px; margin-left:5px;'>复位</span>";
+        resetButton.getElement().setInnerHTML(htmlContent);
+    }
+    
     public void setSimRunning(boolean s) {
     	if (s) {
     	    	if (stopMessage != null)
     	    	    return;
     		simRunning = true;
-    		runStopButton.setHTML(Locale.LSHTML("<strong>RUN</strong>&nbsp;/&nbsp;Stop"));
-    		runStopButton.setStylePrimaryName("topButton");
+    		updateRunStopButtonIcon();
     		timer.scheduleRepeating(FASTTIMER);
     	} else {
     		simRunning = false;
-    		runStopButton.setHTML(Locale.LSHTML("Run&nbsp;/&nbsp;<strong>STOP</strong>"));
-    		runStopButton.setStylePrimaryName("topButton-red");
+    		updateRunStopButtonIcon();
     		timer.cancel();
 		repaint();
     	}
@@ -1851,7 +1905,7 @@ MouseOutHandler, MouseWheelHandler {
 	if (scopeMenuSelected < 0)
 	    return false;
 	if (scopeMenuSelected < scopeCount)
-	    return scopes[scopeMenuSelected] == s;
+	    return scopes[scopeMenuSelected] == s; 
 	return getNthScopeElm(scopeMenuSelected-scopeCount).elmScope == s; 
     }
     
@@ -5650,8 +5704,8 @@ MouseOutHandler, MouseWheelHandler {
     				e.cancel();
     			}
     			if (code==KEY_D) {
-    			    	menuPerformed("key", "duplicate");
-    			    	e.cancel();
+    		    	menuPerformed("key", "duplicate");
+    		    	e.cancel();
     			}
     			if (code==KEY_A) {
     				menuPerformed("key", "selectAll");
