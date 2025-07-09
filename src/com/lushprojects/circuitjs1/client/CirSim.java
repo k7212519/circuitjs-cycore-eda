@@ -553,8 +553,14 @@ MouseOutHandler, MouseWheelHandler {
 	verticalPanel.getElement().setId("painel");
 	// 移除菜单栏的折叠功能
 
-	// make buttons side by side if there's room
-	buttonPanel=(VERTICALPANELWIDTH == 166) ? new HorizontalPanel() : new VerticalPanel();
+	// 使用垂直面板排列按钮
+	buttonPanel = new VerticalPanel();
+	// 设置按钮面板水平居中
+	((VerticalPanel)buttonPanel).setHorizontalAlignment(VerticalPanel.ALIGN_CENTER);
+	// 设置面板样式，使其在父容器中居中
+	buttonPanel.getElement().getStyle().setProperty("margin", "0 auto");
+	buttonPanel.getElement().getStyle().setProperty("display", "table");
+	buttonPanel.getElement().getStyle().setWidth(80, Unit.PCT);
 
 	m = new MenuBar(true);
 	m.addItem(undoItem = menuItemWithShortcut("ccw", "Undo", Locale.LS(ctrlMetaKey + "Z"), new MyCommand("edit","undo")));
@@ -727,6 +733,16 @@ MouseOutHandler, MouseWheelHandler {
 	setToolbar(); // calls setCanvasSize()
 	centerPanel.add(cv);
 	verticalPanel.add(buttonPanel);
+	// 先添加运行/停止按钮
+	buttonPanel.add(runStopButton = new Button(Locale.LSHTML("<Strong>RUN</Strong>&nbsp;/&nbsp;Stop")));
+	runStopButton.addClickHandler(new ClickHandler() {
+	    public void onClick(ClickEvent event) {
+		setSimRunning(!simIsRunning());
+	    }
+	});
+	runStopButton.setStylePrimaryName("topButton");
+	runStopButton.setWidth("100%");
+	// 再添加重置按钮
 	buttonPanel.add(resetButton = new Button(Locale.LS("Reset")));
 	resetButton.addClickHandler(new ClickHandler() {
 	    public void onClick(ClickEvent event) {
@@ -734,12 +750,7 @@ MouseOutHandler, MouseWheelHandler {
 	    }
 	});
 	resetButton.setStylePrimaryName("topButton");
-	buttonPanel.add(runStopButton = new Button(Locale.LSHTML("<Strong>RUN</Strong>&nbsp;/&nbsp;Stop")));
-	runStopButton.addClickHandler(new ClickHandler() {
-	    public void onClick(ClickEvent event) {
-		setSimRunning(!simIsRunning());
-	    }
-	});
+	resetButton.setWidth("100%");
 
 
 /*
