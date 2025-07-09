@@ -552,6 +552,8 @@ MouseOutHandler, MouseWheelHandler {
 	verticalPanel.getElement().getStyle().setBackgroundColor("#ffffff");
 	verticalPanel.getElement().addClassName("verticalPanel");
 	verticalPanel.getElement().setId("painel");
+	// 设置垂直面板内容水平居中
+	verticalPanel.setHorizontalAlignment(VerticalPanel.ALIGN_CENTER);
 	// 移除菜单栏的折叠功能
 
 	// 使用垂直面板排列按钮
@@ -795,16 +797,23 @@ MouseOutHandler, MouseWheelHandler {
 	l.addStyleName("topSpace");
 
 	// was max of 140
-	verticalPanel.add( speedBar = new Scrollbar(Scrollbar.HORIZONTAL, 3, 1, 0, 260));
+	speedBar = new Scrollbar(Scrollbar.HORIZONTAL, 3, 1, 0, 260);
+	// 设置滑动条宽度为固定比例
+	speedBar.setWidth(VERTICALPANELWIDTH * 0.9 + "px");
+	verticalPanel.add(speedBar);
 
 	verticalPanel.add( l = new Label(Locale.LS("Current Speed")));
 	l.addStyleName("topSpace");
 	currentBar = new Scrollbar(Scrollbar.HORIZONTAL, 50, 1, 1, 100);
+	// 设置滑动条宽度为固定比例
+	currentBar.setWidth(VERTICALPANELWIDTH * 0.9 + "px");
 	verticalPanel.add(currentBar);
 	verticalPanel.add(powerLabel = new Label (Locale.LS("Power Brightness")));
 	powerLabel.addStyleName("topSpace");
-	verticalPanel.add(powerBar = new Scrollbar(Scrollbar.HORIZONTAL,
-		50, 1, 1, 100));
+	powerBar = new Scrollbar(Scrollbar.HORIZONTAL, 50, 1, 1, 100);
+	// 设置滑动条宽度为固定比例
+	powerBar.setWidth(VERTICALPANELWIDTH * 0.9 + "px");
+	verticalPanel.add(powerBar);
 	setPowerBarEnable();
 
 	//	verticalPanel.add(new Label(""));
@@ -813,6 +822,7 @@ MouseOutHandler, MouseWheelHandler {
 	l.addStyleName("topSpace");
 	//        l.setFont(f);
 	titleLabel = new Label("Label");
+	titleLabel.getElement().getStyle().setTextAlign(Style.TextAlign.CENTER);
 	//        titleLabel.setFont(f);
 	verticalPanel.add(l);
 	verticalPanel.add(titleLabel);
@@ -1805,7 +1815,7 @@ MouseOutHandler, MouseWheelHandler {
 	if (stopMessage == null && scopeCount == 0) {
 	    leftX = max(canvasWidth-infoWidth, 0);
 	    int h0 = (int) (canvasHeight * scopeHeightFraction);
-	    h = (mouseElm == null) ? 70 : h0;
+	    h = (mouseElm == null) ? 80 : h0;
 	    if (hideInfoBox)
 		h = 0;
 	}
