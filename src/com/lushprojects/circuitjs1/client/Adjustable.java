@@ -84,6 +84,7 @@ public class Adjustable implements Command {
     void createSlider(CirSim sim, double value) {
         sim.addWidgetToVerticalPanel(label = new Label(Locale.LS(sliderText)));
         label.addStyleName("topSpace");
+        label.addStyleName("sliderLabel");
         int intValue = (int) ((value-minValue)*100/(maxValue-minValue));
         sim.addWidgetToVerticalPanel(slider = new Scrollbar(Scrollbar.HORIZONTAL, intValue, 1, 0, 101, this, elm));
     }

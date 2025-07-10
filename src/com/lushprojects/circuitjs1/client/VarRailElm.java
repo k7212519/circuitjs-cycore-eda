@@ -51,6 +51,7 @@ import com.google.gwt.event.dom.client.MouseWheelHandler;
 	    waveform = WF_VAR;
 	    sim.addWidgetToVerticalPanel(label = new Label(Locale.LS(sliderText)));
 	    label.addStyleName("topSpace");
+	    label.addStyleName("sliderLabel");
 	    int value = (int) ((frequency-bias)*100/(maxVoltage-bias));
 	    sim.addWidgetToVerticalPanel(slider = new Scrollbar(Scrollbar.HORIZONTAL, value, 1, 0, 101 ,
 	    		null, this));

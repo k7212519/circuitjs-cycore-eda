@@ -795,24 +795,21 @@ MouseOutHandler, MouseWheelHandler {
 	Label l;
 	verticalPanel.add(l = new Label(Locale.LS("Simulation Speed")));
 	l.addStyleName("topSpace");
+	l.addStyleName("sliderLabel");
 
 	// was max of 140
 	speedBar = new Scrollbar(Scrollbar.HORIZONTAL, 3, 1, 0, 260);
-	// 设置滑动条宽度为固定比例
-	speedBar.setWidth(VERTICALPANELWIDTH * 0.9 + "px");
 	verticalPanel.add(speedBar);
 
 	verticalPanel.add( l = new Label(Locale.LS("Current Speed")));
 	l.addStyleName("topSpace");
+	l.addStyleName("sliderLabel");
 	currentBar = new Scrollbar(Scrollbar.HORIZONTAL, 50, 1, 1, 100);
-	// 设置滑动条宽度为固定比例
-	currentBar.setWidth(VERTICALPANELWIDTH * 0.9 + "px");
 	verticalPanel.add(currentBar);
 	verticalPanel.add(powerLabel = new Label (Locale.LS("Power Brightness")));
 	powerLabel.addStyleName("topSpace");
+	powerLabel.addStyleName("sliderLabel");
 	powerBar = new Scrollbar(Scrollbar.HORIZONTAL, 50, 1, 1, 100);
-	// 设置滑动条宽度为固定比例
-	powerBar.setWidth(VERTICALPANELWIDTH * 0.9 + "px");
 	verticalPanel.add(powerBar);
 	setPowerBarEnable();
 
@@ -820,6 +817,7 @@ MouseOutHandler, MouseWheelHandler {
 	//        Font f = new Font("SansSerif", 0, 10);
 	l = new Label(Locale.LS("Current Circuit:"));
 	l.addStyleName("topSpace");
+	l.addStyleName("sliderLabel");
 	//        l.setFont(f);
 	titleLabel = new Label("Label");
 	titleLabel.getElement().getStyle().setTextAlign(Style.TextAlign.CENTER);
@@ -1440,7 +1438,6 @@ MouseOutHandler, MouseWheelHandler {
 //    		GWT.log("Coudn't create class: "+t);
     	//	} catch (Exception ee) {
     	//	    ee.printStackTrace();
-    	//	}
     	if (shortcut=="")
     		mi= new CheckboxMenuItem(s);
     	else

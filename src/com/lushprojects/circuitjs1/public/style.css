@@ -33,6 +33,12 @@
     height: 100%; /* 让表格高度填满父容器 */
 }
 
+/* 滑块标题样式 */
+.sliderLabel {
+    font-size: 14px;
+    color: #8c3030;
+}
+
 /* General styles */
 html, body {
     height: 100%;

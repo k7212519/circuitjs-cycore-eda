@@ -56,8 +56,8 @@ public class Scrollbar extends  Composite implements
 	MouseWheelHandler, TouchStartHandler, TouchCancelHandler, TouchEndHandler, TouchMoveHandler {
 	
 	static int HORIZONTAL =1;
-	static int HMARGIN=2;
-	static int SCROLLHEIGHT=14;
+	static int HMARGIN=2; // 保持小边距
+	static int SCROLLHEIGHT=18; // 增加高度以容纳更大的半圆
 	static int BARWIDTH=3;
 	static int BARMARGIN=3;
 
@@ -78,10 +78,14 @@ public class Scrollbar extends  Composite implements
 		val=value;
 		 pan = new VerticalPanel();
 		can = Canvas.createIfSupported();
-		can.setWidth((CirSim.VERTICALPANELWIDTH)+" px");
+		// 设置Canvas宽度为容器宽度的90%
+		int canvasWidth = (int)(CirSim.VERTICALPANELWIDTH * 0.9);
+		can.setWidth(canvasWidth + " px");
 		can.setHeight("40 px");
-		can.setCoordinateSpaceWidth(CirSim.VERTICALPANELWIDTH);
+		can.setCoordinateSpaceWidth(canvasWidth);
 		can.setCoordinateSpaceHeight(SCROLLHEIGHT);
+		// 设置滑块容器水平居中
+		pan.setHorizontalAlignment(VerticalPanel.ALIGN_CENTER);
 		pan.add(can);
 		g=can.getContext2d();
 		g.setFillStyle("#ffffff");
@@ -116,54 +120,91 @@ public class Scrollbar extends  Composite implements
 	}
 	
 	void draw() {
-		if (enabled)
-			g.setStrokeStyle("#000000");
-		else
-			g.setStrokeStyle("lightgrey");
-		g.setLineWidth(1.0);
-		g.fillRect(0,0,CirSim.VERTICALPANELWIDTH,SCROLLHEIGHT);
-		g.beginPath();
-		g.moveTo(HMARGIN+SCROLLHEIGHT-3, 0);
-		g.lineTo(HMARGIN, SCROLLHEIGHT/2);
-		g.lineTo(HMARGIN+SCROLLHEIGHT-3, SCROLLHEIGHT);
-		g.moveTo(CirSim.VERTICALPANELWIDTH-HMARGIN-SCROLLHEIGHT+3, 0);
-		g.lineTo(CirSim.VERTICALPANELWIDTH-HMARGIN, SCROLLHEIGHT/2);
-		g.lineTo(CirSim.VERTICALPANELWIDTH-HMARGIN-SCROLLHEIGHT+3, SCROLLHEIGHT);
-		g.stroke();
-		if (enabled)
-			g.setStrokeStyle("grey");
-		g.beginPath();
-		g.setLineWidth(5.0);
-		g.moveTo(HMARGIN+SCROLLHEIGHT+BARMARGIN, SCROLLHEIGHT/2);
-		g.lineTo(CirSim.VERTICALPANELWIDTH-HMARGIN-SCROLLHEIGHT-BARMARGIN, SCROLLHEIGHT/2);
-		g.stroke();
-		double p=HMARGIN+SCROLLHEIGHT+BARMARGIN+((CirSim.VERTICALPANELWIDTH-2*(HMARGIN+SCROLLHEIGHT+BARMARGIN))*((double)(val-min)))/(max-min);
-		if (enabled) {
-			if (attachedElm!=null && attachedElm.needsHighlight())
-				g.setStrokeStyle(CircuitElm.selectColor.getHexValue());
-			else
-				g.setStrokeStyle("red");
-			g.beginPath();
-			g.moveTo(HMARGIN+SCROLLHEIGHT+BARMARGIN, SCROLLHEIGHT/2);
-			g.lineTo(p, SCROLLHEIGHT/2);
-			g.stroke();
-			g.setStrokeStyle("#000000");
-//			g.beginPath();
-//			g.moveTo(p, 0);
-//			g.lineTo(p, SCROLLHEIGHT);
-			g.setLineWidth(2.0);
-			g.fillRect(p-2, 2, 5, SCROLLHEIGHT-4);
-			g.strokeRect(p-2, 2, 5, SCROLLHEIGHT-4);
-//			g.stroke();
-		}
-
-
+		// 获取Canvas的实际宽度
+		int canvasWidth = can.getCoordinateSpaceWidth();
 		
+		// 清空画布背景
+		g.setFillStyle("#ffffff");
+		g.fillRect(0, 0, canvasWidth, SCROLLHEIGHT);
+		
+		// 定义滑块条的参数
+		int yCenter = SCROLLHEIGHT / 2;
+		int barHeight = 8; // 滑块条高度
+		int radius = barHeight / 2; // 圆角半径
+		
+		// 计算滑块位置
+		double p = HMARGIN + ((canvasWidth-2*HMARGIN)*((double)(val-min)))/(max-min);
+		
+		// 绘制灰色背景滑块条（带圆角）
+		if (enabled)
+			g.setFillStyle("grey");
+		else
+			g.setFillStyle("lightgrey");
+			
+		// 绘制主体矩形部分
+		g.fillRect(HMARGIN + radius, yCenter - radius, canvasWidth - 2*HMARGIN - 2*radius, barHeight);
+		
+		// 绘制左圆角
+		g.beginPath();
+		g.arc(HMARGIN + radius, yCenter, radius, 0, 2 * Math.PI, false);
+		g.fill();
+		
+		// 绘制右圆角
+		g.beginPath();
+		g.arc(canvasWidth - HMARGIN - radius, yCenter, radius, 0, 2 * Math.PI, false);
+		g.fill();
+		
+		// 绘制彩色已滑动部分（带圆角）
+		if (enabled && p > HMARGIN) {
+			if (attachedElm != null && attachedElm.needsHighlight())
+				g.setFillStyle(CircuitElm.selectColor.getHexValue());
+			else
+				g.setFillStyle("#FF6E6E");
+			
+			// 只绘制到滑块位置
+			double fillWidth = p - HMARGIN;
+			
+			// 如果宽度大于直径，绘制矩形部分
+			if (fillWidth > 2 * radius) {
+				g.fillRect(HMARGIN + radius, yCenter - radius, fillWidth - 2*radius, barHeight);
+				
+				// 绘制左圆角
+				g.beginPath();
+				g.arc(HMARGIN + radius, yCenter, radius, 0, 2 * Math.PI, false);
+				g.fill();
+				
+				// 如果滑块未到最右端，则绘制右边的半圆
+				if (p < canvasWidth - HMARGIN) {
+					g.beginPath();
+					g.arc(p, yCenter, radius, 0, 2 * Math.PI, false);
+					g.fill();
+				}
+			} else {
+				// 宽度很小时只绘制部分圆形
+				g.beginPath();
+				g.arc(HMARGIN + radius, yCenter, radius, 0, 2 * Math.PI, false);
+				g.fill();
+			}
+		}
+		
+		// 绘制滑块指示器
+		g.setStrokeStyle("#000000");
+		g.setFillStyle("#000000");
+		g.setLineWidth(1.0);
+		
+		int indicatorWidth = 5;
+		int indicatorHeight = SCROLLHEIGHT - 6;
+		g.fillRect(p-indicatorWidth/2, (SCROLLHEIGHT-indicatorHeight)/2, indicatorWidth, indicatorHeight);
+		g.strokeRect(p-indicatorWidth/2, (SCROLLHEIGHT-indicatorHeight)/2, indicatorWidth, indicatorHeight);
 	}
 	
 	int calcValueFromPos(int x){
 		int v;
-		v= min+(max-min)*(x-HMARGIN-SCROLLHEIGHT-BARMARGIN)/(CirSim.VERTICALPANELWIDTH-2*(HMARGIN+SCROLLHEIGHT+BARMARGIN));
+		// 获取Canvas的实际宽度
+		int canvasWidth = can.getCoordinateSpaceWidth();
+		
+		// 调整值的计算方式，与滑块条宽度一致
+		v= min+(max-min)*(x-HMARGIN)/(canvasWidth-2*HMARGIN);
 		if (v<min)
 			v=min;
 		if (v>max)
@@ -180,25 +221,14 @@ public class Scrollbar extends  Composite implements
 	
 	void doMouseDown(int x, boolean mouse) {
 	    if (enabled){
-		if (x < HMARGIN+SCROLLHEIGHT ) {
-		    if (val>min)
-			val--;
-		}
-		else {
-		    if (x > CirSim.VERTICALPANELWIDTH-HMARGIN-SCROLLHEIGHT ) {
-			if (val<max)
-			    val++;
-		    }
-		    else {
-			val=calcValueFromPos(x);	
-			dragging=true;
-			
-			// setCapture doesn't work on touch for some reason; touchend/touchmoved events
-			// don't get sent
-			if (mouse)
-			    Event.setCapture(can.getElement());
-		    }
-		}
+		// 去掉左右箭头区域的点击处理
+		val=calcValueFromPos(x);	
+		dragging=true;
+		
+		// setCapture doesn't work on touch for some reason; touchend/touchmoved events
+		// don't get sent
+		if (mouse)
+		    Event.setCapture(can.getElement());
 		draw();
 		if (command!=null)
 		    command.execute();
