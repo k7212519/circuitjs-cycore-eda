@@ -610,6 +610,7 @@ MouseOutHandler, MouseWheelHandler {
 		    if (voltsCheckItem.getState())
 			powerCheckItem.setState(false);
 		    setPowerBarEnable();
+		    setiFrameHeight(); // 重新调整界面布局
 		}
 	}));
 	voltsCheckItem.setState(true);
@@ -618,6 +619,7 @@ MouseOutHandler, MouseWheelHandler {
 		    if (powerCheckItem.getState())
 			voltsCheckItem.setState(false);
 		    setPowerBarEnable();
+		    setiFrameHeight(); // 重新调整界面布局
 		}
 	}));
 	m.addItem(showValuesCheckItem = new CheckboxMenuItem(Locale.LS("Show Values")));
@@ -806,10 +808,13 @@ MouseOutHandler, MouseWheelHandler {
 	l.addStyleName("sliderLabel");
 	currentBar = new Scrollbar(Scrollbar.HORIZONTAL, 50, 1, 1, 100);
 	verticalPanel.add(currentBar);
-	verticalPanel.add(powerLabel = new Label (Locale.LS("Power Brightness")));
+	powerLabel = new Label (Locale.LS("Power Brightness"));
 	powerLabel.addStyleName("topSpace");
 	powerLabel.addStyleName("sliderLabel");
 	powerBar = new Scrollbar(Scrollbar.HORIZONTAL, 50, 1, 1, 100);
+	
+	// 先添加到面板，再调用setPowerBarEnable()确定是否显示
+	verticalPanel.add(powerLabel);
 	verticalPanel.add(powerBar);
 	setPowerBarEnable();
 
@@ -818,11 +823,17 @@ MouseOutHandler, MouseWheelHandler {
 	l = new Label(Locale.LS("Current Circuit:"));
 	l.addStyleName("topSpace");
 	l.addStyleName("sliderLabel");
+	// 设置宽度为垂直面板宽度的90%
+	l.getElement().getStyle().setWidth(90, Unit.PCT);
+	l.getElement().getStyle().setProperty("margin", "20px auto 8px");
 	//        l.setFont(f);
 	titleLabel = new Label("Label");
 	titleLabel.getElement().getStyle().setTextAlign(Style.TextAlign.CENTER);
 	titleLabel.getElement().setId("titleLabel");
 	titleLabel.getElement().getStyle().setColor("#B74F4F"); // 设置颜色为#B74F4F
+	// 设置宽度为垂直面板宽度的90%
+	titleLabel.getElement().getStyle().setWidth(90, Unit.PCT);
+	titleLabel.getElement().getStyle().setProperty("margin", "10px auto");
 	//        titleLabel.setFont(f);
 	verticalPanel.add(l);
 	verticalPanel.add(titleLabel);
@@ -5165,10 +5176,15 @@ MouseOutHandler, MouseWheelHandler {
     
     void setPowerBarEnable() {
     	if (powerCheckItem.getState()) {
+    	    // 显示功率亮度滑块和标签
+    	    powerLabel.setVisible(true);
+    	    powerBar.setVisible(true);
     	    powerLabel.setStyleName("disabled", false);
     	    powerBar.enable();
     	} else {
-    	    powerLabel.setStyleName("disabled", true);
+    	    // 隐藏功率亮度滑块和标签
+    	    powerLabel.setVisible(false);
+    	    powerBar.setVisible(false);
     	    powerBar.disable();
     	}
     }
