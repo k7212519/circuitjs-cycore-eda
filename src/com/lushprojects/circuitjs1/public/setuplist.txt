@@ -7,6 +7,15 @@ variable-res.txt Lesson4 可变电阻
 cap-charge.txt Lesson5 电容充放电
 >cd4017-counter.txt Lesson6 CD4017十进制计数芯片
 digital-tube.txt Lesson7 七段数码管
+cd4026-decoder.txt Lesson8 译码器芯片
+ne555-led-flash.txt Lesson9 时基芯片闪烁灯
+electronic-keyboard.txt Lesson10 电子琴
+diode-bridge-rectifier.txt Lesson11 二极管整流桥
+triode-switch.txt Lesson12 三极管开关电路
+triode-amplifiers.txt Lesson13 三极管放大器
+photocontrolled-led.txt Lesson14 光敏电阻光控灯
+Infra-emi-ont.txt Lesson15 红外发射接收模拟
+
 -
 +少年芯 L2
 74LS11-triple-input-and-gates.txt 74LS11 Triple Input AND Gates Example
