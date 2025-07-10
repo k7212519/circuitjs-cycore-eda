@@ -57,7 +57,7 @@ public class Scrollbar extends  Composite implements
 	
 	static int HORIZONTAL =1;
 	static int HMARGIN=2; // 保持小边距
-	static int SCROLLHEIGHT=18; // 增加高度以容纳更大的半圆
+	static int SCROLLHEIGHT=20; // 大幅增加滑条容器高度
 	static int BARWIDTH=3;
 	static int BARMARGIN=3;
 
@@ -81,7 +81,7 @@ public class Scrollbar extends  Composite implements
 		// 设置Canvas宽度为容器宽度的90%
 		int canvasWidth = (int)(CirSim.VERTICALPANELWIDTH * 0.9);
 		can.setWidth(canvasWidth + " px");
-		can.setHeight("40 px");
+		can.setHeight("50 px"); // 增加显示高度
 		can.setCoordinateSpaceWidth(canvasWidth);
 		can.setCoordinateSpaceHeight(SCROLLHEIGHT);
 		// 设置滑块容器水平居中
@@ -129,7 +129,7 @@ public class Scrollbar extends  Composite implements
 		
 		// 定义滑块条的参数
 		int yCenter = SCROLLHEIGHT / 2;
-		int barHeight = 8; // 滑块条高度
+		int barHeight = 8; // 增加滑块条高度
 		int radius = barHeight / 2; // 圆角半径
 		
 		// 计算滑块位置
@@ -187,15 +187,40 @@ public class Scrollbar extends  Composite implements
 			}
 		}
 		
-		// 绘制滑块指示器
-		g.setStrokeStyle("#000000");
-		g.setFillStyle("#000000");
-		g.setLineWidth(1.0);
+		// 绘制滑块指示器 - 圆角滑块，尺寸更大
+		g.setFillStyle("#105DAD");
+		// 移除所有描边，避免产生阴影效果
 		
-		int indicatorWidth = 5;
-		int indicatorHeight = SCROLLHEIGHT - 6;
-		g.fillRect(p-indicatorWidth/2, (SCROLLHEIGHT-indicatorHeight)/2, indicatorWidth, indicatorHeight);
-		g.strokeRect(p-indicatorWidth/2, (SCROLLHEIGHT-indicatorHeight)/2, indicatorWidth, indicatorHeight);
+		int indicatorWidth = 10; // 进一步增大宽度，与新的高度保持比例
+		int indicatorHeight = SCROLLHEIGHT; // 最大化高度，占据整个滑块区域
+		int cornerRadius = Math.min(indicatorWidth / 2, indicatorHeight / 2); // 圆角半径取宽高一半的较小值
+		int x = (int)(p - indicatorWidth/2);
+		int y = 0; // 从顶部开始，占满整个高度
+		
+		// 绘制放大后的圆角滑块
+		// 由于滑块现在占满整个高度，我们需要采用不同的绘制方法
+		
+		// 使用路径绘制整个圆角矩形
+		g.beginPath();
+		// 开始绘制左上角圆弧
+		g.arc(x + cornerRadius, y + cornerRadius, cornerRadius, Math.PI, 1.5 * Math.PI, false);
+		// 绘制顶部线
+		g.lineTo(x + indicatorWidth - cornerRadius, y);
+		// 绘制右上角圆弧
+		g.arc(x + indicatorWidth - cornerRadius, y + cornerRadius, cornerRadius, 1.5 * Math.PI, 0, false);
+		// 绘制右侧线
+		g.lineTo(x + indicatorWidth, y + indicatorHeight - cornerRadius);
+		// 绘制右下角圆弧
+		g.arc(x + indicatorWidth - cornerRadius, y + indicatorHeight - cornerRadius, cornerRadius, 0, 0.5 * Math.PI, false);
+		// 绘制底部线
+		g.lineTo(x + cornerRadius, y + indicatorHeight);
+		// 绘制左下角圆弧
+		g.arc(x + cornerRadius, y + indicatorHeight - cornerRadius, cornerRadius, 0.5 * Math.PI, Math.PI, false);
+		// 闭合路径
+		g.closePath();
+		// 填充整个路径
+		g.fill();
+		// 不添加任何描边，确保没有阴影效果
 	}
 	
 	int calcValueFromPos(int x){
