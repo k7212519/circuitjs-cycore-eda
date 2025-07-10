@@ -821,6 +821,8 @@ MouseOutHandler, MouseWheelHandler {
 	//        l.setFont(f);
 	titleLabel = new Label("Label");
 	titleLabel.getElement().getStyle().setTextAlign(Style.TextAlign.CENTER);
+	titleLabel.getElement().setId("titleLabel");
+	titleLabel.getElement().getStyle().setColor("#B74F4F"); // 设置颜色为#B74F4F
 	//        titleLabel.setFont(f);
 	verticalPanel.add(l);
 	verticalPanel.add(titleLabel);
@@ -1614,15 +1616,21 @@ MouseOutHandler, MouseWheelHandler {
         Graphics g = new Graphics(cvcontext);
 
         if (printableCheckItem.getState()) {
+            // 白色背景模式
             CircuitElm.whiteColor = Color.black;
             CircuitElm.lightGrayColor = Color.black;
             g.setColor(Color.white);
             cv.getElement().getStyle().setBackgroundColor("#fff");
+            verticalPanel.getElement().getStyle().setBackgroundColor("#ffffff");
+            verticalPanel.getElement().removeClassName("dark-background");
         } else {
+            // 黑色背景模式
             CircuitElm.whiteColor = Color.white;
             CircuitElm.lightGrayColor = Color.lightGray;
             g.setColor(Color.black);
             cv.getElement().getStyle().setBackgroundColor("#000");
+            verticalPanel.getElement().getStyle().setBackgroundColor("#000000");
+            verticalPanel.getElement().addClassName("dark-background");
         }
 
         // Clear the frame

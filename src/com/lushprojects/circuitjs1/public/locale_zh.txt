@@ -938,7 +938,7 @@
 "Zoom 100%"="缩放100%"
 "Zoom In"="放大"
 "Zoom Out"="缩小"
-"Current Circuit:"="目前电路:"
+"Current Circuit:"="目前电路"
 "Swap Secondary Polarity"="交换中等极性"
 "Light Bulb"="灯泡"
 "Import from Text"="从文本导入"

@@ -88,7 +88,6 @@ public class Scrollbar extends  Composite implements
 		pan.setHorizontalAlignment(VerticalPanel.ALIGN_CENTER);
 		pan.add(can);
 		g=can.getContext2d();
-		g.setFillStyle("#ffffff");
 		can.addClickHandler( this);
 		can.addMouseDownHandler(this);
 		can.addMouseUpHandler(this);
@@ -123,9 +122,8 @@ public class Scrollbar extends  Composite implements
 		// 获取Canvas的实际宽度
 		int canvasWidth = can.getCoordinateSpaceWidth();
 		
-		// 清空画布背景
-		g.setFillStyle("#ffffff");
-		g.fillRect(0, 0, canvasWidth, SCROLLHEIGHT);
+		// 清空画布背景，使用透明色
+		g.clearRect(0, 0, canvasWidth, SCROLLHEIGHT);
 		
 		// 定义滑块条的参数
 		int yCenter = SCROLLHEIGHT / 2;
@@ -194,7 +192,27 @@ public class Scrollbar extends  Composite implements
 		int indicatorWidth = 10; // 进一步增大宽度，与新的高度保持比例
 		int indicatorHeight = SCROLLHEIGHT; // 最大化高度，占据整个滑块区域
 		int cornerRadius = Math.min(indicatorWidth / 2, indicatorHeight / 2); // 圆角半径取宽高一半的较小值
-		int x = (int)(p - indicatorWidth/2);
+		
+		// 调整滑块位置，确保在两端时不会超出边界
+		int x;
+		if (val == min) {
+			// 在最小值位置，滑块左侧与滑条左侧对齐
+			x = HMARGIN;
+		} else if (val == max) {
+			// 在最大值位置，滑块右侧与滑条右侧对齐
+			x = canvasWidth - HMARGIN - indicatorWidth;
+		} else {
+			// 正常位置，根据比例计算
+			x = (int)(p - indicatorWidth/2);
+			
+			// 确保滑块不会超出左右边界
+			if (x < HMARGIN) {
+				x = HMARGIN;
+			} else if (x + indicatorWidth > canvasWidth - HMARGIN) {
+				x = canvasWidth - HMARGIN - indicatorWidth;
+			}
+		}
+		
 		int y = 0; // 从顶部开始，占满整个高度
 		
 		// 绘制放大后的圆角滑块
@@ -228,12 +246,28 @@ public class Scrollbar extends  Composite implements
 		// 获取Canvas的实际宽度
 		int canvasWidth = can.getCoordinateSpaceWidth();
 		
-		// 调整值的计算方式，与滑块条宽度一致
-		v= min+(max-min)*(x-HMARGIN)/(canvasWidth-2*HMARGIN);
-		if (v<min)
-			v=min;
-		if (v>max)
-			v=max;
+		// 计算滑块指示器宽度
+		int indicatorWidth = 10;
+		
+		// 为滑块指示器的宽度保留空间，调整滑块条的有效宽度
+		int effectiveWidth = canvasWidth - 2*HMARGIN;
+		
+		// 限制点击位置在有效范围内
+		if (x < HMARGIN) {
+			x = HMARGIN;
+		} else if (x > canvasWidth - HMARGIN) {
+			x = canvasWidth - HMARGIN;
+		}
+		
+		// 根据点击位置计算值
+		v = min + (max-min) * (x-HMARGIN) / effectiveWidth;
+		
+		// 确保值在范围内
+		if (v < min)
+			v = min;
+		if (v > max)
+			v = max;
+			
 		return v;
 	}
 	

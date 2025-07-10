@@ -36,7 +36,26 @@
 /* 滑块标题样式 */
 .sliderLabel {
     font-size: 14px;
-    color: #8c3030;
+    color: #FF6E6E;
+}
+
+/* 顶部间距样式，用于添加元素上方的边距 */
+.topSpace {
+    margin-top: 18px;
+}
+
+/* 黑色背景模式下的样式调整 */
+.dark-background .gwt-Label {
+    color: white;
+}
+
+.dark-background .sliderLabel {
+    color: #FF6E6E;
+}
+
+/* 确保电路标题在黑色背景下也能正确显示 */
+.dark-background #titleLabel {
+    color: #FF6E6E;
 }
 
 /* General styles */
