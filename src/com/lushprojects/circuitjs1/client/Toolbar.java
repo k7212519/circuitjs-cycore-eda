@@ -25,7 +25,7 @@ public class Toolbar extends HorizontalPanel {
         style.setPadding(2, Style.Unit.PX);
         style.setDisplay(Style.Display.FLEX);
         setVerticalAlignment(ALIGN_MIDDLE);
-        getElement().getStyle().setBackgroundColor("#1075de");
+        getElement().getStyle().setBackgroundColor(CirSim.COLOR_BLUE);
 
         add(createIconButton(IconResources.INSTANCE.select().getText(), "Select/Drag", new MyCommand("main", "select")));
         add(createIconButton(IconResources.INSTANCE.undo().getText(), "Undo", new MyCommand("edit", "undo")));
@@ -190,7 +190,7 @@ public class Toolbar extends HorizontalPanel {
         Style paletteStyle = paletteContainer.getElement().getStyle();
         paletteStyle.setPosition(Style.Position.ABSOLUTE);
         paletteStyle.setZIndex(1000); // High z-index to appear on top
-        paletteStyle.setBackgroundColor("#ffffff");
+        paletteStyle.setBackgroundColor(CirSim.COLOR_WHITE);
         paletteStyle.setBorderWidth(1, Style.Unit.PX);
         paletteStyle.setBorderColor("#ccc");
         paletteStyle.setBorderStyle(Style.BorderStyle.SOLID);

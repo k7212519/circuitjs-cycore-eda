@@ -112,6 +112,12 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 ClickHandler, DoubleClickHandler, ContextMenuHandler, NativePreviewHandler,
 MouseOutHandler, MouseWheelHandler {
 
+    // 颜色常量定义
+    public static final String COLOR_BLUE = "#1075de";
+    public static final String COLOR_WHITE = "#ffffff";
+    public static final String COLOR_BLACK = "#000000";
+    public static final String COLOR_DARK_BG = "#303030";
+    
     Random random;
     Button resetButton;
     Button runStopButton;
@@ -140,6 +146,7 @@ MouseOutHandler, MouseWheelHandler {
     private Scrollbar speedBar;
     private Scrollbar currentBar;
     private Scrollbar powerBar;
+    private FlowPanel logoPanel;
     MenuBar elmMenuBar;
     MenuItem elmEditMenuItem;
     MenuItem elmCutMenuItem;
@@ -471,12 +478,12 @@ MouseOutHandler, MouseWheelHandler {
 
 	layoutPanel = new DockLayoutPanel(Unit.PX);
 
-	FlowPanel logoPanel = new FlowPanel();
+	logoPanel = new FlowPanel();
 	logoPanel.setStyleName("logo-panel");
 	logoPanel.getElement().getStyle().setDisplay(com.google.gwt.dom.client.Style.Display.FLEX);
 		logoPanel.getElement().getStyle().setProperty("alignItems", "center");
 	logoPanel.getElement().getStyle().setHeight(100, Unit.PCT);
-	logoPanel.getElement().getStyle().setBackgroundColor("#1075de");  //顶部logo和标题的父容器背景颜色
+	logoPanel.getElement().getStyle().setBackgroundColor(COLOR_BLUE);  //顶部logo和标题的父容器背景颜色
 
 	Image logo = new Image("/circuitjs1/img/subcircuits/cycore-logo.png");
 	logo.setStyleName("logo-image");
@@ -500,7 +507,7 @@ MouseOutHandler, MouseWheelHandler {
 	    fileMenuBar.addItem(menuItemWithShortcut("window", "New Window...", Locale.LS(ctrlMetaKey + "N"),
 		    new MyCommand("file", "newwindow")));
 	
-	fileMenuBar.addItem(iconMenuItem("doc-new", "New Blank Circuit", new MyCommand("file", "newblankcircuit")));
+	fileMenuBar.addItem(iconMenuItem("doc-new", "New Blank Circuit", new MyCommand("file","newblankcircuit")));
 	importFromLocalFileItem = menuItemWithShortcut("folder", "Open File...", Locale.LS(ctrlMetaKey + "O"),
 		new MyCommand("file","importfromlocalfile"));
 	importFromLocalFileItem.setEnabled(LoadFile.isSupported());
@@ -546,10 +553,10 @@ MouseOutHandler, MouseWheelHandler {
 	    VERTICALPANELWIDTH = 140;
 
 	menuBar = new MenuBar();
-	menuBar.getElement().getStyle().setBackgroundColor("#1075de");
+	menuBar.getElement().getStyle().setBackgroundColor(COLOR_BLUE);
 	menuBar.addItem(Locale.LS("File"), fileMenuBar);
 	verticalPanel=new VerticalPanel();
-	verticalPanel.getElement().getStyle().setBackgroundColor("#ffffff");
+	verticalPanel.getElement().getStyle().setBackgroundColor(COLOR_WHITE);
 	verticalPanel.getElement().addClassName("verticalPanel");
 	verticalPanel.getElement().setId("painel");
 	// 设置垂直面板内容水平居中
@@ -664,6 +671,7 @@ MouseOutHandler, MouseWheelHandler {
 		    for (i=0;i<scopeCount;i++)
 			scopes[i].setRect(scopes[i].rect);
 		    setOptionInStorage("whiteBackground", printableCheckItem.getState());
+		    updateCircuit(); // 这会更新所有UI元素的背景色
 		}
 	}));
 	printableCheckItem.setState(printable);
@@ -735,7 +743,7 @@ MouseOutHandler, MouseWheelHandler {
 	});
 
 	cvcontext=cv.getContext2d();
-	setToolbar(); // calls setCanvasSize()
+	setToolbar(); // calls setCanvasSize() and applies background colors
 	centerPanel.add(cv);
 	verticalPanel.add(buttonPanel);
 	// 先添加运行/停止按钮，使用SVG图标
@@ -1631,17 +1639,33 @@ MouseOutHandler, MouseWheelHandler {
             CircuitElm.whiteColor = Color.black;
             CircuitElm.lightGrayColor = Color.black;
             g.setColor(Color.white);
-            cv.getElement().getStyle().setBackgroundColor("#fff");
-            verticalPanel.getElement().getStyle().setBackgroundColor("#ffffff");
+            cv.getElement().getStyle().setBackgroundColor(COLOR_WHITE);
+            verticalPanel.getElement().getStyle().setBackgroundColor(COLOR_WHITE);
             verticalPanel.getElement().removeClassName("dark-background");
+            menuBar.getElement().removeClassName("dark-background");
+            
+            // 更新菜单栏和工具栏颜色
+            menuBar.getElement().getStyle().setBackgroundColor(COLOR_BLUE);
+            if (toolbar != null)
+                toolbar.getElement().getStyle().setBackgroundColor(COLOR_BLUE);
+            if (logoPanel != null)
+                logoPanel.getElement().getStyle().setBackgroundColor(COLOR_BLUE);
         } else {
             // 黑色背景模式
             CircuitElm.whiteColor = Color.white;
             CircuitElm.lightGrayColor = Color.lightGray;
             g.setColor(Color.black);
-            cv.getElement().getStyle().setBackgroundColor("#000");
-            verticalPanel.getElement().getStyle().setBackgroundColor("#000000");
+            cv.getElement().getStyle().setBackgroundColor(COLOR_BLACK);
+            verticalPanel.getElement().getStyle().setBackgroundColor(COLOR_BLACK);
             verticalPanel.getElement().addClassName("dark-background");
+            menuBar.getElement().addClassName("dark-background");
+            
+            // 更新菜单栏和工具栏颜色
+            menuBar.getElement().getStyle().setBackgroundColor(COLOR_DARK_BG);
+            if (toolbar != null)
+                toolbar.getElement().getStyle().setBackgroundColor(COLOR_DARK_BG);
+            if (logoPanel != null)
+                logoPanel.getElement().getStyle().setBackgroundColor(COLOR_DARK_BG);
         }
 
         // Clear the frame
@@ -2070,9 +2094,7 @@ MouseOutHandler, MouseWheelHandler {
 //		    cv.repaint();
 //		    return;
 //		}
-//	    }
 //	}
-//    }
     
     void needAnalyze() {
 	analyzeFlag = true;
@@ -5210,6 +5232,24 @@ MouseOutHandler, MouseWheelHandler {
 	boolean isNarrowScreen = Window.getClientWidth() <= 600;
 	boolean shouldShowToolbar = isNarrowScreen || toolbarCheckItem.getState();
 	layoutPanel.setWidgetHidden(toolbar, !shouldShowToolbar);
+	
+	// 根据当前背景模式设置颜色
+	if (shouldShowToolbar && toolbar != null) {
+	    String bgColor = printableCheckItem.getState() ? COLOR_BLUE : COLOR_DARK_BG;
+	    toolbar.getElement().getStyle().setBackgroundColor(bgColor);
+	    menuBar.getElement().getStyle().setBackgroundColor(bgColor);
+	    
+	    // 根据背景颜色设置CSS类
+	    if (printableCheckItem.getState()) {
+	        menuBar.getElement().removeClassName("dark-background");
+	    } else {
+	        menuBar.getElement().addClassName("dark-background");
+	    }
+	    
+	    if (logoPanel != null)
+	        logoPanel.getElement().getStyle().setBackgroundColor(bgColor);
+	}
+	
 	setCanvasSize();
     }
 
@@ -6502,7 +6542,7 @@ MouseOutHandler, MouseWheelHandler {
 	    	// create canvas to draw circuit into
 	    	Canvas cv = Canvas.createIfSupported();
 	    	Rectangle bounds = getCircuitBounds();
-	    	
+	    
 		// add some space on edges because bounds calculation is not perfect
 	    	int wmargin = 140;
 	    	int hmargin = 100;

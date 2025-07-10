@@ -1,7 +1,7 @@
 @charset "UTF-8";
 
 .gwt-MenuBar-horizontal {
-    background-color: #1075de !important;
+    background-color: #1075de;
     color: white !important;
     background-image: none !important;
     border: none !important;
@@ -26,7 +26,11 @@
 }
 
 .gwt-MenuBar-horizontal .gwt-MenuItem-selected {
-    background-color: #1c74c2 !important;
+    background-color: #0000003b;
+}
+
+.dark-background .gwt-MenuBar-horizontal .gwt-MenuItem-selected {
+    background-color: #1c74c2;
 }
 
 .gwt-MenuBar-horizontal table {
@@ -56,6 +60,49 @@
 /* 确保电路标题在黑色背景下也能正确显示 */
 .dark-background #titleLabel {
     color: #FF6E6E;
+}
+
+/* 黑色背景模式下的统一颜色管理 */
+.dark-background .gwt-MenuBar-horizontal {
+    background-color: #303030;
+    /* 提高CSS优先级 */
+    color: white !important;
+    background-image: none !important;
+    border: none !important;
+}
+
+.dark-background .toolbar-panel {
+    background-color: #303030 !important;
+}
+
+.dark-background .logo-panel {
+    background-color: #303030 !important;
+}
+
+/* 黑色背景模式下弹出菜单的样式 */
+.dark-background .menuPopupTopLeft, 
+.dark-background .menuPopupTopCenter, 
+.dark-background .menuPopupTopRight,
+.dark-background .menuPopupMiddleLeft, 
+.dark-background .menuPopupMiddleRight, 
+.dark-background .menuPopupMiddleCenter,
+.dark-background .menuPopupBottomLeft, 
+.dark-background .menuPopupBottomCenter, 
+.dark-background .menuPopupBottomRight {
+    background: #303030 !important;
+}
+
+.dark-background .gwt-MenuBar-vertical {
+    background-color: #303030 !important;
+    border: 1px solid #505050 !important;
+}
+
+.dark-background .gwt-MenuBar-vertical .gwt-MenuItem {
+    color: white !important;
+}
+
+.dark-background .gwt-MenuBar-vertical .gwt-MenuItem-selected {
+    background-color: #505050 !important;
 }
 
 /* General styles */
