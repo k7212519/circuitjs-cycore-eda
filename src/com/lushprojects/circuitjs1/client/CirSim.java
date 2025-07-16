@@ -6542,7 +6542,7 @@ MouseOutHandler, MouseWheelHandler {
 	    	// create canvas to draw circuit into
 	    	Canvas cv = Canvas.createIfSupported();
 	    	Rectangle bounds = getCircuitBounds();
-	    
+	    	
 		// add some space on edges because bounds calculation is not perfect
 	    	int wmargin = 140;
 	    	int hmargin = 100;

@@ -179,11 +179,11 @@ class CD4026Elm extends ChipElm {
         }
         lastClock = currentClockState; // 为下一个周期更新lastClock
         
-        // 输出使能引脚始终为高 (DEO - 引脚4)
-        writeOutput(3, true);
+        // 输出使能引脚(DEO)应该与输入使能引脚(DEI)保持一致
+        writeOutput(3, enableDisplay);
         
-        // 进位输出 (CO - 引脚5) - 当计数因 validClockEdgeForCount 从9变为0时产生高脉冲
-        writeOutput(4, counter == 0 && validClockEdgeForCount);
+        // 进位输出 (CO - 引脚5) - 当计数为0-4时输出高电平，5-9时输出低电平
+        writeOutput(4, counter <= 4);
         
         // 无门C段输出 - 当计数不为2时为高电平
         writeOutput(13, counter != 2); // 引脚14 (UCS)
