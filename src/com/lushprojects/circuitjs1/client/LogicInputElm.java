@@ -27,7 +27,7 @@ package com.lushprojects.circuitjs1.client;
 	    super(xx, yy, false);
 	    hiV = 5;
 	    loV = 0;
-	    
+	    flags |= FLAG_NUMERIC; // 默认开启数字模式
 	}
 	public LogicInputElm(int xa, int ya, int xb, int yb, int f,
 			     StringTokenizer st) {
@@ -41,6 +41,9 @@ package com.lushprojects.circuitjs1.client;
 	    }
 	    if (isTernary())
 		posCount = 3;
+	    // 兼容旧版本存档，如果flags中没有设置FLAG_NUMERIC，则默认设置
+	    if (!isNumeric())
+		flags |= FLAG_NUMERIC;
 	}
 	boolean isTernary() { return (flags & FLAG_TERNARY) != 0; }
 	boolean isNumeric() { return (flags & (FLAG_TERNARY|FLAG_NUMERIC)) != 0; }

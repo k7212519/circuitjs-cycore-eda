@@ -29,6 +29,21 @@ class CD4026Elm extends ChipElm {
      */
     boolean usePinNames() { return (flags & FLAG_NUMBERS) == 0; }
     
+    /**
+     * 在芯片下方绘制芯片型号标签
+     */
+    @Override
+    void drawLabel(Graphics g, int x, int y) {
+        g.save();
+        g.setColor(Color.white);
+        g.setFont(new Font("SansSerif", 0, 7*csize));
+        g.context.setTextBaseline("middle");
+        g.context.setTextAlign("center");
+        // 在芯片下方绘制型号标签
+        g.drawString("CD4026", x, y + 76*csize);
+        g.restore();
+    }
+    
     // 芯片的当前计数值(0-9)
     private int counter;
     // 上一个时钟状态

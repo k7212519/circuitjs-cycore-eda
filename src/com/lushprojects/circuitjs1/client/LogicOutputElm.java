@@ -28,6 +28,7 @@ package com.lushprojects.circuitjs1.client;
 	public LogicOutputElm(int xx, int yy) {
 	    super(xx, yy);
 	    threshold = 2.5;
+	    flags |= FLAG_NUMERIC; // 默认开启数字模式
 	}
 	public LogicOutputElm(int xa, int ya, int xb, int yb, int f,
 			      StringTokenizer st) {
@@ -37,6 +38,9 @@ package com.lushprojects.circuitjs1.client;
 	    } catch (Exception e) {
 		threshold = 2.5;
 	    }
+	    // 兼容旧版本存档，如果flags中没有设置FLAG_NUMERIC，则默认设置
+	    if (!isNumeric())
+		flags |= FLAG_NUMERIC;
 	}
 	String dump() {
 	    return super.dump() + " " + threshold;

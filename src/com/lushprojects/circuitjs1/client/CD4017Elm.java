@@ -14,6 +14,21 @@ class CD4017Elm extends ChipElm {
     private boolean lastClock;
     private boolean lastReset;
     
+    /**
+     * 在芯片下方绘制芯片型号标签
+     */
+    @Override
+    void drawLabel(Graphics g, int x, int y) {
+        g.save();
+        g.setColor(Color.white);
+        g.setFont(new Font("SansSerif", 0, 7*csize));
+        g.context.setTextBaseline("middle");
+        g.context.setTextAlign("center");
+        // 在芯片下方绘制型号标签
+        g.drawString("CD4017", x, y + 96*csize);
+        g.restore();
+    }
+    
     public CD4017Elm(int xx, int yy) {
         super(xx, yy);
         counter = 0;

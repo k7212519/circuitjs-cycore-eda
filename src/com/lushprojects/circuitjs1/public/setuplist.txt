@@ -15,10 +15,22 @@ triode-switch.txt Lesson12 三极管开关电路
 triode-amplifiers.txt Lesson13 三极管放大器
 photocontrolled-led.txt Lesson14 光敏电阻光控灯
 Infra-emi-ont.txt Lesson15 红外发射接收模拟
-
+lm358_amplifier.txt Lesson16 放大器芯片
+inductor_sample.txt Lesson17 电感器示例
+lrc.txt Lesson18 LRC谐振电路
+thevenin.txt Lesson19 Thevenin定理
+transformerdc.txt Lesson20 变压器
 -
 +少年芯 L2
-74LS11-triple-input-and-gates.txt 74LS11 Triple Input AND Gates Example
+hc7408_double_and_gate_sample.txt 74HC08 Double Input AND Gates Example
+hc7432-xor-sample.txt 74HC32 Double Input OR Gates Example
+hc7486-2-Input-XOR-Gate.txt 74HC86 Double Input XOR Gates Example
+74LS11-triple-input-and-gates.txt 74HC11 Triple Input AND Gates Example
+halfadd_cycore.txt halfadd_cycore Example
+full-adder-cycore.txt fulladd_cycore Example
+SR-latch-cycore.txt 芯片存储——SR触发器
+
+
 -
 +Basics
 ohms.txt Ohm's Law
