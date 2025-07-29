@@ -20,6 +20,9 @@ inductor_sample.txt Lesson17 电感器示例
 lrc.txt Lesson18 LRC谐振电路
 thevenin.txt Lesson19 Thevenin定理
 transformerdc.txt Lesson20 变压器
+relay.txt Lesson21 继电器
+res-series.txt Lesson22 串联谐振
+res-par.txt Lesson23 并联共振
 -
 +少年芯 L2
 hc7408_double_and_gate_sample.txt 74HC08 Double Input AND Gates Example
@@ -29,7 +32,8 @@ hc7486-2-Input-XOR-Gate.txt 74HC86 Double Input XOR Gates Example
 halfadd_cycore.txt halfadd_cycore Example
 full-adder-cycore.txt fulladd_cycore Example
 SR-latch-cycore.txt 芯片存储——SR触发器
-
+edgedff.txt 芯片存储——边沿D触发器
+jkff.txt 芯片存储——JK触发器
 
 -
 +Basics
