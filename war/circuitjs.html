@@ -3,6 +3,17 @@
   <head>
   <link rel="manifest" href="/circuit/manifest.json">
   
+    <!-- 登录验证脚本 -->
+    <script>
+      // 检查用户是否已登录
+      if (sessionStorage.getItem('authenticated') !== 'true') {
+        // 记录当前页面URL，以便登录后返回
+        sessionStorage.setItem('redirect_after_login', window.location.href);
+        // 未登录，重定向到登录页
+        window.location.href = 'login.html';
+      }
+    </script>
+  
     <!-- Properties can be specified to influence deferred binding -->
     <meta name='gwt:property' content='locale=en_UK'>
     
@@ -166,6 +177,19 @@ canvas, canvas:focus, canvas:active {
 
 </head>
   <body>
+  <!-- 添加退出按钮 -->
+  <div style="position: fixed; top: 10px; right: 10px; z-index: 1000;">
+    <button id="logoutBtn" style="background-color: #5e35b1; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-size: 14px;">退出登录</button>
+  </div>
+  <script>
+    // 退出登录功能
+    document.addEventListener('DOMContentLoaded', function() {
+      document.getElementById('logoutBtn').addEventListener('click', function() {
+        window.location.href = 'logout.html';
+      });
+    });
+  </script>
+  
   <!-- Include the next line to allow support for dropbox import/export. You will need your own app key. -->
   <!--<script type="text/javascript" src="https://www.dropbox.com/static/api/2/dropins.js" id="dropboxjs" data-app-key="YOUR_KEY"></script>-->
 

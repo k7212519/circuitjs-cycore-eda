@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CYCORE电路芯片仿真系统 - 登录</title>
+    <style>
+        :root {
+            --primary-color: #3b226e;  /* 深紫色 */
+            --primary-hover: #4826af;  /* 深紫色悬停状态 */
+            --primary-light: #856ab3;  /* 浅紫色 */
+            --bg-color: #f8f9fa;
+            --text-color: #333;
+            --error-color: #dc3545;
+            --success-color: #28a745;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            position: relative;
+            background: url('img/background.svg') no-repeat center center fixed;
+            background-size: cover;
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: inherit;
+            filter: blur(1px);
+            z-index: -1;
+        }
+        
+        .login-container {
+            width: 100%;
+            max-width: 1048px;
+            min-height: 600px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+            display: flex;
+            overflow: hidden;
+        }
+        
+        .login-form-container {
+            width: 35%;
+            min-width: 320px;
+            padding: 60px 30px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        #loginForm {
+            width: 80%;
+            margin: 0 auto;
+        }
+        
+        .login-banner {
+            width: 65%;
+            background: url('img/login_banner.svg') no-repeat center center;
+            background-size: cover;
+            border-top-right-radius: 20px;
+            border-bottom-right-radius: 20px;
+        }
+        
+        .header-section {
+            margin-bottom: 0px;
+        }
+        
+        .logo-container {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        
+        .logo-img {
+            max-width: 75%;
+            max-height: 60px;
+            margin-bottom: 0;
+        }
+        
+        .footer-section {
+            height: 20px;
+        }
+        
+        h1 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            font-size: clamp(14px, 3.5vw, 20px);
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+        
+        input {
+            width: 100%;
+            padding: clamp(8px, 2vw, 12px) clamp(10px, 3vw, 15px);
+            font-size: clamp(14px, 2vw, 16px);
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            transition: border-color 0.3s ease;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(94, 53, 177, 0.2);
+        }
+        
+        .error-message {
+            color: var(--error-color);
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+        
+        .login-btn {
+            width: 100%;
+            padding: clamp(10px, 2vw, 12px);
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: clamp(14px, 2vw, 16px);
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .login-btn:hover {
+            background-color: var(--primary-hover);
+        }
+        
+        .login-btn:disabled {
+            background-color: var(--primary-light);
+            cursor: not-allowed;
+        }
+        
+        .remember-me {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .remember-me input {
+            width: auto;
+            margin-right: 10px;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* 响应式布局 */
+        @media (max-width: 920px) {
+            .login-container {
+                flex-direction: column;
+                min-height: auto;
+                max-width: 100%;
+            }
+            
+            .login-form-container {
+                width: 100%;
+                min-width: 100%;
+                padding: 30px 20px;
+                order: 2;
+            }
+            
+            .login-banner {
+                width: 100%;
+                height: 280px;
+                border-top-right-radius: 20px;
+                border-top-left-radius: 20px;
+                border-bottom-right-radius: 0;
+                order: 1;
+            }
+            
+            #loginForm {
+                width: 90%;
+            }
+            
+            .form-group {
+                margin-bottom: 15px;
+            }
+            
+            .header-section {
+                margin-bottom: 0;
+            }
+            
+            .footer-section {
+                height: 10px;
+            }
+            
+            .logo-img {
+                max-width: 65%;
+                max-height: 55px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .login-container {
+                border-radius: 15px;
+            }
+            
+            .login-banner {
+                height: 180px;
+                border-top-right-radius: 15px;
+                border-top-left-radius: 15px;
+            }
+            
+            .login-form-container {
+                padding: 20px 15px;
+            }
+            
+            #loginForm {
+                width: 100%;
+            }
+            
+            .logo-img {
+                max-width: 60%;
+                max-height: 20px;
+            }
+            
+            h1 {
+                margin-top: 10px;
+                margin-bottom: 15px;
+                font-size: clamp(14px, 3vw, 18px);
+            }
+            
+            .remember-me {
+                margin-bottom: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-form-container">
+            <div class="header-section">
+                <div class="logo-container">
+                    <img src="img/cycore-horizen.png" alt="电路仿真系统" class="logo-img">
+                </div>
+                <h1>EDA 芯片电路仿真系统</h1>
+            </div>
+            
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">用户名</label>
+                    <input type="text" id="username" name="username" required autocomplete="username">
+                    <div class="error-message" id="username-error">请输入用户名</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">密码</label>
+                    <input type="password" id="password" name="password" required autocomplete="current-password">
+                    <div class="error-message" id="password-error">请输入密码</div>
+                </div>
+                
+                <div class="remember-me">
+                    <input type="checkbox" id="remember" name="remember">
+                    <label for="remember">记住我</label>
+                </div>
+                
+                <button type="submit" class="login-btn" id="login-btn">登录</button>
+                <div id="login-error" class="error-message" style="text-align: center; margin-top: 15px;"></div>
+            </form>
+            
+            <div class="footer-section"></div>
+        </div>
+        <div class="login-banner"></div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const loginForm = document.getElementById('loginForm');
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+            const usernameError = document.getElementById('username-error');
+            const passwordError = document.getElementById('password-error');
+            const loginError = document.getElementById('login-error');
+            const loginBtn = document.getElementById('login-btn');
+            const rememberMe = document.getElementById('remember');
+            
+            // 从localStorage获取保存的用户名（如果有）
+            const savedUsername = localStorage.getItem('saved_username');
+            if (savedUsername) {
+                usernameInput.value = savedUsername;
+                rememberMe.checked = true;
+            }
+            
+            // 检查是否已登录
+            const isLoggedIn = sessionStorage.getItem('authenticated') === 'true';
+            if (isLoggedIn) {
+                window.location.href = 'circuitjs.html';
+            }
+            
+            // 表单验证
+            function validateForm() {
+                let isValid = true;
+                
+                if (!usernameInput.value.trim()) {
+                    usernameError.style.display = 'block';
+                    isValid = false;
+                } else {
+                    usernameError.style.display = 'none';
+                }
+                
+                if (!passwordInput.value) {
+                    passwordError.style.display = 'block';
+                    isValid = false;
+                } else {
+                    passwordError.style.display = 'none';
+                }
+                
+                return isValid;
+            }
+            
+            // 在输入字段发生变化时进行验证
+            usernameInput.addEventListener('input', function() {
+                if (usernameInput.value.trim()) {
+                    usernameError.style.display = 'none';
+                }
+            });
+            
+            passwordInput.addEventListener('input', function() {
+                if (passwordInput.value) {
+                    passwordError.style.display = 'none';
+                }
+            });
+            
+            // 处理登录表单提交
+            loginForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                if (!validateForm()) {
+                    return;
+                }
+                
+                // 禁用登录按钮，显示加载状态
+                loginBtn.disabled = true;
+                const originalBtnText = loginBtn.innerHTML;
+                loginBtn.innerHTML = '登录中... <span class="loading"></span>';
+                
+                // 模拟登录请求 - 在实际项目中，这里应该是一个API请求
+                setTimeout(() => {
+                    // 这是一个模拟的登录验证
+                    // 实际项目中应替换为真实的API调用
+                    // 默认用户名: admin, 密码: admin
+                    const username = usernameInput.value;
+                    const password = passwordInput.value;
+                    
+                    if (username === 'admin' && password === 'admin') {
+                        // 登录成功
+                        // 如果选择了"记住我"，则保存用户名
+                        if (rememberMe.checked) {
+                            localStorage.setItem('saved_username', username);
+                        } else {
+                            localStorage.removeItem('saved_username');
+                        }
+                        
+                        // 设置登录状态
+                        sessionStorage.setItem('authenticated', 'true');
+                        sessionStorage.setItem('user', JSON.stringify({
+                            username: username,
+                            displayName: '管理员',
+                            loginTime: new Date().toISOString()
+                        }));
+                        
+                        // 跳转到电路仿真页面
+                        window.location.href = 'circuitjs.html';
+                    } else {
+                        // 登录失败
+                        loginError.textContent = '用户名或密码错误';
+                        loginError.style.display = 'block';
+                        loginBtn.disabled = false;
+                        loginBtn.innerHTML = originalBtnText;
+                    }
+                }, 1000); // 1秒延迟模拟网络请求
+            });
+        });
+    </script>
+</body>
+</html> 
