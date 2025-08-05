@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CYCORE电路芯片仿真系统 - 注册</title>
+    <style>
+        :root {
+            --primary-color: #3b226e;  /* 深紫色 */
+            --primary-hover: #4826af;  /* 深紫色悬停状态 */
+            --primary-light: #856ab3;  /* 浅紫色 */
+            --bg-color: #f8f9fa;
+            --text-color: #333;
+            --error-color: #dc3545;
+            --success-color: #28a745;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            position: relative;
+            background: url('img/background.svg') no-repeat center center fixed;
+            background-size: cover;
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: inherit;
+            filter: blur(1px);
+            z-index: -1;
+        }
+        
+        .register-container {
+            width: 100%;
+            max-width: 1048px;
+            min-height: 600px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+            display: flex;
+            overflow: hidden;
+        }
+        
+        .register-form-container {
+            width: 35%;
+            min-width: 320px;
+            padding: 60px 30px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        #registerForm {
+            width: 80%;
+            margin: 0 auto;
+        }
+        
+        .register-banner {
+            width: 65%;
+            background: url('img/login_banner.svg') no-repeat center center;
+            background-size: cover;
+            border-top-right-radius: 20px;
+            border-bottom-right-radius: 20px;
+        }
+        
+        .header-section {
+            margin-bottom: 0px;
+        }
+        
+        .logo-container {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        
+        .logo-img {
+            max-width: 75%;
+            max-height: 60px;
+            margin-bottom: 0;
+        }
+        
+        .footer-section {
+            height: 20px;
+        }
+        
+        h1 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            font-size: clamp(14px, 3.5vw, 20px);
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+        
+        input {
+            width: 100%;
+            padding: clamp(8px, 2vw, 12px) clamp(10px, 3vw, 15px);
+            font-size: clamp(14px, 2vw, 16px);
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            transition: border-color 0.3s ease;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(94, 53, 177, 0.2);
+        }
+        
+        .error-message {
+            color: var(--error-color);
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+        
+        .register-btn {
+            width: 100%;
+            padding: clamp(10px, 2vw, 12px);
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: clamp(14px, 2vw, 16px);
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .register-btn:hover {
+            background-color: var(--primary-hover);
+        }
+        
+        .register-btn:disabled {
+            background-color: var(--primary-light);
+            cursor: not-allowed;
+        }
+        
+        .login-link {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        
+        .login-link a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* 响应式布局 */
+        @media (max-width: 920px) {
+            .register-container {
+                flex-direction: column;
+                min-height: auto;
+                max-width: 100%;
+            }
+            
+            .register-form-container {
+                width: 100%;
+                min-width: 100%;
+                padding: 30px 20px;
+                order: 2;
+            }
+            
+            .register-banner {
+                width: 100%;
+                height: 280px;
+                border-top-right-radius: 20px;
+                border-top-left-radius: 20px;
+                border-bottom-right-radius: 0;
+                order: 1;
+            }
+            
+            #registerForm {
+                width: 90%;
+            }
+            
+            .form-group {
+                margin-bottom: 15px;
+            }
+            
+            .header-section {
+                margin-bottom: 0;
+            }
+            
+            .footer-section {
+                height: 10px;
+            }
+            
+            .logo-img {
+                max-width: 65%;
+                max-height: 55px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .register-container {
+                border-radius: 15px;
+            }
+            
+            .register-banner {
+                height: 180px;
+                border-top-right-radius: 15px;
+                border-top-left-radius: 15px;
+            }
+            
+            .register-form-container {
+                padding: 20px 15px;
+            }
+            
+            #registerForm {
+                width: 100%;
+            }
+            
+            .logo-img {
+                max-width: 60%;
+                max-height: 20px;
+            }
+            
+            h1 {
+                margin-top: 10px;
+                margin-bottom: 15px;
+                font-size: clamp(14px, 3vw, 18px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="register-container">
+        <div class="register-form-container">
+            <div class="header-section">
+                <div class="logo-container">
+                    <img src="img/cycore-horizen.png" alt="电路仿真系统" class="logo-img">
+                </div>
+                <h1>EDA 芯片电路仿真系统 - 用户注册</h1>
+            </div>
+            
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="username">用户名</label>
+                    <input type="text" id="username" name="username" required autocomplete="username">
+                    <div class="error-message" id="username-error">请输入用户名</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">密码</label>
+                    <input type="password" id="password" name="password" required autocomplete="new-password">
+                    <div class="error-message" id="password-error">请输入密码</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="confirmPassword">确认密码</label>
+                    <input type="password" id="confirmPassword" name="confirmPassword" required autocomplete="new-password">
+                    <div class="error-message" id="confirmPassword-error">请确认密码</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="activationCode">激活码</label>
+                    <input type="text" id="activationCode" name="activationCode" required>
+                    <div class="error-message" id="activationCode-error">请输入激活码</div>
+                </div>
+                
+                <button type="submit" class="register-btn" id="register-btn">注册</button>
+                <div id="register-error" class="error-message" style="text-align: center; margin-top: 15px;"></div>
+                
+                <div class="login-link">
+                    已有账号？<a href="login.html">立即登录</a>
+                </div>
+            </form>
+            
+            <div class="footer-section"></div>
+        </div>
+        <div class="register-banner"></div>
+    </div>
+    
+    <script src="api.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const registerForm = document.getElementById('registerForm');
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+            const confirmPasswordInput = document.getElementById('confirmPassword');
+            const activationCodeInput = document.getElementById('activationCode');
+            const usernameError = document.getElementById('username-error');
+            const passwordError = document.getElementById('password-error');
+            const confirmPasswordError = document.getElementById('confirmPassword-error');
+            const activationCodeError = document.getElementById('activationCode-error');
+            const registerError = document.getElementById('register-error');
+            const registerBtn = document.getElementById('register-btn');
+            
+            // 表单验证
+            function validateForm() {
+                let isValid = true;
+                
+                if (!usernameInput.value.trim()) {
+                    usernameError.style.display = 'block';
+                    isValid = false;
+                } else {
+                    usernameError.style.display = 'none';
+                }
+                
+                if (!passwordInput.value) {
+                    passwordError.style.display = 'block';
+                    isValid = false;
+                } else {
+                    passwordError.style.display = 'none';
+                }
+                
+                if (!confirmPasswordInput.value) {
+                    confirmPasswordError.textContent = '请确认密码';
+                    confirmPasswordError.style.display = 'block';
+                    isValid = false;
+                } else if (confirmPasswordInput.value !== passwordInput.value) {
+                    confirmPasswordError.textContent = '两次输入的密码不一致';
+                    confirmPasswordError.style.display = 'block';
+                    isValid = false;
+                } else {
+                    confirmPasswordError.style.display = 'none';
+                }
+                
+                if (!activationCodeInput.value.trim()) {
+                    activationCodeError.textContent = '请输入激活码';
+                    activationCodeError.style.display = 'block';
+                    isValid = false;
+                } else if (activationCodeInput.value.trim().length !== 16) {
+                    activationCodeError.textContent = '激活码必须为16位';
+                    activationCodeError.style.display = 'block';
+                    isValid = false;
+                } else {
+                    activationCodeError.style.display = 'none';
+                }
+                
+                return isValid;
+            }
+            
+            // 在输入字段发生变化时进行验证
+            usernameInput.addEventListener('input', function() {
+                if (usernameInput.value.trim()) {
+                    usernameError.style.display = 'none';
+                    
+                    // 检查用户名是否可用
+                    if (usernameInput.value.trim().length >= 3) {
+                        // 使用防抖，避免频繁请求
+                        clearTimeout(usernameInput.debounceTimer);
+                        usernameInput.debounceTimer = setTimeout(() => {
+                            API.checkUsername(usernameInput.value.trim())
+                                .then(data => {
+                                    if (data.code !== 200) {
+                                        usernameError.textContent = data.message || '用户名已存在';
+                                        usernameError.style.display = 'block';
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('检查用户名失败:', error);
+                                    // 在开发阶段，可以显示错误信息，生产环境可以注释掉
+                                    // usernameError.textContent = error.message || '检查用户名时发生错误';
+                                    // usernameError.style.display = 'block';
+                                });
+                        }, 500); // 500ms防抖延迟
+                    }
+                }
+            });
+            
+            passwordInput.addEventListener('input', function() {
+                if (passwordInput.value) {
+                    passwordError.style.display = 'none';
+                }
+                if (confirmPasswordInput.value && confirmPasswordInput.value !== passwordInput.value) {
+                    confirmPasswordError.textContent = '两次输入的密码不一致';
+                    confirmPasswordError.style.display = 'block';
+                } else if (confirmPasswordInput.value) {
+                    confirmPasswordError.style.display = 'none';
+                }
+            });
+            
+            confirmPasswordInput.addEventListener('input', function() {
+                if (confirmPasswordInput.value) {
+                    if (confirmPasswordInput.value !== passwordInput.value) {
+                        confirmPasswordError.textContent = '两次输入的密码不一致';
+                        confirmPasswordError.style.display = 'block';
+                    } else {
+                        confirmPasswordError.style.display = 'none';
+                    }
+                } else {
+                    confirmPasswordError.textContent = '请确认密码';
+                    confirmPasswordError.style.display = 'block';
+                }
+            });
+            
+            activationCodeInput.addEventListener('input', function() {
+                if (activationCodeInput.value.trim()) {
+                    activationCodeError.style.display = 'none';
+                    
+                    // 只验证激活码位数是否为16位
+                    if (activationCodeInput.value.trim().length !== 16) {
+                        activationCodeError.textContent = '激活码必须为16位';
+                        activationCodeError.style.display = 'block';
+                    } else {
+                        activationCodeError.style.display = 'none';
+                    }
+                }
+            });
+            
+            // 处理注册表单提交
+            registerForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                if (!validateForm()) {
+                    return;
+                }
+                
+                // 禁用注册按钮，显示加载状态
+                registerBtn.disabled = true;
+                const originalBtnText = registerBtn.innerHTML;
+                registerBtn.innerHTML = '注册中... <span class="loading"></span>';
+                
+                // 发送注册请求
+                API.register({
+                    username: usernameInput.value,
+                    password: passwordInput.value,
+                    confirmPassword: confirmPasswordInput.value,
+                    activationCode: activationCodeInput.value,
+                    email: '', // 可选字段，目前表单中没有
+                    phone: '', // 可选字段，目前表单中没有
+                    realName: '' // 可选字段，目前表单中没有
+                })
+                .then(data => {
+                    if (data.code === 200) {
+                        // 注册成功
+                        alert('注册成功！请登录您的账号。');
+                        window.location.href = 'login.html';
+                    } else {
+                        // 注册失败
+                        registerError.textContent = data.message || '注册失败，请稍后再试';
+                        registerError.style.display = 'block';
+                        registerBtn.disabled = false;
+                        registerBtn.innerHTML = originalBtnText;
+                    }
+                })
+                .catch(error => {
+                    console.error('注册请求失败:', error);
+                    registerError.textContent = '网络错误，请稍后再试';
+                    registerError.style.display = 'block';
+                    registerBtn.disabled = false;
+                    registerBtn.innerHTML = originalBtnText;
+                });
+            });
+        });
+    </script>
+</body>
+</html>

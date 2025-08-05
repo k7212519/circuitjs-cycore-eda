@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>账号找回</title>
+    <style>
+        :root {
+            --primary-color: #3b226e;  /* 深紫色 */
+            --primary-hover: #4826af;  /* 深紫色悬停状态 */
+            --primary-light: #856ab3;  /* 浅紫色 */
+            --bg-color: #f8f9fa;
+            --text-color: #333;
+            --error-color: #dc3545;
+            --success-color: #28a745;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            position: relative;
+            background: url('img/background.svg') no-repeat center center fixed;
+            background-size: cover;
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: inherit;
+            filter: blur(1px);
+            z-index: -1;
+        }
+        
+        .recover-container {
+            width: 100%;
+            max-width: 1048px;
+            min-height: 600px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+            display: flex;
+            overflow: hidden;
+        }
+        
+        .recover-form-container {
+            width: 35%;
+            min-width: 320px;
+            padding: 60px 30px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        #recoverForm, #resetForm {
+            width: 80%;
+            margin: 0 auto;
+        }
+        
+        #resetForm {
+            display: none; /* 初始隐藏第二步表单 */
+        }
+        
+        .recover-banner {
+            width: 65%;
+            background: url('img/login_banner.svg') no-repeat center center;
+            background-size: cover;
+            border-top-right-radius: 20px;
+            border-bottom-right-radius: 20px;
+        }
+        
+        .header-section {
+            margin-bottom: 0px;
+        }
+        
+        .logo-container {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        
+        .logo-img {
+            max-width: 75%;
+            max-height: 60px;
+            margin-bottom: 0;
+        }
+        
+        .footer-section {
+            height: 20px;
+        }
+        
+        h1 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            font-size: clamp(14px, 3.5vw, 20px);
+        }
+        
+        .steps-indicator {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 25px;
+        }
+        
+        .step {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background-color: #ddd;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 10px;
+            font-weight: bold;
+        }
+        
+        .step.active {
+            background-color: var(--primary-color);
+        }
+        
+        .step-line {
+            height: 2px;
+            flex: 1;
+            background-color: #ddd;
+            margin: auto 5px;
+            max-width: 50px;
+        }
+        
+        .step-line.active {
+            background-color: var(--primary-color);
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+        
+        input {
+            width: 100%;
+            padding: clamp(8px, 2vw, 12px) clamp(10px, 3vw, 15px);
+            font-size: clamp(14px, 2vw, 16px);
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            transition: border-color 0.3s ease;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(94, 53, 177, 0.2);
+        }
+        
+        .error-message {
+            color: var(--error-color);
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+        
+        .success-message {
+            color: var(--success-color);
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+        
+        .recover-btn {
+            width: 100%;
+            padding: clamp(10px, 2vw, 12px);
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: clamp(14px, 2vw, 16px);
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .recover-btn:hover {
+            background-color: var(--primary-hover);
+        }
+        
+        .recover-btn:disabled {
+            background-color: var(--primary-light);
+            cursor: not-allowed;
+        }
+        
+        .login-link {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        
+        .login-link a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* 响应式布局 */
+        @media (max-width: 920px) {
+            .recover-container {
+                flex-direction: column;
+                min-height: auto;
+                max-width: 100%;
+            }
+            
+            .recover-form-container {
+                width: 100%;
+                min-width: 100%;
+                padding: 30px 20px;
+                order: 2;
+            }
+            
+            .recover-banner {
+                width: 100%;
+                height: 280px;
+                border-top-right-radius: 20px;
+                border-top-left-radius: 20px;
+                border-bottom-right-radius: 0;
+                order: 1;
+            }
+            
+            #recoverForm, #resetForm {
+                width: 90%;
+            }
+            
+            .form-group {
+                margin-bottom: 15px;
+            }
+            
+            .header-section {
+                margin-bottom: 0;
+            }
+            
+            .footer-section {
+                height: 10px;
+            }
+            
+            .logo-img {
+                max-width: 65%;
+                max-height: 55px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .recover-container {
+                border-radius: 15px;
+            }
+            
+            .recover-banner {
+                height: 180px;
+                border-top-right-radius: 15px;
+                border-top-left-radius: 15px;
+            }
+            
+            .recover-form-container {
+                padding: 20px 15px;
+            }
+            
+            #recoverForm, #resetForm {
+                width: 100%;
+            }
+            
+            .logo-img {
+                max-width: 60%;
+                max-height: 20px;
+            }
+            
+            h1 {
+                margin-top: 10px;
+                margin-bottom: 15px;
+                font-size: clamp(14px, 3vw, 18px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="recover-container">
+        <div class="recover-form-container">
+            <div class="header-section">
+                <div class="logo-container">
+                    <img src="img/cycore-horizen.png" alt="电路仿真系统" class="logo-img">
+                </div>
+                <h1>CYCORE-EDA 账号找回</h1>
+                <div class="steps-indicator">
+                    <div id="step1" class="step active">1</div>
+                    <div class="step-line" id="stepLine"></div>
+                    <div id="step2" class="step">2</div>
+                </div>
+            </div>
+            
+            <!-- 第一步：验证激活码 -->
+            <form id="recoverForm">
+                <div class="form-group">
+                    <label for="activationCode">激活码</label>
+                    <input type="text" id="activationCode" name="activationCode" required>
+                    <div class="error-message" id="activationCode-error">请输入激活码</div>
+                </div>
+                
+                <button type="submit" class="recover-btn" id="verify-btn">验证激活码</button>
+                <div id="recover-error" class="error-message" style="text-align: center; margin-top: 15px;"></div>
+                
+                <div class="login-link">
+                    已有账号？<a href="login.html">立即登录</a>
+                </div>
+            </form>
+            
+            <!-- 第二步：重置用户名和密码 -->
+            <form id="resetForm">
+                <div class="form-group">
+                    <label for="username">用户名</label>
+                    <input type="text" id="username" name="username" required autocomplete="username">
+                    <div class="error-message" id="username-error">请输入用户名</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">新密码</label>
+                    <input type="password" id="password" name="password" required autocomplete="new-password">
+                    <div class="error-message" id="password-error">请输入密码</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="confirmPassword">确认密码</label>
+                    <input type="password" id="confirmPassword" name="confirmPassword" required autocomplete="new-password">
+                    <div class="error-message" id="confirmPassword-error">请确认密码</div>
+                </div>
+                
+                <button type="submit" class="recover-btn" id="reset-btn">重置账号</button>
+                <div id="reset-error" class="error-message" style="text-align: center; margin-top: 15px;"></div>
+                
+                <div class="login-link">
+                    <a href="#" id="back-to-step1">返回上一步</a> | <a href="login.html">立即登录</a>
+                </div>
+            </form>
+            
+            <div class="footer-section"></div>
+        </div>
+        <div class="recover-banner"></div>
+    </div>
+    
+    <script src="api.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 获取DOM元素
+            const recoverForm = document.getElementById('recoverForm');
+            const resetForm = document.getElementById('resetForm');
+            const step1 = document.getElementById('step1');
+            const step2 = document.getElementById('step2');
+            const stepLine = document.getElementById('stepLine');
+            const activationCodeInput = document.getElementById('activationCode');
+            const activationCodeError = document.getElementById('activationCode-error');
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+            const confirmPasswordInput = document.getElementById('confirmPassword');
+            const usernameError = document.getElementById('username-error');
+            const passwordError = document.getElementById('password-error');
+            const confirmPasswordError = document.getElementById('confirmPassword-error');
+            const recoverError = document.getElementById('recover-error');
+            const resetError = document.getElementById('reset-error');
+            const verifyBtn = document.getElementById('verify-btn');
+            const resetBtn = document.getElementById('reset-btn');
+            const backToStep1 = document.getElementById('back-to-step1');
+            
+            // 激活码验证 - 第一步
+            recoverForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const code = activationCodeInput.value.trim();
+                
+                if (!code) {
+                    activationCodeError.textContent = '请输入激活码';
+                    activationCodeError.style.display = 'block';
+                    return;
+                }
+                
+                if (code.length !== 16) {
+                    activationCodeError.textContent = '激活码必须为16位';
+                    activationCodeError.style.display = 'block';
+                    return;
+                }
+                
+                if (!/^\d+$/.test(code)) {
+                    activationCodeError.textContent = '激活码必须为数字';
+                    activationCodeError.style.display = 'block';
+                    return;
+                }
+                
+                // 禁用按钮，显示加载状态
+                verifyBtn.disabled = true;
+                const originalBtnText = verifyBtn.innerHTML;
+                verifyBtn.innerHTML = '验证中... <span class="loading"></span>';
+                
+                // 验证激活码是否可用于账户找回
+                API.validateRecoveryCode(activationCodeInput.value.trim())
+                    .then(data => {
+                        if (data.code === 200) {
+                            // 验证成功，显示第二步
+                            // 切换到第二步
+                            recoverForm.style.display = 'none';
+                            resetForm.style.display = 'block';
+                            step2.classList.add('active');
+                            stepLine.classList.add('active');
+                            
+                            // 存储激活码，用于最终提交
+                            localStorage.setItem('temp_activation_code', activationCodeInput.value.trim());
+                        } else {
+                            // 验证失败
+                            recoverError.textContent = data.message || '激活码无效或已过期';
+                            recoverError.style.display = 'block';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('验证激活码失败:', error);
+                        recoverError.textContent = error.message || '验证激活码失败，请稍后再试';
+                        recoverError.style.display = 'block';
+                    })
+                    .finally(() => {
+                        // 恢复按钮状态
+                        verifyBtn.disabled = false;
+                        verifyBtn.innerHTML = originalBtnText;
+                    });
+            });
+            
+            // 返回第一步
+            backToStep1.addEventListener('click', function(e) {
+                e.preventDefault();
+                recoverForm.style.display = 'block';
+                resetForm.style.display = 'none';
+                step2.classList.remove('active');
+                stepLine.classList.remove('active');
+            });
+            
+            // 第二步表单验证
+            function validateResetForm() {
+                let isValid = true;
+                
+                if (!usernameInput.value.trim()) {
+                    usernameError.style.display = 'block';
+                    isValid = false;
+                } else {
+                    usernameError.style.display = 'none';
+                }
+                
+                if (!passwordInput.value) {
+                    passwordError.style.display = 'block';
+                    isValid = false;
+                } else {
+                    passwordError.style.display = 'none';
+                }
+                
+                if (!confirmPasswordInput.value) {
+                    confirmPasswordError.textContent = '请确认密码';
+                    confirmPasswordError.style.display = 'block';
+                    isValid = false;
+                } else if (confirmPasswordInput.value !== passwordInput.value) {
+                    confirmPasswordError.textContent = '两次输入的密码不一致';
+                    confirmPasswordError.style.display = 'block';
+                    isValid = false;
+                } else {
+                    confirmPasswordError.style.display = 'none';
+                }
+                
+                return isValid;
+            }
+            
+            // 输入字段验证
+            usernameInput.addEventListener('input', function() {
+                if (usernameInput.value.trim()) {
+                    usernameError.style.display = 'none';
+                }
+            });
+            
+            passwordInput.addEventListener('input', function() {
+                if (passwordInput.value) {
+                    passwordError.style.display = 'none';
+                }
+                if (confirmPasswordInput.value && confirmPasswordInput.value !== passwordInput.value) {
+                    confirmPasswordError.textContent = '两次输入的密码不一致';
+                    confirmPasswordError.style.display = 'block';
+                } else if (confirmPasswordInput.value) {
+                    confirmPasswordError.style.display = 'none';
+                }
+            });
+            
+            confirmPasswordInput.addEventListener('input', function() {
+                if (confirmPasswordInput.value) {
+                    if (confirmPasswordInput.value !== passwordInput.value) {
+                        confirmPasswordError.textContent = '两次输入的密码不一致';
+                        confirmPasswordError.style.display = 'block';
+                    } else {
+                        confirmPasswordError.style.display = 'none';
+                    }
+                } else {
+                    confirmPasswordError.textContent = '请确认密码';
+                    confirmPasswordError.style.display = 'block';
+                }
+            });
+            
+            activationCodeInput.addEventListener('input', function() {
+                // 清除之前的错误提示
+                activationCodeError.style.display = 'none';
+                recoverError.style.display = 'none';
+                
+                const code = activationCodeInput.value.trim();
+                if (code) {
+                    // 只验证激活码位数是否为16位
+                    if (code.length !== 16) {
+                        activationCodeError.textContent = '激活码必须为16位';
+                        activationCodeError.style.display = 'block';
+                    } else if (!/^\d+$/.test(code)) {
+                        activationCodeError.textContent = '激活码必须为数字';
+                        activationCodeError.style.display = 'block';
+                    }
+                }
+            });
+            
+            // 提交重置表单
+            resetForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                if (!validateResetForm()) {
+                    return;
+                }
+                
+                // 禁用按钮，显示加载状态
+                resetBtn.disabled = true;
+                const originalBtnText = resetBtn.innerHTML;
+                resetBtn.innerHTML = '重置中... <span class="loading"></span>';
+                
+                // 获取之前存储的激活码
+                const activationCode = localStorage.getItem('temp_activation_code');
+                if (!activationCode) {
+                    resetError.textContent = '激活码信息丢失，请重新验证';
+                    resetError.style.display = 'block';
+                    resetBtn.disabled = false;
+                    resetBtn.innerHTML = originalBtnText;
+                    return;
+                }
+                
+                // 发送重置账户请求
+                API.resetAccount({
+                    username: usernameInput.value.trim(),
+                    password: passwordInput.value,
+                    confirmPassword: confirmPasswordInput.value,
+                    activationCode: activationCode
+                })
+                .then(data => {
+                    if (data.code === 200) {
+                        // 清除临时存储的激活码
+                        localStorage.removeItem('temp_activation_code');
+                        
+                        // 重置成功
+                        alert('账号重置成功！请使用新密码登录。');
+                        window.location.href = 'login.html';
+                    } else {
+                        // 重置失败
+                        resetError.textContent = data.message || '账号重置失败，请稍后再试';
+                        resetError.style.display = 'block';
+                        resetBtn.disabled = false;
+                        resetBtn.innerHTML = originalBtnText;
+                    }
+                })
+                .catch(error => {
+                    console.error('重置账号失败:', error);
+                    resetError.textContent = error.message || '网络错误，请稍后再试';
+                    resetError.style.display = 'block';
+                    resetBtn.disabled = false;
+                    resetBtn.innerHTML = originalBtnText;
+                });
+            });
+        });
+    </script>
+</body>
+</html>

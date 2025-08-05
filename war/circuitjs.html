@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html>
   <head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <link rel="manifest" href="/circuit/manifest.json">
   
     <!-- 登录验证脚本 -->
@@ -177,15 +179,86 @@ canvas, canvas:focus, canvas:active {
 
 </head>
   <body>
-  <!-- 添加退出按钮 -->
-  <div style="position: fixed; top: 10px; right: 10px; z-index: 1000;">
-    <button id="logoutBtn" style="background-color: #5e35b1; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-size: 14px;">退出登录</button>
+  <!-- 添加个人中心按钮和下拉菜单 -->
+  <div style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
+          <div class="dropdown">
+        <button id="userCenterBtn" class="dropbtn" style="background-color: #5e35b1; color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-size: 15px; display: flex; align-items: center; gap: 10px;">
+          <img src="/img/svg/user-avatar.svg" alt="用户" style="width: 20px; height: 20px; filter: brightness(0) invert(1);">
+          <span>个人中心</span>
+        </button>
+      <div id="userDropdown" class="dropdown-content">
+        <a href="userProfile.html">我的资料</a>
+        <a href="myCircuits.html">我的项目</a>
+        <a href="logout.html">退出登录</a>
+      </div>
+    </div>
   </div>
+
+  <style>
+    /* 下拉菜单样式 */
+    .dropdown {
+      position: relative;
+      display: inline-block;
+    }
+
+    .dropdown-content {
+      display: none;
+      position: absolute;
+      right: 0;
+      margin-top: 8px;
+      background-color: rgba(255, 255, 255, 0.8); /* 半透明背景 */
+      backdrop-filter: blur(8px); /* 磨砂效果 */
+      -webkit-backdrop-filter: blur(8px); /* Safari 兼容 */
+      width: 100%; /* 与按钮宽度一致 */
+      box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.1);
+      z-index: 1;
+      border-radius: 16px; /* 大圆角 */
+      overflow: hidden; /* 确保内容不溢出圆角 */
+      border: 1px solid rgba(255, 255, 255, 0.2); /* 细微边框增强立体感 */
+    }
+
+    .dropdown-content a {
+      color: #333;
+      padding: 12px 16px;
+      text-decoration: none;
+      display: block;
+      text-align: center; /* 水平居中 */
+      transition: all 0.2s ease; /* 平滑过渡效果 */
+      font-size: 15px; /* 加大字号 */
+      font-weight: 500; /* 适度加粗 */
+    }
+
+    .dropdown-content a:hover {
+      background-color: rgba(94, 53, 177, 0.1); /* 与按钮颜色协调的hover效果 */
+    }
+
+    .show {
+      display: block;
+    }
+  </style>
+
   <script>
-    // 退出登录功能
+    // 个人中心菜单功能
     document.addEventListener('DOMContentLoaded', function() {
-      document.getElementById('logoutBtn').addEventListener('click', function() {
-        window.location.href = 'logout.html';
+      // 点击按钮切换下拉菜单的显示状态
+      document.getElementById('userCenterBtn').addEventListener('click', function(e) {
+        e.preventDefault(); // 阻止默认行为
+        document.getElementById('userDropdown').classList.toggle('show');
+      });
+
+      // 点击页面其他地方时关闭下拉菜单
+      window.addEventListener('click', function(e) {
+        // 检查点击的元素是否是按钮本身或其子元素
+        const userCenterBtn = document.getElementById('userCenterBtn');
+        if (userCenterBtn.contains(e.target)) {
+          return; // 如果点击的是按钮或其子元素，不做任何操作
+        }
+        
+        // 否则，隐藏下拉菜单
+        var dropdown = document.getElementById('userDropdown');
+        if (dropdown.classList.contains('show')) {
+          dropdown.classList.remove('show');
+        }
       });
     });
   </script>

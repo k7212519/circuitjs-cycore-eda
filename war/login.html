@@ -161,10 +161,47 @@
             cursor: not-allowed;
         }
         
+        .register-btn-link {
+            display: block;
+            width: 100%;
+            padding: clamp(10px, 2vw, 12px);
+            background-color: white;
+            color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+            border-radius: 4px;
+            font-size: clamp(14px, 2vw, 16px);
+            font-weight: 600;
+            text-decoration: none;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .register-btn-link:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .remember-forgot-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
         .remember-me {
             display: flex;
             align-items: center;
-            margin-bottom: 20px;
+        }
+        
+        .forgot-password a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .forgot-password a:hover {
+            text-decoration: underline;
         }
         
         .remember-me input {
@@ -274,39 +311,49 @@
     <div class="login-container">
         <div class="login-form-container">
             <div class="header-section">
-                <div class="logo-container">
-                    <img src="img/cycore-horizen.png" alt="电路仿真系统" class="logo-img">
-                </div>
-                <h1>EDA 芯片电路仿真系统</h1>
+        <div class="logo-container">
+            <img src="img/cycore-horizen.png" alt="电路仿真系统" class="logo-img">
+        </div>
+        <h1>EDA 芯片电路仿真系统</h1>
+            </div>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">用户名</label>
+                <input type="text" id="username" name="username" required autocomplete="username">
+                <div class="error-message" id="username-error">请输入用户名</div>
             </div>
             
-            <form id="loginForm">
-                <div class="form-group">
-                    <label for="username">用户名</label>
-                    <input type="text" id="username" name="username" required autocomplete="username">
-                    <div class="error-message" id="username-error">请输入用户名</div>
+            <div class="form-group">
+                <label for="password">密码</label>
+                <input type="password" id="password" name="password" required autocomplete="current-password">
+                <div class="error-message" id="password-error">请输入密码</div>
+            </div>
+            
+                            <div class="remember-forgot-row">
+            <div class="remember-me">
+                <input type="checkbox" id="remember" name="remember">
+                <label for="remember">记住我</label>
                 </div>
-                
-                <div class="form-group">
-                    <label for="password">密码</label>
-                    <input type="password" id="password" name="password" required autocomplete="current-password">
-                    <div class="error-message" id="password-error">请输入密码</div>
+                <div class="forgot-password">
+                    <a href="account-recover.html">忘记密码？</a>
                 </div>
+            </div>
+            
+            <button type="submit" class="login-btn" id="login-btn">登录</button>
+            <div id="login-error" class="error-message" style="text-align: center; margin-top: 15px;"></div>
                 
-                <div class="remember-me">
-                    <input type="checkbox" id="remember" name="remember">
-                    <label for="remember">记住我</label>
+                <div class="register-link" style="margin-top: 15px;">
+                    <a href="register.html" class="register-btn-link">注册新账号</a>
                 </div>
-                
-                <button type="submit" class="login-btn" id="login-btn">登录</button>
-                <div id="login-error" class="error-message" style="text-align: center; margin-top: 15px;"></div>
-            </form>
+        </form>
             
             <div class="footer-section"></div>
         </div>
         <div class="login-banner"></div>
     </div>
     
+    <script src="api.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const loginForm = document.getElementById('loginForm');
@@ -326,9 +373,41 @@
             }
             
             // 检查是否已登录
+            const token = localStorage.getItem('eda_token');
             const isLoggedIn = sessionStorage.getItem('authenticated') === 'true';
-            if (isLoggedIn) {
+            
+            if (token && isLoggedIn) {
+                // 验证token是否有效
+                API.validateToken()
+                    .then(data => {
+                        if (data.code === 200) {
+                            // token有效，更新用户信息
+                            const userData = {
+                                userId: data.data.userId,
+                                username: data.data.username,
+                                realName: data.data.realName || data.data.username,
+                                userType: data.data.userType,
+                                expireTime: data.data.expireTime,
+                                loginTime: new Date().toISOString()
+                            };
+                            localStorage.setItem('eda_user', JSON.stringify(userData));
+                            
+                            // 跳转到电路仿真页面
                 window.location.href = 'circuitjs.html';
+                        } else {
+                            // token无效，清除登录状态
+                            localStorage.removeItem('eda_token');
+                            localStorage.removeItem('eda_user');
+                            sessionStorage.removeItem('authenticated');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('验证token失败:', error);
+                        // 清除登录状态
+                        localStorage.removeItem('eda_token');
+                        localStorage.removeItem('eda_user');
+                        sessionStorage.removeItem('authenticated');
+                    });
             }
             
             // 表单验证
@@ -378,41 +457,54 @@
                 const originalBtnText = loginBtn.innerHTML;
                 loginBtn.innerHTML = '登录中... <span class="loading"></span>';
                 
-                // 模拟登录请求 - 在实际项目中，这里应该是一个API请求
-                setTimeout(() => {
-                    // 这是一个模拟的登录验证
-                    // 实际项目中应替换为真实的API调用
-                    // 默认用户名: admin, 密码: admin
-                    const username = usernameInput.value;
-                    const password = passwordInput.value;
-                    
-                    if (username === 'admin' && password === 'admin') {
+                // 发送登录请求到后端API
+                API.login({
+                    username: usernameInput.value,
+                    password: passwordInput.value,
+                    rememberMe: rememberMe.checked
+                })
+                .then(data => {
+                    if (data.code === 200) {
                         // 登录成功
                         // 如果选择了"记住我"，则保存用户名
                         if (rememberMe.checked) {
-                            localStorage.setItem('saved_username', username);
+                            localStorage.setItem('saved_username', usernameInput.value);
                         } else {
                             localStorage.removeItem('saved_username');
                         }
                         
-                        // 设置登录状态
-                        sessionStorage.setItem('authenticated', 'true');
-                        sessionStorage.setItem('user', JSON.stringify({
-                            username: username,
-                            displayName: '管理员',
+                        // 保存token和用户信息
+                        const token = data.data.token;
+                        const userData = {
+                            userId: data.data.userId,
+                            username: data.data.username,
+                            realName: data.data.realName || data.data.username,
+                            userType: data.data.userType,
+                            expireTime: data.data.expireTime,
                             loginTime: new Date().toISOString()
-                        }));
+                        };
+                        
+                        localStorage.setItem('eda_token', token);
+                        localStorage.setItem('eda_user', JSON.stringify(userData));
+                        sessionStorage.setItem('authenticated', 'true');
                         
                         // 跳转到电路仿真页面
                         window.location.href = 'circuitjs.html';
                     } else {
                         // 登录失败
-                        loginError.textContent = '用户名或密码错误';
+                        loginError.textContent = data.message || '登录失败，请检查用户名和密码';
                         loginError.style.display = 'block';
                         loginBtn.disabled = false;
                         loginBtn.innerHTML = originalBtnText;
                     }
-                }, 1000); // 1秒延迟模拟网络请求
+                })
+                .catch(error => {
+                    console.error('登录请求失败:', error);
+                    loginError.textContent = '网络错误，请稍后再试';
+                    loginError.style.display = 'block';
+                    loginBtn.disabled = false;
+                    loginBtn.innerHTML = originalBtnText;
+                });
             });
         });
     </script>

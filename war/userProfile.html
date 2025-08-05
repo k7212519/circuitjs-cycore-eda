@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人资料 - 电路仿真系统</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Microsoft YaHei', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .background-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -2;
+            background: url('img/background.svg') no-repeat center center;
+            background-size: cover;
+        }
+        
+        .blur-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            backdrop-filter: blur(1px);
+            -webkit-backdrop-filter: blur(1px);
+        }
+        .profile-container {
+            width: 800px;
+            height: 850px;
+            margin: 50px auto;
+            background-color: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            overflow-y: auto; /* 内容超出时显示滚动条 */
+        }
+        
+        /* 响应式布局 - 平板设备 */
+        @media (max-width: 900px) {
+            .profile-container {
+                width: 90%;
+                height: 800px;
+            }
+        }
+        
+        /* 响应式布局 - 手机设备 */
+        @media (max-width: 600px) {
+            .profile-container {
+                width: 95%;
+                height: 780px;
+                padding: 20px;
+                margin: 30px auto;
+            }
+        }
+        
+        /* 小屏幕手机设备 */
+        @media (max-width: 400px) {
+            .profile-container {
+                height: 720px;
+            }
+        }
+        .header-area {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 20px;
+        }
+        .header-area h2 {
+            color: #5e35b1;
+            margin: 0;
+        }
+        .back-btn {
+            color: #5e35b1;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            font-weight: 500;
+        }
+        .back-btn:hover {
+            text-decoration: underline;
+        }
+        .avatar-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .username-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 5px;
+        }
+        
+
+        .avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 60px;
+            overflow: hidden;
+            margin-bottom: 15px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2), 
+                        0 6px 12px rgba(0, 0, 0, 0.15),
+                        0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+        }
+        .avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .profile-label {
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: #555;
+        }
+        .profile-input {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            width: 100%;
+            transition: border-color 0.3s;
+        }
+        .profile-input:focus {
+            border-color: #5e35b1;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(94, 53, 177, 0.2);
+        }
+        .profile-input:disabled {
+            background-color: #f5f5f5;
+            cursor: not-allowed;
+        }
+        .btn-primary {
+            background-color: #5e35b1;
+            border-color: #5e35b1;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        .btn-primary:hover {
+            background-color: #4527A0;
+            border-color: #4527A0;
+        }
+        .btn-outline {
+            border: 1px solid #5e35b1;
+            color: #5e35b1;
+            background-color: transparent;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            margin-right: 10px;
+        }
+        .btn-outline:hover {
+            background-color: rgba(94, 53, 177, 0.1);
+        }
+        .tab-container {
+            margin-bottom: 30px;
+            border-bottom: 1px solid #eee;
+        }
+        .tabs {
+            display: flex;
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .tab-item {
+            padding: 15px 25px;
+            cursor: pointer;
+            font-weight: 500;
+            color: #777;
+            position: relative;
+        }
+        .tab-item.active {
+            color: #5e35b1;
+        }
+        .tab-item.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background-color: #5e35b1;
+            border-radius: 3px 3px 0 0;
+        }
+        .tab-content {
+            display: none;
+            padding: 20px 0;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .password-input-group {
+            position: relative;
+        }
+        .password-toggle {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: none;
+            background: none;
+            color: #777;
+            cursor: pointer;
+        }
+        .quota-info {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .quota-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .quota-label {
+            font-weight: 500;
+            color: #555;
+        }
+        .quota-value {
+            font-weight: 600;
+            color: #5e35b1;
+        }
+        .error-message {
+            color: #d32f2f;
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+        .success-message {
+            color: #388e3c;
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+    </style>
+    <!-- 登录验证脚本 -->
+    <script>
+        // 检查用户是否已登录
+        if (sessionStorage.getItem('authenticated') !== 'true') {
+            // 记录当前页面URL，以便登录后返回
+            sessionStorage.setItem('redirect_after_login', window.location.href);
+            // 未登录，重定向到登录页
+            window.location.href = 'login.html';
+        }
+    </script>
+</head>
+<body>
+    <!-- 背景层 -->
+    <div class="background-container"></div>
+    <div class="blur-overlay"></div>
+    
+    <!-- 顶部导航 -->
+    <div style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
+        <div class="dropdown">
+            <button id="userCenterBtn" class="dropbtn" style="background-color: #5e35b1; color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-size: 15px; display: flex; align-items: center; gap: 10px;">
+              <img src="/img/svg/user-avatar.svg" alt="用户" style="width: 20px; height: 20px; filter: brightness(0) invert(1);">
+              <span>个人中心</span>
+            </button>
+            <div id="userDropdown" class="dropdown-content">
+              <a href="userProfile.html">我的资料</a>
+              <a href="myCircuits.html">我的项目</a>
+              <a href="logout.html">退出登录</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="profile-container">
+        <div class="header-area">
+            <h2>个人资料</h2>
+            <a href="circuitjs.html" class="back-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-left" viewBox="0 0 16 16" style="margin-right: 5px;">
+                    <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+                </svg>
+                返回芯片电路仿真
+            </a>
+        </div>
+
+        <div class="avatar-section">
+            <div class="avatar">
+                <img id="userAvatar" src="/img/svg/user-avatar.svg" alt="用户头像" style="filter: invert(66%) sepia(70%) saturate(1700%) hue-rotate(-12deg) brightness(100%) contrast(105%);">
+            </div>
+                         <div class="username-container">
+                 <h4 id="displayUsername">加载中...</h4>
+              </div>
+        </div>
+
+        <div class="tab-container">
+            <ul class="tabs">
+                <li class="tab-item active" data-tab="basicInfo">基本资料</li>
+                <li class="tab-item" data-tab="security">安全设置</li>
+                <li class="tab-item" data-tab="quotaInfo">配额信息</li>
+            </ul>
+        </div>
+
+        <!-- 基本资料 -->
+        <div id="basicInfo" class="tab-content active">
+            <form id="profileForm">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="profile-label">用户名</label>
+                            <input type="text" id="username" class="profile-input" disabled>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="profile-label">真实姓名</label>
+                            <input type="text" id="realName" class="profile-input" placeholder="请填写您的真实姓名">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="profile-label">邮箱地址</label>
+                            <input type="email" id="email" class="profile-input" placeholder="请填写您的邮箱地址">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="profile-label">手机号码</label>
+                            <input type="tel" id="phone" class="profile-input" placeholder="请填写您的手机号码">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div id="basicInfoError" class="error-message"></div>
+                    <div id="basicInfoSuccess" class="success-message"></div>
+                </div>
+
+                <div class="d-flex justify-content-end">
+                    <button type="button" class="btn btn-outline" id="resetProfileBtn">重置</button>
+                    <button type="button" class="btn btn-primary" id="saveProfileBtn">保存修改</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- 安全设置 -->
+        <div id="security" class="tab-content">
+            <form id="passwordForm">
+                <div class="form-group">
+                    <label class="profile-label">当前密码</label>
+                    <div class="password-input-group">
+                        <input type="password" id="oldPassword" class="profile-input" placeholder="请输入当前密码">
+                        <button type="button" class="password-toggle" data-target="oldPassword">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye" viewBox="0 0 16 16">
+                                <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8M1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
+                                <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5M4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="profile-label">新密码</label>
+                    <div class="password-input-group">
+                        <input type="password" id="newPassword" class="profile-input" placeholder="请设置新密码">
+                        <button type="button" class="password-toggle" data-target="newPassword">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye" viewBox="0 0 16 16">
+                                <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8M1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
+                                <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5M4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="profile-label">确认密码</label>
+                    <div class="password-input-group">
+                        <input type="password" id="confirmPassword" class="profile-input" placeholder="请再次输入新密码">
+                        <button type="button" class="password-toggle" data-target="confirmPassword">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye" viewBox="0 0 16 16">
+                                <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8M1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
+                                <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5M4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div id="passwordError" class="error-message"></div>
+                    <div id="passwordSuccess" class="success-message"></div>
+                </div>
+
+                <div class="d-flex justify-content-end">
+                    <button type="button" class="btn btn-outline" id="resetPasswordFormBtn">重置</button>
+                    <button type="button" class="btn btn-primary" id="changePasswordBtn">修改密码</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- 配额信息 -->
+        <div id="quotaInfo" class="tab-content">
+            <div class="quota-info">
+                <div class="quota-item">
+                    <span class="quota-label">电路保存配额:</span>
+                    <span class="quota-value" id="circuitQuota">加载中...</span>
+                </div>
+                <div class="quota-item">
+                    <span class="quota-label">电路分享限制:</span>
+                    <span class="quota-value" id="shareLimit">加载中...</span>
+                </div>
+                <div class="quota-item">
+                    <span class="quota-label">账户创建时间:</span>
+                    <span class="quota-value" id="createTime">加载中...</span>
+                </div>
+                <div class="quota-item">
+                    <span class="quota-label">账户状态:</span>
+                    <span class="quota-value" id="accountStatus">加载中...</span>
+                </div>
+            </div>
+            <p class="text-muted">如需增加配额，请联系管理员。</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="api.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 获取当前用户资料
+            loadCurrentUserProfile();
+            
+            // 初始化标签切换
+            initTabs();
+            
+            // 初始化密码查看切换
+            initPasswordToggle();
+            
+            // 初始化个人中心菜单功能
+            initUserDropdown();
+        });
+        
+        // 获取当前登录用户资料
+        function loadCurrentUserProfile() {
+            try {
+                // 从localStorage获取用户信息（登录时已保存）
+                const userDataStr = localStorage.getItem('eda_user');
+                if (!userDataStr) {
+                    showError('basicInfoError', '无法获取用户信息，请重新登录');
+                    return;
+                }
+                
+                // 解析用户数据
+                const userData = JSON.parse(userDataStr);
+                console.log('从localStorage获取用户数据:', userData);
+                
+                // 保存用户ID到全局变量，供表单提交使用
+                window.currentUserId = userData.userId;
+                
+                // 填充基本资料表单
+                document.getElementById('username').value = userData.username || '';
+                document.getElementById('displayUsername').textContent = userData.username || '未设置';
+                document.getElementById('realName').value = userData.realName || '';
+                
+                // 尝试获取更多用户详情（可选，仅用于补充信息）
+                if (userData.userId) {
+                    // 使用userId请求更多详细信息
+                    API.getUserProfile(userData.userId)
+                        .then(response => {
+                            if (response.code === 200) {
+                                const detailData = response.data;
+                                
+                                // 填充其他可能需要最新数据的字段
+                                document.getElementById('email').value = detailData.email || userData.email || '';
+                                document.getElementById('phone').value = detailData.phone || userData.phone || '';
+                                
+                                // 填充配额信息
+                                document.getElementById('circuitQuota').textContent = detailData.circuitQuota || '未设置';
+                                document.getElementById('shareLimit').textContent = detailData.circuitShareLimit || '未设置';
+                                document.getElementById('createTime').textContent = formatDate(detailData.createTime) || '未知';
+                                document.getElementById('accountStatus').textContent = detailData.status === '0' ? '正常' : '禁用';
+                            }
+                        })
+                        .catch(error => {
+                            console.warn('获取额外用户信息失败，使用基本信息:', error.message);
+                        });
+                } else {
+                    // 没有userId，只显示基本信息
+                    document.getElementById('email').value = userData.email || '';
+                    document.getElementById('phone').value = userData.phone || '';
+                    document.getElementById('circuitQuota').textContent = '未设置';
+                    document.getElementById('shareLimit').textContent = '未设置';
+                    document.getElementById('createTime').textContent = formatDate(userData.loginTime) || '未知';
+                    document.getElementById('accountStatus').textContent = '正常';
+                }
+                
+                // 初始化表单提交事件
+                initFormEvents(userData.userId);
+            } catch (error) {
+                showError('basicInfoError', '解析用户数据失败: ' + error.message);
+            }
+        }
+        
+        // 初始化标签切换
+        function initTabs() {
+            const tabItems = document.querySelectorAll('.tab-item');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            tabItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    const tabId = this.getAttribute('data-tab');
+                    
+                    // 移除所有标签的active类
+                    tabItems.forEach(tab => tab.classList.remove('active'));
+                    
+                    // 添加当前标签的active类
+                    this.classList.add('active');
+                    
+                    // 隐藏所有内容区域
+                    tabContents.forEach(content => content.classList.remove('active'));
+                    
+                    // 显示当前标签对应的内容区域
+                    document.getElementById(tabId).classList.add('active');
+                });
+            });
+        }
+        
+        // 初始化密码查看切换
+        function initPasswordToggle() {
+            const toggleButtons = document.querySelectorAll('.password-toggle');
+            
+            toggleButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const targetId = this.getAttribute('data-target');
+                    const inputElement = document.getElementById(targetId);
+                    
+                    if (inputElement.type === 'password') {
+                        inputElement.type = 'text';
+                        this.innerHTML = `
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye-slash" viewBox="0 0 16 16">
+                                <path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7.028 7.028 0 0 0-2.79.588l.77.771A5.944 5.944 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.134 13.134 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755-.165.165-.337.328-.517.486l.708.709z"/>
+                                <path d="M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829l.822.822zm-2.943 1.299.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829"/>
+                                <path d="M3.35 5.47c-.18.16-.353.322-.518.487A13.134 13.134 0 0 0 1.172 8l.195.288c.335.48.83 1.12 1.465 1.755C4.121 11.332 5.881 12.5 8 12.5c.716 0 1.39-.133 2.02-.36l.77.772A7.029 7.029 0 0 1 8 13.5C3 13.5 0 8 0 8s.939-1.721 2.641-3.238l.708.709zm10.296 8.884-12-12 .708-.708 12 12-.708.708"/>
+                            </svg>
+                        `;
+                    } else {
+                        inputElement.type = 'password';
+                        this.innerHTML = `
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye" viewBox="0 0 16 16">
+                                <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8M1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
+                                <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5M4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0"/>
+                            </svg>
+                        `;
+                    }
+                });
+            });
+        }
+        
+        // 初始化表单提交事件
+        function initFormEvents(userId) {
+            // 保存基本资料
+            document.getElementById('saveProfileBtn').addEventListener('click', function() {
+                const profileData = {
+                    email: document.getElementById('email').value,
+                    phone: document.getElementById('phone').value,
+                    realName: document.getElementById('realName').value
+                };
+                
+                // 添加调试信息
+                console.log('准备更新用户资料，userId:', userId);
+                console.log('提交的数据:', profileData);
+                
+                API.updateUserProfile(userId, profileData)
+                    .then(response => {
+                        console.log('更新用户资料响应:', response);
+                        if (response.code === 200) {
+                            showSuccess('basicInfoSuccess', '资料更新成功');
+                            
+                            // 更新本地存储的用户信息
+                            try {
+                                const userDataStr = localStorage.getItem('eda_user');
+                                if (userDataStr) {
+                                    const userData = JSON.parse(userDataStr);
+                                    userData.email = profileData.email;
+                                    userData.phone = profileData.phone;
+                                    userData.realName = profileData.realName;
+                                    localStorage.setItem('eda_user', JSON.stringify(userData));
+                                }
+                            } catch (e) {
+                                console.warn('更新本地用户数据失败:', e);
+                            }
+                        } else {
+                            showError('basicInfoError', response.msg || '资料更新失败');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('更新用户资料出错:', error);
+                        showError('basicInfoError', '资料更新失败: ' + error.message);
+                    });
+            });
+            
+            // 重置基本资料表单
+            document.getElementById('resetProfileBtn').addEventListener('click', function() {
+                loadCurrentUserProfile();
+                hideMessages();
+            });
+            
+            // 修改密码
+            document.getElementById('changePasswordBtn').addEventListener('click', function() {
+                const oldPassword = document.getElementById('oldPassword').value;
+                const newPassword = document.getElementById('newPassword').value;
+                const confirmPassword = document.getElementById('confirmPassword').value;
+                
+                if (!oldPassword || !newPassword || !confirmPassword) {
+                    showError('passwordError', '所有密码字段都必须填写');
+                    return;
+                }
+                
+                if (newPassword !== confirmPassword) {
+                    showError('passwordError', '新密码与确认密码不一致');
+                    return;
+                }
+                
+                const passwordData = {
+                    oldPassword: oldPassword,
+                    newPassword: newPassword,
+                    confirmPassword: confirmPassword
+                };
+                
+                API.updatePassword(userId, passwordData)
+                    .then(response => {
+                        if (response.code === 200) {
+                            showSuccess('passwordSuccess', '密码修改成功');
+                            document.getElementById('passwordForm').reset();
+                        } else {
+                            showError('passwordError', response.msg || '密码修改失败');
+                        }
+                    })
+                    .catch(error => {
+                        showError('passwordError', '密码修改失败: ' + error.message);
+                    });
+            });
+            
+            // 重置密码表单
+            document.getElementById('resetPasswordFormBtn').addEventListener('click', function() {
+                document.getElementById('passwordForm').reset();
+                hideMessages();
+            });
+        }
+        
+        // 初始化用户下拉菜单
+        function initUserDropdown() {
+            // 点击按钮切换下拉菜单的显示状态
+            document.getElementById('userCenterBtn').addEventListener('click', function(e) {
+                e.preventDefault(); // 阻止默认行为
+                document.getElementById('userDropdown').classList.toggle('show');
+            });
+
+            // 点击页面其他地方时关闭下拉菜单
+            window.addEventListener('click', function(e) {
+                // 检查点击的元素是否是按钮本身或其子元素
+                const userCenterBtn = document.getElementById('userCenterBtn');
+                if (userCenterBtn.contains(e.target)) {
+                    return; // 如果点击的是按钮或其子元素，不做任何操作
+                }
+                
+                // 否则，隐藏下拉菜单
+                var dropdown = document.getElementById('userDropdown');
+                if (dropdown.classList.contains('show')) {
+                    dropdown.classList.remove('show');
+                }
+            });
+        }
+        
+        // 显示错误信息
+        function showError(elementId, message) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.style.display = 'block';
+            
+            // 隐藏成功信息
+            const successId = elementId.replace('Error', 'Success');
+            document.getElementById(successId).style.display = 'none';
+        }
+        
+        // 显示成功信息
+        function showSuccess(elementId, message) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.style.display = 'block';
+            
+            // 隐藏错误信息
+            const errorId = elementId.replace('Success', 'Error');
+            document.getElementById(errorId).style.display = 'none';
+        }
+        
+        // 隐藏所有消息
+        function hideMessages() {
+            const messages = document.querySelectorAll('.error-message, .success-message');
+            messages.forEach(msg => msg.style.display = 'none');
+        }
+        
+        // 格式化日期
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            
+            const date = new Date(dateString);
+            return date.getFullYear() + '-' + 
+                   padZero(date.getMonth() + 1) + '-' + 
+                   padZero(date.getDate()) + ' ' + 
+                   padZero(date.getHours()) + ':' + 
+                   padZero(date.getMinutes());
+        }
+        
+        // 补零
+        function padZero(num) {
+            return num < 10 ? '0' + num : num;
+        }
+    </script>
+    
+    <!-- 下拉菜单样式 -->
+    <style>
+        /* 下拉菜单样式 */
+        .dropdown {
+          position: relative;
+          display: inline-block;
+        }
+
+        .dropdown-content {
+          display: none;
+          position: absolute;
+          right: 0;
+          margin-top: 8px;
+          background-color: rgba(255, 255, 255, 0.8); /* 半透明背景 */
+          backdrop-filter: blur(8px); /* 磨砂效果 */
+          -webkit-backdrop-filter: blur(8px); /* Safari 兼容 */
+          width: 100%; /* 与按钮宽度一致 */
+          box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.1);
+          z-index: 1;
+          border-radius: 16px; /* 大圆角 */
+          overflow: hidden; /* 确保内容不溢出圆角 */
+          border: 1px solid rgba(255, 255, 255, 0.2); /* 细微边框增强立体感 */
+        }
+
+        .dropdown-content a {
+          color: #333;
+          padding: 12px 16px;
+          text-decoration: none;
+          display: block;
+          text-align: center; /* 水平居中 */
+          transition: all 0.2s ease; /* 平滑过渡效果 */
+          font-size: 15px; /* 加大字号 */
+          font-weight: 500; /* 适度加粗 */
+        }
+
+        .dropdown-content a:hover {
+          background-color: rgba(94, 53, 177, 0.1); /* 与按钮颜色协调的hover效果 */
+        }
+
+        .show {
+          display: block;
+        }
+    </style>
+</body>
+</html> 
