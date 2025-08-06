@@ -11,6 +11,17 @@ const API_BASE_URL = window.location.protocol + '//' + window.location.hostname 
 // const isProduction = window.location.hostname !== 'localhost' && !window.location.hostname.includes('192.168');
 // const API_BASE_URL = isProduction ? 'https://api.example.com' : 'http://localhost:8080';
 
+// 获取有效的token，确保格式正确
+const getValidToken = () => {
+  let token = localStorage.getItem('eda_token');
+  // 如果token存在，确保没有额外的空格和换行符
+  if (token) {
+    token = token.trim();
+    console.log("获取到的token长度: " + token.length + ", 前10个字符: " + 
+      (token.length > 10 ? token.substring(0, 10) + "..." : token));
+  }
+  return token;
+};
 
 // 统一处理请求头
 const getHeaders = (needAuth = false) => {
@@ -20,9 +31,12 @@ const getHeaders = (needAuth = false) => {
     
     // 如果需要认证，添加token
     if (needAuth) {
-        const token = localStorage.getItem('eda_token');
+        const token = getValidToken();
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;
+            console.log("请求添加Authorization头部");
+        } else {
+            console.warn("需要认证但未找到有效token");
         }
     }
     
@@ -118,6 +132,14 @@ const API = {
             method: 'POST',
             headers: getHeaders(),
             body: JSON.stringify(loginData)
+        })
+        .then(response => {
+            // 保存用户信息到本地存储
+            if (response.code === 200 && response.data) {
+                localStorage.setItem('eda_user_info', JSON.stringify(response.data));
+                localStorage.setItem('eda_token', response.data.token);
+            }
+            return response;
         });
     },
     
@@ -306,21 +328,100 @@ const API = {
     /**
      * 获取用户电路列表
      * @param {number} userId - 用户ID
+     * @param {Object} options - 选项
+     * @param {number} options.limit - 每页记录数
+     * @param {number} options.offset - 起始位置
      * @returns {Promise} - 电路列表
      */
-    getUserCircuits: (userId) => {
-        return request(`/cycore/circuit/user/${userId}`, {
+    getUserCircuits: (userId, options = {}) => {
+        const limit = options.limit || 10;
+        const offset = options.offset || 0;
+        
+        return request(`/cycore/circuit/user/${userId}?limit=${limit}&offset=${offset}`, {
             method: 'GET',
             headers: getHeaders(true)
         });
     },
     
     /**
+     * 获取当前登录用户的电路列表
+     * @param {Object} options - 选项
+     * @param {number} options.limit - 每页记录数
+     * @param {number} options.offset - 起始位置
+     * @returns {Promise} - 电路列表
+     */
+    getCurrentUserCircuits: (options = {}) => {
+        const limit = options.limit || 10;
+        const offset = options.offset || 0;
+        
+        // 添加直接请求日志
+        console.log(`直接请求getCurrentUserCircuits: limit=${limit}, offset=${offset}`);
+        console.log("当前token:", getValidToken() ? getValidToken().substring(0, 10) + "..." : null);
+        
+        // 如果没有token，尝试从localStorage获取
+        const token = getValidToken();
+        if (!token) {
+            console.error("获取电路列表失败：未找到有效token");
+            return Promise.reject(new Error("未登录，请先登录"));
+        }
+        
+        // 构建URL
+        const url = `/cycore/circuit/user/current?limit=${limit}&offset=${offset}`;
+        
+        // 添加重试和详细错误处理
+        return new Promise((resolve, reject) => {
+            request(url, {
+                method: 'GET',
+                headers: getHeaders(true)
+            })
+            .then(response => {
+                console.log("getCurrentUserCircuits 响应:", response);
+                resolve(response);
+            })
+            .catch(error => {
+                console.error("getCurrentUserCircuits 错误:", error);
+                
+                // 如果是401错误，尝试刷新token后重试
+                if (error.message && (error.message.includes('401') || error.message.includes('JWT'))) {
+                    console.log("尝试刷新token后重试请求");
+                    
+                    API.refreshToken()
+                        .then(refreshResult => {
+                            console.log("token刷新结果:", refreshResult);
+                            
+                            // 使用新token重试请求
+                            return request(url, {
+                                method: 'GET',
+                                headers: getHeaders(true)
+                            });
+                        })
+                        .then(retryResponse => {
+                            console.log("重试请求响应:", retryResponse);
+                            resolve(retryResponse);
+                        })
+                        .catch(retryError => {
+                            console.error("重试失败:", retryError);
+                            reject(new Error("认证失败，请重新登录"));
+                        });
+                } else {
+                    reject(error);
+                }
+            });
+        });
+    },
+    
+    /**
      * 获取公开电路列表
+     * @param {Object} options - 选项
+     * @param {number} options.limit - 每页记录数
+     * @param {number} options.offset - 起始位置
      * @returns {Promise} - 公开电路列表
      */
-    getPublicCircuits: () => {
-        return request('/cycore/circuit/public', {
+    getPublicCircuits: (options = {}) => {
+        const limit = options.limit || 10;
+        const offset = options.offset || 0;
+        
+        return request(`/cycore/circuit/public?limit=${limit}&offset=${offset}`, {
             method: 'GET',
             headers: getHeaders(true)
         });
@@ -380,6 +481,13 @@ API.refreshToken = function() {
     .then(response => {
       if (response.code === 200) {
         console.log("令牌刷新成功");
+                        // 确保更新本地存储的令牌和用户信息
+                if (response.data) {
+                  // 确保token格式一致，不含额外字符
+                  const token = response.data.token ? response.data.token.trim() : response.data.token;
+                  localStorage.setItem('eda_user', JSON.stringify(response.data));
+                  localStorage.setItem('eda_token', token);
+                }
         return response;
       } else {
         console.error("自动登录失败:", response.msg);
@@ -403,7 +511,8 @@ API.request = function(url, options = {}, timeout = 10000) {
   
   // 如果需要认证，添加token到请求头
   if (needsAuth) {
-    const token = localStorage.getItem('eda_token');
+    const token = getValidToken();
+    
     if (!token) {
       console.warn("请求需要认证但未找到令牌");
       // 非关键请求，可以继续尝试
@@ -444,7 +553,10 @@ API.request = function(url, options = {}, timeout = 10000) {
                 return API.refreshToken().then(refreshResponse => {
                   // 令牌已刷新，使用新令牌重试原始请求
                   if (!options.headers) options.headers = {};
-                  options.headers['Authorization'] = 'Bearer ' + localStorage.getItem('eda_token');
+                  const token = localStorage.getItem('eda_token');
+                  // 确保token格式一致，不含额外字符
+                  const cleanToken = token ? token.trim() : token;
+                  options.headers['Authorization'] = 'Bearer ' + cleanToken;
                   console.log("使用新令牌重试请求:", url);
                   return fetch(API_BASE_URL + url, options)
                     .then(retryResponse => {
@@ -495,3 +607,6 @@ API.request = function(url, options = {}, timeout = 10000) {
 
 // 导出API模块
 window.API = API;
+
+// 添加token工具函数到API对象
+window.API.getValidToken = getValidToken;

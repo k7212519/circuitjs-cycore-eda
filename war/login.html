@@ -493,7 +493,8 @@
                         }
                         
                         // 保存token和用户信息
-                        const token = data.data.token;
+                        // 确保token格式正确，不含额外空格
+                        const token = data.data.token ? data.data.token.trim() : "";
                         const userData = {
                             userId: data.data.userId,
                             username: data.data.username,
