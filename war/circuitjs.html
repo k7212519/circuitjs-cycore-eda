@@ -19,265 +19,37 @@
     <!-- Properties can be specified to influence deferred binding -->
     <meta name='gwt:property' content='locale=en_UK'>
     
-    <!-- 添加对话框相关CSS -->
-    <style>
-    /* 对话框动画 */
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-
-    @keyframes slideIn {
-      from { transform: translate(-50%, -60%); opacity: 0; }
-      to { transform: translate(-50%, -50%); opacity: 1; }
-    }
-
-    /* 全局对话框样式 */
-    .dialog-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0, 0, 0, 0.5);
-      z-index: 9998;
-      animation: fadeIn 0.3s ease;
-    }
-
-    .dialog-container {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background-color: white;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-      z-index: 9999;
-      width: 400px;
-      max-width: 90%;
-      max-height: 80vh;
-      overflow-y: auto;
-      animation: slideIn 0.3s ease;
-    }
-
-    .dialog-btn {
-      padding: 8px 16px;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-
-    .dialog-btn-primary {
-      background-color: #5e35b1;
-      color: white;
-      border: none;
-    }
-
-    .dialog-btn-secondary {
-      background-color: #f5f5f5;
-      border: 1px solid #ccc;
-    }
-
-    .project-item {
-      padding: 10px;
-      border-bottom: 1px solid #eee;
-      cursor: pointer;
-      transition: background-color 0.2s;
-    }
-
-    .project-item:hover {
-      background-color: #f8f0ff;
-    }
-
-    .project-item.selected {
-      background-color: #f0e6ff;
-    }
-
-    /* 定义旋转动画 */
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    </style>
-    
+    <!-- 引入CSS文件 -->
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/dialog.css">
+    <link rel="stylesheet" href="css/popup.css">
+    <link rel="stylesheet" href="font/fontello.css">
     
     <!-- Titles are optional, but useful -->
     <title></title>
 
-<style>
-.disabled {
-	color: lightgray
-}
-.topSpace {
-	margin-top: 12px;
-}
-.cursorPointer {
-   cursor: default;
-}
-.cursorCross {
-   cursor: crosshair;
-}
 
-.cursorSplitter {
-   cursor: row-resize;
-}
-
-/* 去掉Canvas的焦点边框 */
-canvas, canvas:focus, canvas:active {
-   outline: none !important;
-   -webkit-tap-highlight-color: rgba(0,0,0,0);
-   -webkit-focus-ring-color: rgba(0,0,0,0);
-   border: none !important;
-   box-shadow: none !important;
-}
-
-.gwt-MenuItem-disabled {
-	color: lightgray;
-  /* color: rgb(11, 133, 219); */
-
-}
-.offScreen {
-	position: absolute;
-	right: 101%;
-	overflow: hidden;
-}
-.gwt-Frame{
-	overflow: hidden;
-	border: 0px !important;
-}
-
-.gwt-MenuItem {
-	font-size: 14px !important;
-}
-
-.gwt-MenuBar-horizontal {
-	font-size: 14px !important;
-	}
-	
-.gwt-Label-selected {
-	font-size: 1.3em;
-	font-weight: 700;
-	border-top: 1px solid black;
-	border-bottom: 1px solid black;
-}
-.gwt-Label-1off {
-	color: DarkGray;
-}
-
-.gwt-Label-2off {
-	font-size:0.8em;
-	color: LightGray;
-}
-
-.gwt-Label-current {
-}
-
-.gwt-Button.chbut {
-	padding:3px;
-	margin: 3px;
-}
-
-.gwt-Button.chbut.chsel {
-	font-weight: bold;
-}
-
-.gwt-Button.chbut-black {
-	background: black;
-	color: white;
-}
-
-.gwt-Button.chbut-white {
-	background: white;
-	color: black;
-}
-
-.gwt-TextBox.scalebox {
-	width: 100px;
-}
-
-.gwt-Button.expand-but {
-	line-height: 0;
-	font-size: 13px;
-	margin-right: 5px;
-	border-radius:0px;
-	display: inline-block;
-	text-align: center;
-	width: 15px;
-	height: 15px;
-	padding-left: 0;
-	padding-right: 0;
-	padding-bottom:1px;
-	padding-top:0;
-	margin-bottom:1px;
-	background:gray;
-	color:white;
-}
-
-
-.topButton-red {
-    margin-top: 5px;
-    margin-bottom: 5px;
-    margin-left:5px;
-    padding: 5px 7px;
-    text-decoration: none;
-    color: #ffffff;
-    cursor: pointer;
-    cursor: hand;
-    font-size: small;
-    background-color: #ff0000; 
-    border: 1px solid #bbb;
-    border-bottom: 1px solid #a0a0a0;
-    border-radius: 3px;
-    -moz-border-radius: 3px;
-}
-
-.topButton {
-    margin-top: 5px;
-    margin-bottom: 5px;
-    margin-left: auto;
-    margin-right: auto;
-    padding: 5px 7px;
-    text-decoration: none;
-    cursor: pointer;
-    cursor: hand;
-    font-size: small;
-    background-color: #e7e7e7; 
-    border: 1px solid #bbb;
-    border-bottom: 1px solid #a0a0a0;
-    border-radius: 3px;
-    -moz-border-radius: 3px;
-    display: block;
-    text-align: center;
-}
-
-.radioPanel label {
-	margin-right: 15px;
-}
-
-</style>
-
-<link rel="stylesheet" href="font/fontello.css">
 
 </head>
   <body>
   <!-- 添加顶部按钮和下拉菜单 -->
-  <div style="position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; gap: 15px;">
+  <div class="header-nav">
     <!-- 项目按钮 -->
     <div class="dropdown">
-      <button id="projectBtn" class="dropbtn" style="background-color: #5e35b1; color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-size: 15px; display: flex; align-items: center; gap: 10px;">
-        <img src="img/svg/folder-open.svg" alt="项目" style="width: 20px; height: 20px; filter: brightness(0) invert(1);">
+      <button id="projectBtn" class="dropbtn">
+        <img src="img/svg/folder-open.svg" alt="项目" class="btn-icon">
         <span>项目</span>
       </button>
       <div id="projectDropdown" class="dropdown-content">
         <a href="#" id="saveToCloudBtn">保存到云端</a>
         <a href="myCircuits.html">我的项目</a>
-  </div>
+      </div>
     </div>
     
     <!-- 个人中心按钮 -->
     <div class="dropdown">
-      <button id="userCenterBtn" class="dropbtn" style="background-color: #5e35b1; color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-size: 15px; display: flex; align-items: center; gap: 10px;">
-        <img src="img/svg/user-avatar.svg" alt="用户" style="width: 20px; height: 20px; filter: brightness(0) invert(1);">
+      <button id="userCenterBtn" class="dropbtn">
+        <img src="img/svg/user-avatar.svg" alt="用户" class="btn-icon">
         <span>个人中心</span>
       </button>
       <div id="userDropdown" class="dropdown-content">
@@ -288,48 +60,7 @@ canvas, canvas:focus, canvas:active {
     </div>
   </div>
 
-  <style>
-    /* 下拉菜单样式 */
-    .dropdown {
-      position: relative;
-      display: inline-block;
-    }
 
-    .dropdown-content {
-      display: none;
-      position: absolute;
-      right: 0;
-      margin-top: 8px;
-      background-color: rgba(255, 255, 255, 0.8); /* 半透明背景 */
-      backdrop-filter: blur(8px); /* 磨砂效果 */
-      -webkit-backdrop-filter: blur(8px); /* Safari 兼容 */
-      width: 100%; /* 与按钮宽度一致 */
-      box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.1);
-      z-index: 1;
-      border-radius: 16px; /* 大圆角 */
-      overflow: hidden; /* 确保内容不溢出圆角 */
-      border: 1px solid rgba(255, 255, 255, 0.2); /* 细微边框增强立体感 */
-    }
-
-    .dropdown-content a {
-      color: #333;
-      padding: 12px 16px;
-      text-decoration: none;
-      display: block;
-      text-align: center; /* 水平居中 */
-      transition: all 0.2s ease; /* 平滑过渡效果 */
-      font-size: 15px; /* 加大字号 */
-      font-weight: 500; /* 适度加粗 */
-    }
-
-    .dropdown-content a:hover {
-      background-color: rgba(94, 53, 177, 0.1); /* 与按钮颜色协调的hover效果 */
-    }
-
-    .show {
-      display: block;
-    }
-  </style>
 
   <script>
     // 全局变量，用于保存从GWT应用获取的电路数据

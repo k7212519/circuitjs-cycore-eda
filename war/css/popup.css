@@ -1,0 +1,168 @@
+/* popup.css - 弹窗样式文件 */
+
+/* 弹窗动画 */
+@keyframes slideInRight {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideUp {
+    from { transform: translateY(20px); }
+    to { transform: translateY(0); }
+}
+
+/* 角落弹窗样式 */
+#corner-project-popup {
+    position: fixed; 
+    top: 80px; 
+    right: 20px; 
+    width: 350px; 
+    max-width: 90vw; 
+    background-color: white; 
+    border-radius: 10px; 
+    box-shadow: 0 5px 25px rgba(0,0,0,0.18); 
+    z-index: 10000; 
+    overflow: hidden;
+    animation: slideInRight 0.3s ease-out;
+    border: 1px solid #eaeaea;
+}
+
+/* 弹窗头部 */
+.popup-header {
+    background-color: #5e35b1; 
+    color: white; 
+    padding: 15px; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
+}
+
+.popup-title {
+    margin: 0; 
+    font-size: 18px;
+}
+
+.popup-close {
+    cursor: pointer; 
+    width: 24px; 
+    height: 24px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+}
+
+/* 弹窗内容区 */
+.popup-content {
+    padding: 15px; 
+    max-height: 70vh; 
+    overflow-y: auto;
+}
+
+/* 按钮样式 */
+.popup-btn {
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+.popup-btn:hover {
+    opacity: 0.9;
+}
+
+.popup-btn:active {
+    transform: translateY(1px);
+}
+
+.popup-btn-primary {
+    background-color: #5e35b1;
+    color: white;
+    border: none;
+}
+
+.popup-btn-secondary {
+    background-color: #f5f5f5;
+    border: 1px solid #ddd;
+    color: #333;
+}
+
+/* 自定义通知 */
+.custom-notification {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 10000;
+    max-width: 90vw;
+    min-width: 200px;
+    animation: fadeIn 0.3s, slideUp 0.3s;
+    display: flex;
+    align-items: center;
+}
+
+/* 通知类型样式 */
+.notification-success {
+    background-color: #4caf50;
+    color: white;
+}
+
+.notification-error {
+    background-color: #f44336;
+    color: white;
+}
+
+.notification-warning {
+    background-color: #ff9800;
+    color: white;
+}
+
+.notification-info {
+    background-color: #2196f3;
+    color: white;
+}
+
+/* 项目表单样式 */
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+
+.form-input {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+}
+
+.form-textarea {
+    min-height: 60px;
+    resize: vertical;
+}
+
+/* 聚焦输入框样式 */
+#corner-project-popup input:focus,
+#corner-project-popup textarea:focus {
+    outline: 2px solid #5e35b1;
+    box-shadow: 0 0 5px rgba(94, 53, 177, 0.5);
+}
+
+/* 输入框可选择文本 */
+#corner-project-popup input, 
+#corner-project-popup textarea {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+}
+
+/* 项目列表样式 */
+.project-list-container {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-bottom: 15px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+} 
