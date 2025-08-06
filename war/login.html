@@ -391,9 +391,24 @@
                                 loginTime: new Date().toISOString()
                             };
                             localStorage.setItem('eda_user', JSON.stringify(userData));
+                            localStorage.setItem('userId', data.data.userId); // 确保userId单独存储
                             
-                            // 跳转到电路仿真页面
-                window.location.href = 'circuitjs.html';
+                            // 检查是否有来自保存功能的重定向
+                            const pendingSaveCircuit = sessionStorage.getItem('pending_save_circuit');
+                            const returnUrl = sessionStorage.getItem('return_url');
+                            
+                            if (pendingSaveCircuit && returnUrl) {
+                                // 有待保存的电路，将数据保存到会话，并重定向回原页面
+                                sessionStorage.removeItem('pending_save_circuit');
+                                sessionStorage.removeItem('return_url');
+                                sessionStorage.setItem('circuit_to_save', pendingSaveCircuit);
+                                
+                                console.log("检测到有待保存的电路，重定向回原页面");
+                                window.location.href = returnUrl;
+                            } else {
+                                // 正常登录流程，跳转到首页
+                                window.location.href = 'circuitjs.html';
+                            }
                         } else {
                             // token无效，清除登录状态
                             localStorage.removeItem('eda_token');
@@ -469,8 +484,12 @@
                         // 如果选择了"记住我"，则保存用户名
                         if (rememberMe.checked) {
                             localStorage.setItem('saved_username', usernameInput.value);
+                            // 保存加密后的密码，用于自动刷新令牌（简单加密，非安全方式）
+                            const encodedPassword = btoa(passwordInput.value);
+                            localStorage.setItem('saved_password', encodedPassword);
                         } else {
                             localStorage.removeItem('saved_username');
+                            localStorage.removeItem('saved_password');
                         }
                         
                         // 保存token和用户信息
@@ -485,11 +504,26 @@
                         };
                         
                         localStorage.setItem('eda_token', token);
+                        localStorage.setItem('userId', data.data.userId); // 直接存储userId便于快速访问
                         localStorage.setItem('eda_user', JSON.stringify(userData));
                         sessionStorage.setItem('authenticated', 'true');
                         
-                        // 跳转到电路仿真页面
-                        window.location.href = 'circuitjs.html';
+                        // 检查是否有来自保存功能的重定向
+                        const pendingSaveCircuit = sessionStorage.getItem('pending_save_circuit');
+                        const returnUrl = sessionStorage.getItem('return_url');
+                        
+                        if (pendingSaveCircuit && returnUrl) {
+                            // 有待保存的电路，将数据保存到会话，并重定向回原页面
+                            sessionStorage.removeItem('pending_save_circuit');
+                            sessionStorage.removeItem('return_url');
+                            sessionStorage.setItem('circuit_to_save', pendingSaveCircuit);
+                            
+                            console.log("检测到有待保存的电路，重定向回原页面");
+                            window.location.href = returnUrl;
+                        } else {
+                            // 正常登录流程，跳转到首页
+                            window.location.href = 'circuitjs.html';
+                        }
                     } else {
                         // 登录失败
                         loginError.textContent = data.message || '登录失败，请检查用户名和密码';

@@ -360,6 +360,7 @@ canvas, canvas:focus, canvas:active {
           if (userId && token) {
             console.log("用户已登录，自动触发保存流程");
             window.currentCircuitData = circuitToSave;
+            showGWTProjectSaveDialog();
             showProjectMenu();
           }
         }, 2000);
@@ -403,7 +404,6 @@ canvas, canvas:focus, canvas:active {
         // 检查是否已登录
         const userId = localStorage.getItem('userId');
         const token = localStorage.getItem('eda_token');
-        const userData = JSON.parse(localStorage.getItem('eda_user') || '{}');
         
         // 验证用户登录状态
         if (!userId || !token) {
@@ -412,58 +412,69 @@ canvas, canvas:focus, canvas:active {
           return;
         }
         
-        // 验证令牌是否有效
-        API.validateToken()
-          .then(response => {
-            console.log("验证令牌结果:", response);
-            if (response.code === 200) {
-              // 令牌有效，继续保存操作
-              getAndSaveCircuitData();
-            } else {
-              console.log("令牌无效，尝试自动重新登录");
-              // 令牌无效，尝试自动重新登录
-              showAutoLoginDialog();
-            }
-          })
-          .catch(error => {
-            console.error("验证令牌失败:", error);
-            showLoginRequiredDialog();
-          });
+        // 主动尝试刷新令牌，然后再进行保存操作
+        console.log("主动尝试刷新令牌");
         
-        // 获取电路数据并保存
-        function getAndSaveCircuitData() {
-          // 创建一个隐藏的文本区域，用于复制电路数据
-          let textArea = document.createElement("textarea");
-          textArea.id = "circuit-data-textarea";
-          textArea.style.position = "fixed";
-          textArea.style.top = "0";
-          textArea.style.left = "0";
-          textArea.style.width = "2em";
-          textArea.style.height = "2em";
-          textArea.style.opacity = 0;
-          document.body.appendChild(textArea);
-          
-          // 重置全局变量
-          circuitTextData = null;
-          
-          // 尝试获取电路数据
-          getCircuitData(function(data) {
-            console.log("获取电路数据结果:", data ? "成功，数据长度=" + data.length : "失败");
-            if (data) {
-              // 存储电路数据到全局变量
-              window.currentCircuitData = data;
-              
-              // 显示保存对话框
-              showProjectSaveDialog(userId);
-            } else {
-              showPromptDialog("无法获取电路数据。请尝试使用'文件->导出为文本'手动保存。");
-            }
+        // 检查是否有保存的登录信息
+        const savedUsername = localStorage.getItem('saved_username');
+        const savedPassword = localStorage.getItem('saved_password');
+        
+        if (savedUsername && savedPassword) {
+          try {
+            // 解码密码
+            const decodedPassword = atob(savedPassword);
             
-            // 清理临时DOM元素
-            if (document.body.contains(textArea)) {
-              document.body.removeChild(textArea);
-            }
-          });
+            // 尝试自动重新登录以刷新令牌
+            API.login({
+              username: savedUsername,
+              password: decodedPassword,
+              rememberMe: true
+            })
+            .then(loginResponse => {
+              console.log("自动刷新令牌结果:", loginResponse);
+              if (loginResponse.code === 200) {
+                // 刷新令牌成功，继续保存操作
+                console.log("令牌刷新成功，继续保存操作");
+                getAndSaveCircuitDataGWT();
+              } else {
+                console.log("自动登录失败，尝试使用当前令牌");
+                // 尝试使用当前令牌验证
+                validateTokenAndSave();
+              }
+            })
+            .catch(loginError => {
+              console.error("自动登录失败:", loginError);
+              // 尝试使用当前令牌验证
+              validateTokenAndSave();
+            });
+          } catch (decodeError) {
+            console.error("解码密码失败:", decodeError);
+            // 尝试使用当前令牌验证
+            validateTokenAndSave();
+          }
+        } else {
+          // 无法自动登录，尝试使用当前令牌验证
+          console.log("没有保存的登录信息，尝试使用当前令牌");
+          validateTokenAndSave();
+        }
+        
+        // 使用当前令牌进行验证
+        function validateTokenAndSave() {
+          API.validateToken()
+            .then(response => {
+              console.log("验证令牌结果:", response);
+              if (response.code === 200) {
+                // 令牌有效，继续保存操作
+                getAndSaveCircuitDataGWT();
+              } else {
+                console.log("令牌无效，提示用户重新登录");
+                showLoginRequiredDialog();
+              }
+            })
+            .catch(error => {
+              console.error("验证令牌失败:", error);
+              showLoginRequiredDialog();
+            });
         }
       });
 
@@ -858,13 +869,29 @@ canvas, canvas:focus, canvas:active {
           showPromptDialog('认证已过期，请重新登录');
           setTimeout(() => {
             showLoginRequiredDialog();
-          }, 2000);
+          }, 1500);
           return;
         }
+        
+        // 检查数据有效性
+        if (!circuitSaveData.userId || !circuitSaveData.circuitName || !circuitSaveData.circuitData) {
+          console.error('保存数据不完整:', circuitSaveData);
+          showPromptDialog('保存数据不完整，请重试');
+          return;
+        }
+        
+        // 添加保存超时保护
+        let saveTimeout = setTimeout(() => {
+          console.error("保存电路超时");
+          showPromptDialog('保存操作超时，请重试');
+        }, 30000);
         
         console.log("调用API.saveCircuit");
         window.API.saveCircuit(circuitSaveData)
           .then(response => {
+            // 清除超时
+            clearTimeout(saveTimeout);
+            
             console.log("保存电路响应:", response);
             if (response.code === 200) {
               showPromptDialog('项目保存成功！');
@@ -874,6 +901,9 @@ canvas, canvas:focus, canvas:active {
             }
           })
           .catch(error => {
+            // 清除超时
+            clearTimeout(saveTimeout);
+            
             console.error('保存电路出错:', error);
             
             // 检查是否为JWT认证错误
@@ -894,7 +924,7 @@ canvas, canvas:focus, canvas:active {
                     showPromptDialog('自动登录失败，请重新登录');
                     setTimeout(() => {
                       showLoginRequiredDialog();
-                    }, 2000);
+                    }, 1500);
                   }
                 })
                 .catch(refreshError => {
@@ -902,10 +932,11 @@ canvas, canvas:focus, canvas:active {
                   showPromptDialog('需要重新登录');
                   setTimeout(() => {
                     showLoginRequiredDialog();
-                  }, 2000);
+                  }, 1500);
                 });
             } else {
-              showPromptDialog('保存失败: ' + error.message);
+              const errorMsg = error.message || '未知错误';
+              showPromptDialog('保存失败: ' + errorMsg);
             }
           });
       } catch (error) {
@@ -1372,7 +1403,6 @@ document.getElementById('saveToCloudBtn').addEventListener('click', function(e) 
   // 检查是否已登录
   const userId = localStorage.getItem('userId');
   const token = localStorage.getItem('eda_token');
-  const userData = JSON.parse(localStorage.getItem('eda_user') || '{}');
   
   // 验证用户登录状态
   if (!userId || !token) {
@@ -1381,23 +1411,70 @@ document.getElementById('saveToCloudBtn').addEventListener('click', function(e) 
     return;
   }
   
-  // 验证令牌是否有效
-  API.validateToken()
-    .then(response => {
-      console.log("验证令牌结果:", response);
-      if (response.code === 200) {
-        // 令牌有效，继续保存操作
-        getAndSaveCircuitData();
-      } else {
-        console.log("令牌无效，尝试自动重新登录");
-        // 令牌无效，尝试自动重新登录
-        showAutoLoginDialog();
-      }
-    })
-    .catch(error => {
-      console.error("验证令牌失败:", error);
-      showLoginRequiredDialog();
-    });
+  // 主动尝试刷新令牌，然后再进行保存操作
+  console.log("主动尝试刷新令牌");
+  
+  // 检查是否有保存的登录信息
+  const savedUsername = localStorage.getItem('saved_username');
+  const savedPassword = localStorage.getItem('saved_password');
+  
+  if (savedUsername && savedPassword) {
+    try {
+      // 解码密码
+      const decodedPassword = atob(savedPassword);
+      
+      // 尝试自动重新登录以刷新令牌
+      API.login({
+        username: savedUsername,
+        password: decodedPassword,
+        rememberMe: true
+      })
+      .then(loginResponse => {
+        console.log("自动刷新令牌结果:", loginResponse);
+        if (loginResponse.code === 200) {
+          // 刷新令牌成功，继续保存操作
+          console.log("令牌刷新成功，继续保存操作");
+          getAndSaveCircuitDataGWT();
+        } else {
+          console.log("自动登录失败，尝试使用当前令牌");
+          // 尝试使用当前令牌验证
+          validateTokenAndSave();
+        }
+      })
+      .catch(loginError => {
+        console.error("自动登录失败:", loginError);
+        // 尝试使用当前令牌验证
+        validateTokenAndSave();
+      });
+    } catch (decodeError) {
+      console.error("解码密码失败:", decodeError);
+      // 尝试使用当前令牌验证
+      validateTokenAndSave();
+    }
+  } else {
+    // 无法自动登录，尝试使用当前令牌验证
+    console.log("没有保存的登录信息，尝试使用当前令牌");
+    validateTokenAndSave();
+  }
+  
+  // 使用当前令牌进行验证
+  function validateTokenAndSave() {
+    API.validateToken()
+      .then(response => {
+        console.log("验证令牌结果:", response);
+        if (response.code === 200) {
+          // 令牌有效，继续保存操作
+          getAndSaveCircuitDataGWT();
+        } else {
+          console.log("令牌无效，提示用户重新登录");
+          showLoginRequiredDialog();
+        }
+      })
+      .catch(error => {
+        console.error("验证令牌失败:", error);
+        showLoginRequiredDialog();
+      });
+  }
 });
 
 // 获取电路数据并保存
@@ -2091,23 +2168,70 @@ document.getElementById('saveToCloudBtn').addEventListener('click', function(e) 
     return;
   }
   
-  // 验证令牌是否有效
-  API.validateToken()
-    .then(response => {
-      console.log("验证令牌结果:", response);
-      if (response.code === 200) {
-        // 令牌有效，继续保存操作
-        getAndSaveCircuitDataGWT();
-      } else {
-        console.log("令牌无效，尝试自动重新登录");
-        // 令牌无效，尝试自动重新登录
-        showAutoLoginDialog();
-      }
-    })
-    .catch(error => {
-      console.error("验证令牌失败:", error);
-      showLoginRequiredDialog();
-    });
+  // 主动尝试刷新令牌，然后再进行保存操作
+  console.log("主动尝试刷新令牌");
+  
+  // 检查是否有保存的登录信息
+  const savedUsername = localStorage.getItem('saved_username');
+  const savedPassword = localStorage.getItem('saved_password');
+  
+  if (savedUsername && savedPassword) {
+    try {
+      // 解码密码
+      const decodedPassword = atob(savedPassword);
+      
+      // 尝试自动重新登录以刷新令牌
+      API.login({
+        username: savedUsername,
+        password: decodedPassword,
+        rememberMe: true
+      })
+      .then(loginResponse => {
+        console.log("自动刷新令牌结果:", loginResponse);
+        if (loginResponse.code === 200) {
+          // 刷新令牌成功，继续保存操作
+          console.log("令牌刷新成功，继续保存操作");
+          getAndSaveCircuitDataGWT();
+        } else {
+          console.log("自动登录失败，尝试使用当前令牌");
+          // 尝试使用当前令牌验证
+          validateTokenAndSave();
+        }
+      })
+      .catch(loginError => {
+        console.error("自动登录失败:", loginError);
+        // 尝试使用当前令牌验证
+        validateTokenAndSave();
+      });
+    } catch (decodeError) {
+      console.error("解码密码失败:", decodeError);
+      // 尝试使用当前令牌验证
+      validateTokenAndSave();
+    }
+  } else {
+    // 无法自动登录，尝试使用当前令牌验证
+    console.log("没有保存的登录信息，尝试使用当前令牌");
+    validateTokenAndSave();
+  }
+  
+  // 使用当前令牌进行验证
+  function validateTokenAndSave() {
+    API.validateToken()
+      .then(response => {
+        console.log("验证令牌结果:", response);
+        if (response.code === 200) {
+          // 令牌有效，继续保存操作
+          getAndSaveCircuitDataGWT();
+        } else {
+          console.log("令牌无效，提示用户重新登录");
+          showLoginRequiredDialog();
+        }
+      })
+      .catch(error => {
+        console.error("验证令牌失败:", error);
+        showLoginRequiredDialog();
+      });
+  }
 });
 
 // GWT兼容的获取电路数据并保存
@@ -2211,10 +2335,21 @@ function showGWTProjectSaveDialog() {
   
   GWTDialog.showLoading("正在加载项目列表...");
   
+  // 添加超时保护
+  let projectListTimeout = setTimeout(() => {
+    console.error("获取项目列表超时");
+    GWTDialog.close();
+    showPromptDialog("加载项目列表超时，请重试");
+  }, 15000);
+  
   // 获取用户项目列表
   API.getUserCircuits(userId)
     .then(response => {
       console.log("获取到项目列表响应:", response);
+      
+      // 清除超时
+      clearTimeout(projectListTimeout);
+      
       const hasProjects = response.code === 200 && response.data && response.data.length > 0;
       const defaultName = "我的电路 " + new Date().toLocaleString();
       
@@ -2444,6 +2579,7 @@ function showGWTProjectSaveDialog() {
                   const selectedCircuit = window.projectsList[selectedProjectIndex];
                   if (selectedCircuit) {
                     console.log("覆盖现有项目:", selectedCircuit.circuitName);
+                    GWTDialog.close();
                     saveCircuit({
                       circuitId: selectedCircuit.circuitId,
                       userId: parseInt(userId),
@@ -2472,6 +2608,7 @@ function showGWTProjectSaveDialog() {
                 }
                 
                 console.log("创建新项目:", nameInput.value.trim());
+                GWTDialog.close();
                 saveCircuit({
                   userId: parseInt(userId),
                   circuitName: nameInput.value.trim(),
@@ -2480,9 +2617,6 @@ function showGWTProjectSaveDialog() {
                   isPublic: publicCheckbox && publicCheckbox.checked ? '1' : '0'
                 });
               }
-              
-              // 关闭对话框
-              GWTDialog.close();
             }
           }
         ]
@@ -2490,6 +2624,9 @@ function showGWTProjectSaveDialog() {
     })
     .catch(error => {
       console.error("加载项目列表失败:", error);
+      
+      // 清除超时
+      clearTimeout(projectListTimeout);
       
       // 检查是否是认证错误
       if (error.message && (error.message.includes('401') || error.message.includes('JWT'))) {
@@ -2610,6 +2747,8 @@ function showGWTProjectSaveDialog() {
                 return;
               }
               
+              // 先关闭对话框，然后再保存
+              GWTDialog.close();
               saveCircuit({
                 userId: parseInt(userId),
                 circuitName: nameInput.value.trim(),
@@ -2617,15 +2756,13 @@ function showGWTProjectSaveDialog() {
                 description: descInput ? descInput.value.trim() : '',
                 isPublic: publicCheckbox && publicCheckbox.checked ? '1' : '0'
               });
-              
-              GWTDialog.close();
             }
           }
         ]
-	});
       });
-    }
-    </script>
+    });
+}
+</script>
 
   </body>
  </html>

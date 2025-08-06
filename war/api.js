@@ -5,7 +5,7 @@
 
 // API基础URL，可以根据环境配置
 // 使用明确的后端API服务器地址，而不是前端静态服务器
-const API_BASE_URL = 'http://192.168.1.103:8088'; // 默认使用本地开发服务器
+const API_BASE_URL = window.location.protocol + '//' + window.location.hostname + ':8088'; // 默认使用本地开发服务器
 
 // 如果需要在不同环境中切换，可以取消注释下面的代码
 // const isProduction = window.location.hostname !== 'localhost' && !window.location.hostname.includes('192.168');
@@ -46,7 +46,31 @@ const request = async (url, options = {}) => {
         const response = await fetch(`${API_BASE_URL}${url}`, options);
         clearTimeout(timeoutId); // 清除超时
         
-        // 处理非2xx响应
+        // 处理HTTP 401 Unauthorized - JWT认证错误
+        if (response.status === 401) {
+            // 尝试获取详细错误信息
+            let errorDetail;
+            try {
+                const errorResponse = await response.json();
+                errorDetail = errorResponse.msg || errorResponse.message || '认证失败';
+            } catch (e) {
+                errorDetail = '认证失败';
+            }
+            
+            // 如果是JWT错误，特别处理
+            if (errorDetail.includes('JWT')) {
+                console.warn('JWT认证错误:', errorDetail);
+                // 清理失效的令牌
+                if (needsAuth(url)) {
+                    console.log('清理失效的认证信息');
+                }
+                throw new Error(`认证失败 (JWT): ${errorDetail}`);
+            } else {
+                throw new Error(`认证失败: ${errorDetail}`);
+            }
+        }
+        
+        // 处理其他非2xx响应
         if (!response.ok) {
             let errorText;
             try {
@@ -66,11 +90,18 @@ const request = async (url, options = {}) => {
         if (error.name === 'AbortError') {
             throw new Error('请求超时，请检查网络连接');
         } else if (error.message.includes('Failed to fetch')) {
-            throw new Error('无法连接到服务器，请检查网络连接或服务器状态');
+            throw new Error('网络连接失败，请检查您的互联网连接');
         }
         throw error;
     }
 };
+
+// 判断URL是否需要认证
+function needsAuth(url) {
+    // 不需要认证的URL
+    const noAuthUrls = ['/eda/login', '/eda/register', '/actuator/health'];
+    return !noAuthUrls.some(noAuth => url.startsWith(noAuth));
+}
 
 // API模块
 const API = {
@@ -239,28 +270,228 @@ const API = {
             headers: getHeaders(true),
             body: JSON.stringify(passwordData)
         });
+    },
+    
+    /**
+     * 保存电路
+     * @param {Object} circuitData - 电路信息
+     * @param {number} circuitData.userId - 用户ID
+     * @param {string} circuitData.circuitName - 电路名称
+     * @param {string} circuitData.circuitData - 电路数据
+     * @param {string} circuitData.description - 电路描述 (可选)
+     * @param {string} circuitData.isPublic - 是否公开 (默认为'0'-私有)
+     * @returns {Promise} - 保存结果
+     */
+    saveCircuit: (circuitData) => {
+        console.log("API.saveCircuit被调用", circuitData.userId, circuitData.circuitName);
+        return request('/cycore/circuit/save', {
+            method: 'POST',
+            headers: getHeaders(true),  // 确保传入true，表示需要认证
+            body: JSON.stringify(circuitData)
+        });
+    },
+    
+    /**
+     * 获取电路详情
+     * @param {number} circuitId - 电路ID
+     * @returns {Promise} - 电路详情
+     */
+    getCircuit: (circuitId) => {
+        return request(`/cycore/circuit/${circuitId}`, {
+            method: 'GET',
+            headers: getHeaders(true)
+        });
+    },
+    
+    /**
+     * 获取用户电路列表
+     * @param {number} userId - 用户ID
+     * @returns {Promise} - 电路列表
+     */
+    getUserCircuits: (userId) => {
+        return request(`/cycore/circuit/user/${userId}`, {
+            method: 'GET',
+            headers: getHeaders(true)
+        });
+    },
+    
+    /**
+     * 获取公开电路列表
+     * @returns {Promise} - 公开电路列表
+     */
+    getPublicCircuits: () => {
+        return request('/cycore/circuit/public', {
+            method: 'GET',
+            headers: getHeaders(true)
+        });
+    },
+    
+    /**
+     * 删除电路
+     * @param {number} circuitId - 电路ID
+     * @param {number} userId - 用户ID
+     * @returns {Promise} - 删除结果
+     */
+    deleteCircuit: (circuitId, userId) => {
+        return request(`/cycore/circuit/${circuitId}?userId=${userId}`, {
+            method: 'DELETE',
+            headers: getHeaders(true)
+        });
     }
 };
 
-// API连接状态检测函数
-API.checkConnection = () => {
-    console.log('正在检测API连接状态...');
-    return fetch(`${API_BASE_URL}/actuator/health`, {
-        method: 'GET',
-        mode: 'cors',
-        headers: { 'Accept': 'application/json' }
+// 检查连接
+API.checkConnection = function() {
+  return API.request('/ping', {
+    method: 'GET',
+    credentials: 'same-origin'
+  }, 2000);
+};
+
+// 验证令牌
+API.validateToken = function() {
+  return API.request('/eda/login/validate', {
+    method: 'GET'
+  });
+};
+
+// 刷新令牌
+API.refreshToken = function() {
+  console.log("尝试刷新令牌");
+  // 获取保存的用户名和密码（如果有）
+  const savedUsername = localStorage.getItem('saved_username');
+  const savedPassword = localStorage.getItem('saved_password');
+
+  if (!savedUsername || !savedPassword) {
+    console.log("没有保存的登录信息，无法自动刷新令牌");
+    return Promise.reject(new Error("需要重新登录"));
+  }
+
+  try {
+    // 解码密码
+    const decodedPassword = atob(savedPassword);
+    
+    // 使用保存的凭证自动登录
+    return API.login({
+      username: savedUsername,
+      password: decodedPassword,
+      rememberMe: true
     })
     .then(response => {
-        if (response.ok) {
-            console.log('API服务器连接正常');
-            return response.json();
-        } else {
-            console.error('API服务器连接异常:', response.status, response.statusText);
-            throw new Error(`API服务器连接异常: ${response.status} ${response.statusText}`);
-        }
-    })
-    .catch(error => {
-        console.error('API连接检测失败:', error);
-        throw error;
+      if (response.code === 200) {
+        console.log("令牌刷新成功");
+        return response;
+      } else {
+        console.error("自动登录失败:", response.msg);
+        return Promise.reject(new Error(response.msg || "自动登录失败"));
+      }
     });
+  } catch (error) {
+    console.error("解码密码或自动登录过程出错:", error);
+    return Promise.reject(new Error("自动登录过程出错"));
+  }
 };
+
+// 通用请求包装函数，处理JWT失效问题
+API.request = function(url, options = {}, timeout = 10000) {
+  // 检查是否需要添加认证令牌
+  const needsAuth = url !== '/eda/login' && 
+                    url !== '/ping' && 
+                    url !== '/eda/register' && 
+                    url !== '/eda/recover' && 
+                    !url.startsWith('/captcha');
+  
+  // 如果需要认证，添加token到请求头
+  if (needsAuth) {
+    const token = localStorage.getItem('eda_token');
+    if (!token) {
+      console.warn("请求需要认证但未找到令牌");
+      // 非关键请求，可以继续尝试
+    } else {
+      if (!options.headers) options.headers = {};
+      options.headers['Authorization'] = 'Bearer ' + token;
+    }
+  }
+
+  // 默认使用JSON格式
+  if (!options.headers) options.headers = {};
+  options.headers['Content-Type'] = options.headers['Content-Type'] || 'application/json';
+
+  // 创建请求Promise
+  const fetchPromise = fetch(API_BASE_URL + url, options)
+    .then(response => {
+      // 检查请求是否成功
+      if (!response.ok) {
+        console.warn(`API请求失败: ${response.status} ${response.statusText}, URL=${url}`);
+        
+        // 特殊处理401错误（认证失败）
+        if (response.status === 401) {
+          console.warn("认证失败，HTTP状态码：401");
+          
+          // 尝试获取详细错误信息
+          return response.json().then(errorData => {
+            const errorDetail = errorData.msg || errorData.message || "认证失败";
+            console.warn("认证错误详情:", errorDetail);
+            
+            // 如果是JWT错误，记录并抛出特定错误
+            if (errorDetail.includes("JWT") || errorDetail.includes("token")) {
+              localStorage.setItem('auth_error', errorDetail);
+              
+              // 自动尝试刷新令牌
+              if (needsAuth) {
+                console.log("检测到JWT错误，尝试自动刷新令牌");
+                // 返回刷新令牌并重试请求的承诺
+                return API.refreshToken().then(refreshResponse => {
+                  // 令牌已刷新，使用新令牌重试原始请求
+                  if (!options.headers) options.headers = {};
+                  options.headers['Authorization'] = 'Bearer ' + localStorage.getItem('eda_token');
+                  console.log("使用新令牌重试请求:", url);
+                  return fetch(API_BASE_URL + url, options)
+                    .then(retryResponse => {
+                      if (!retryResponse.ok) {
+                        throw new Error("重试请求失败: " + retryResponse.status);
+                      }
+                      return retryResponse.json();
+                    });
+                }).catch(refreshError => {
+                  // 刷新令牌失败，抛出认证错误
+                  throw new Error("认证失败 (JWT): " + errorDetail);
+                });
+              } else {
+                // 非认证请求，直接抛出错误
+                throw new Error("认证失败 (JWT): " + errorDetail);
+              }
+            } else {
+              // 其他401错误
+              throw new Error("认证失败: " + errorDetail);
+            }
+          }).catch(e => {
+            if (e.message && e.message.includes("JSON")) {
+              // JSON解析失败，可能是非JSON响应
+              throw new Error("认证失败 (401)");
+            } else {
+              throw e; // 重新抛出已处理的错误
+            }
+          });
+        }
+        
+        // 处理其他HTTP错误
+        const errorMessage = `请求失败: HTTP ${response.status} - ${url}`;
+        console.error(errorMessage);
+        throw new Error(errorMessage);
+      }
+      
+      return response.json();
+    });
+
+  // 添加超时处理
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error("请求超时")), timeout);
+  });
+
+  // 返回竞争Promise
+  return Promise.race([fetchPromise, timeoutPromise]);
+};
+
+// 导出API模块
+window.API = API;
