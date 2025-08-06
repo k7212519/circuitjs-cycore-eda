@@ -16,55 +16,69 @@
     position: fixed; 
     top: 80px; 
     right: 20px; 
-    width: 350px; 
+    width: 420px; 
     max-width: 90vw; 
     background-color: white; 
-    border-radius: 10px; 
-    box-shadow: 0 5px 25px rgba(0,0,0,0.18); 
+    border-radius: 16px; /* 增大圆角 */
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15); /* 柔和阴影 */
     z-index: 10000; 
     overflow: hidden;
     animation: slideInRight 0.3s ease-out;
-    border: 1px solid #eaeaea;
+    border: none; /* 移除边框 */
 }
 
 /* 弹窗头部 */
 .popup-header {
     background-color: #5e35b1; 
     color: white; 
-    padding: 15px; 
+    padding: 18px 20px; /* 增加内边距 */
     display: flex; 
     justify-content: space-between; 
     align-items: center;
+    box-shadow: 0 2px 10px rgba(94, 53, 177, 0.2); /* 添加微妙阴影 */
 }
 
 .popup-title {
     margin: 0; 
-    font-size: 18px;
+    font-size: 20px; /* 增大字号 */
+    font-weight: 500; /* 设置字重 */
 }
 
 .popup-close {
     cursor: pointer; 
-    width: 24px; 
-    height: 24px; 
+    width: 28px; /* 增大点击区域 */
+    height: 28px; 
     display: flex; 
     align-items: center; 
     justify-content: center;
+    border-radius: 50%; /* 圆形按钮 */
+    transition: background-color 0.2s;
+}
+
+.popup-close:hover {
+    background-color: rgba(255, 255, 255, 0.2); /* 添加悬停效果 */
 }
 
 /* 弹窗内容区 */
 .popup-content {
-    padding: 15px; 
+    padding: 20px; /* 增加内边距 */
     max-height: 70vh; 
     overflow-y: auto;
 }
 
 /* 按钮样式 */
 .popup-btn {
-    transition: background-color 0.2s, transform 0.1s;
+    padding: 10px 20px; /* 统一按钮大小 */
+    border-radius: 8px; /* 增加圆角 */
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 15px;
 }
 
 .popup-btn:hover {
-    opacity: 0.9;
+    transform: translateY(-2px); /* 悬停时轻微上浮 */
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
 .popup-btn:active {
@@ -79,7 +93,7 @@
 
 .popup-btn-secondary {
     background-color: #f5f5f5;
-    border: 1px solid #ddd;
+    border: 1px solid #eaeaea;
     color: #333;
 }
 
@@ -88,15 +102,16 @@
     position: fixed;
     bottom: 20px;
     left: 20px;
-    padding: 12px 20px;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    padding: 14px 20px;
+    border-radius: 12px; /* 更大的圆角 */
+    box-shadow: 0 6px 16px rgba(0,0,0,0.12);
     z-index: 10000;
     max-width: 90vw;
-    min-width: 200px;
+    min-width: 250px;
     animation: fadeIn 0.3s, slideUp 0.3s;
     display: flex;
     align-items: center;
+    font-weight: 500;
 }
 
 /* 通知类型样式 */
@@ -122,33 +137,38 @@
 
 /* 项目表单样式 */
 .form-group {
-    margin-bottom: 15px;
+    margin-bottom: 18px;
 }
 
 .form-label {
     display: block;
-    margin-bottom: 5px;
-    font-size: 14px;
+    margin-bottom: 8px;
+    font-size: 15px;
+    color: #444;
+    font-weight: 500;
 }
 
 .form-input {
     width: 100%;
-    padding: 8px;
+    padding: 12px; /* 增大输入框 */
     box-sizing: border-box;
-    border-radius: 4px;
-    border: 1px solid #ccc;
+    border-radius: 8px; /* 统一圆角 */
+    border: 1px solid #e0e0e0; /* 更柔和的边框颜色 */
+    font-size: 15px;
+    transition: border-color 0.3s, box-shadow 0.3s;
 }
 
 .form-textarea {
-    min-height: 60px;
+    min-height: 80px;
     resize: vertical;
 }
 
 /* 聚焦输入框样式 */
 #corner-project-popup input:focus,
 #corner-project-popup textarea:focus {
-    outline: 2px solid #5e35b1;
-    box-shadow: 0 0 5px rgba(94, 53, 177, 0.5);
+    border-color: #5e35b1;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(94, 53, 177, 0.15);
 }
 
 /* 输入框可选择文本 */
@@ -160,9 +180,72 @@
 
 /* 项目列表样式 */
 .project-list-container {
-    max-height: 300px;
+    max-height: 350px;
     overflow-y: auto;
-    margin-bottom: 15px;
-    border: 1px solid #eee;
+    margin-bottom: 20px;
+    border: 1px solid #f0f0f0;
+    border-radius: 12px;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.03);
+}
+
+/* 项目项样式 */
+.project-item {
+    padding: 14px;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.project-item:hover {
+    background-color: #f9f5ff;
+}
+
+.project-item.selected {
+    background-color: #f0e6ff;
+}
+
+/* 标签页样式 */
+.tabs {
+    display: flex;
+    margin-bottom: 18px;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 12px;
+}
+
+.tab {
+    padding: 10px 20px;
+    cursor: pointer;
+    font-weight: 500;
+    color: #666;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.tab.active {
+    color: #5e35b1;
+    border-bottom: 2px solid #5e35b1;
+}
+
+.tab.inactive:hover {
+    color: #5e35b1;
+}
+
+/* 改进滚动条样式 */
+#corner-project-popup ::-webkit-scrollbar {
+    width: 8px;
+}
+
+#corner-project-popup ::-webkit-scrollbar-track {
+    background: #f5f5f5;
     border-radius: 8px;
+}
+
+#corner-project-popup ::-webkit-scrollbar-thumb {
+    background-color: #d0d0d0;
+    border-radius: 8px;
+    border: 2px solid #f5f5f5;
+}
+
+#corner-project-popup ::-webkit-scrollbar-thumb:hover {
+    background-color: #aaa;
 } 

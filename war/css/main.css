@@ -217,6 +217,8 @@ canvas, canvas:focus, canvas:active {
 
 .dropdown-content a:hover {
     background-color: rgba(94, 53, 177, 0.1); /* 与按钮颜色协调的hover效果 */
+    text-decoration: none; /* 移除下划线 */
+    color: #333; /* 保持黑色文字 */
 }
 
 .show {
