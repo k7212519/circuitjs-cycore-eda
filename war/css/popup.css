@@ -11,6 +11,12 @@
     to { transform: translateY(0); }
 }
 
+/* 新增：从上到下的弹入动画 */
+@keyframes slideDownIn {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
 /* 角落弹窗样式 */
 #corner-project-popup {
     position: fixed; 
@@ -23,7 +29,7 @@
     box-shadow: 0 10px 30px rgba(0,0,0,0.15); /* 柔和阴影 */
     z-index: 10000; 
     overflow: hidden;
-    animation: slideInRight 0.3s ease-out;
+    animation: slideDownIn 0.2s ease-out;
     border: none; /* 移除边框 */
 }
 

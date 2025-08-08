@@ -513,12 +513,12 @@
         
         if (!window.API) {
           console.error('API 对象未找到');
-          showPromptDialog('保存失败: API 未加载');
+          showCustomNotification('保存失败: API 未加载', 'error');
           return;
         }
         
-        // 显示加载中提示
-        showPromptDialog('正在保存项目...');
+        // 显示加载中提示（右上角轻量提示）
+showCustomNotification('正在保存项目...', 'info');
         
         // 检查认证令牌
         const token = API.getValidToken ? API.getValidToken() : localStorage.getItem('eda_token');
@@ -540,10 +540,10 @@
           .then(response => {
             console.log("保存电路响应:", response);
             if (response.code === 200) {
-              showPromptDialog('项目保存成功！');
+              showCustomNotification('项目保存成功！', 'success');
             } else {
               console.error("保存失败:", response);
-              showPromptDialog('保存失败: ' + (response.msg || '服务器错误'));
+              showCustomNotification('保存失败: ' + (response.msg || '服务器错误'), 'error');
             }
           })
           .catch(error => {
@@ -551,20 +551,20 @@
             
             // 检查是否为JWT认证错误
             if (error.message && (error.message.includes('JWT') || error.message.includes('认证失败'))) {
-              showPromptDialog('令牌已过期，正在尝试自动重新登录...');
+              showCustomNotification('令牌已过期，正在尝试自动重新登录...', 'warning');
               
               // 尝试自动刷新令牌
               API.refreshToken()
                 .then(refreshResponse => {
                   if (refreshResponse.code === 200) {
                     // 令牌已刷新，重新尝试保存
-                    showPromptDialog('认证已刷新，重新尝试保存');
+                    showCustomNotification('认证已刷新，重新尝试保存', 'info');
                     setTimeout(() => {
                       saveCircuit(circuitSaveData);
                     }, 1000);
                   } else {
                     // 刷新失败，需要手动登录
-                    showPromptDialog('自动登录失败，请重新登录');
+                    showCustomNotification('自动登录失败，请重新登录', 'error');
                     setTimeout(() => {
                       showLoginRequiredDialog();
                     }, 2000);
@@ -572,13 +572,13 @@
                 })
                 .catch(refreshError => {
                   console.error('刷新令牌失败:', refreshError);
-                  showPromptDialog('需要重新登录');
+                  showCustomNotification('需要重新登录', 'error');
                   setTimeout(() => {
                     showLoginRequiredDialog();
                   }, 2000);
                 });
             } else {
-              showPromptDialog('保存失败: ' + error.message);
+              showCustomNotification('保存失败: ' + error.message, 'error');
             }
           });
       } catch (error) {
@@ -1232,7 +1232,7 @@
 </div>
 
 <!-- 添加右上角弹出菜单样式的项目保存组件 -->
-<div id="project-save-popup" style="display: none; position: fixed; top: 80px; right: 20px; width: 350px; max-width: 90vw; background-color: white; border-radius: 10px; box-shadow: 0 5px 25px rgba(0,0,0,0.18); z-index: 10000; overflow: hidden;">
+  <div id="project-save-popup" style="display: none; position: fixed; top: 80px; right: 20px; width: 350px; max-width: 90vw; background-color: white; border-radius: 10px; box-shadow: 0 5px 25px rgba(0,0,0,0.18); z-index: 10000; overflow: hidden;">
   <div style="background-color: #5e35b1; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center;">
     <h3 style="margin: 0; font-size: 18px;">保存项目</h3>
     <div id="close-project-popup" style="cursor: pointer; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
@@ -1242,7 +1242,7 @@
       </svg>
     </div>
   </div>
-  <div id="project-menu-container" style="padding: 15px; max-height: 70vh; overflow-y: auto;">
+  <div id="project-menu-container" style="padding: 15px; max-height: 80vh; overflow-y: auto;">
     <!-- 内容将由JavaScript动态填充 -->
     <div style="text-align: center; padding: 20px;">
       <div style="width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #5e35b1; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 10px;"></div>
@@ -1256,12 +1256,12 @@
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
   }
-  @keyframes slideInRight {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
+  @keyframes slideDownIn {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
   }
   #project-save-popup {
-    animation: slideInRight 0.3s ease-out;
+    animation: slideDownIn 0.2s ease-out;
     border: 1px solid #eaeaea;
   }
   .project-item {
@@ -1285,20 +1285,28 @@
     transition: background-color 0.2s;
   }
   .popup-btn-primary {
-    background-color: #5e35b1;
-    color: white;
-  }
-  .popup-btn-secondary {
-    background-color: #f5f5f5;
-    border: 1px solid #ddd;
-    color: #333;
-  }
-  .popup-btn:hover {
-    opacity: 0.9;
-  }
-  .popup-btn:active {
-    transform: translateY(1px);
-  }
+  background-color: #5e35b1;
+  color: white;
+}
+.popup-btn-secondary {
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+  color: #333;
+}
+.popup-btn-danger {
+  background-color: #e53935; /* 重要操作：红色 */
+  color: #fff;
+}
+.popup-btn-info {
+  background-color: #2196f3; /* 信息类：蓝色 */
+  color: #fff;
+}
+.popup-btn:hover {
+  opacity: 0.9;
+}
+.popup-btn:active {
+  transform: translateY(1px);
+}
 </style>
 
 <script>
@@ -1542,11 +1550,13 @@ function loadProjectMenuItems() {
         </div>
       `;
       
-      // 底部操作按钮
+      // 底部操作按钮容器（按钮动态切换：未选中=取消+新建项目；已选中=取消+保存并覆盖+打开）
       html += `
-        <div style="display: flex; justify-content: flex-end; margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
-          <button id="menu-cancel-btn" class="popup-btn popup-btn-secondary" style="margin-right: 10px;">取消</button>
-          <button id="menu-save-btn" class="popup-btn popup-btn-primary">保存</button>
+        <div id="menu-footer" style="display: flex; justify-content: flex-end; margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px; gap: 10px;">
+          <button id="menu-cancel-btn" class="popup-btn popup-btn-secondary">取消</button>
+          <button id="menu-create-btn" class="popup-btn popup-btn-info">新建项目</button>
+          <button id="menu-save-cover-btn" class="popup-btn popup-btn-danger" style="display:none;">保存并覆盖</button>
+          <button id="menu-open-btn" class="popup-btn popup-btn-secondary" style="display:none;">打开</button>
         </div>
       `;
       
@@ -1575,6 +1585,9 @@ function loadProjectMenuItems() {
         document.getElementById('menu-create-new').classList.add('popup-btn-primary');
         document.getElementById('menu-create-new').classList.remove('popup-btn-secondary');
       }
+      
+      // 初始化底部按钮逻辑（默认未选中项目）
+      updateFooterButtons();
     })
     .catch(error => {
       console.error("加载项目列表失败:", error);
@@ -1648,87 +1661,85 @@ function loadProjectMenuItems() {
     });
 }
 
-// 绑定菜单交互事件
-function bindMenuEvents(userId) {
-  const popup = document.getElementById('project-save-popup');
-  
-  // 切换按钮
-  document.getElementById('menu-show-projects').onclick = function() {
-    document.getElementById('project-list-section').style.display = 'block';
-    document.getElementById('new-project-section').style.display = 'none';
+  // 绑定菜单交互事件
+  function bindMenuEvents(userId) {
+    const popup = document.getElementById('project-save-popup');
     
-    this.classList.add('popup-btn-primary');
-    this.classList.remove('popup-btn-secondary');
-    document.getElementById('menu-create-new').classList.remove('popup-btn-primary');
-    document.getElementById('menu-create-new').classList.add('popup-btn-secondary');
-  };
-  
-  document.getElementById('menu-create-new').onclick = function() {
-    document.getElementById('project-list-section').style.display = 'none';
-    document.getElementById('new-project-section').style.display = 'block';
+    const footer = document.getElementById('menu-footer');
+    const btnCancel = document.getElementById('menu-cancel-btn');
+    const btnCreate = document.getElementById('menu-create-btn');
+    const btnSaveCover = document.getElementById('menu-save-cover-btn');
+    const btnOpen = document.getElementById('menu-open-btn');
     
-    this.classList.add('popup-btn-primary');
-    this.classList.remove('popup-btn-secondary');
-    document.getElementById('menu-show-projects').classList.remove('popup-btn-primary');
-    document.getElementById('menu-show-projects').classList.add('popup-btn-secondary');
-  };
-  
-  // 项目项选择
-  document.querySelectorAll('.project-item').forEach(item => {
-    item.onclick = function() {
-      // 移除其他项目的选中状态
-      document.querySelectorAll('.project-item').forEach(p => p.classList.remove('selected'));
-      // 添加当前项目的选中状态
-      this.classList.add('selected');
-      // 保存所选项目索引
-      window.selectedProjectIndex = parseInt(this.dataset.index);
-    };
-  });
-  
-  // 取消按钮
-  document.getElementById('menu-cancel-btn').onclick = function() {
-    popup.style.display = 'none';
-  };
-  
-  // 保存按钮
-  document.getElementById('menu-save-btn').onclick = function() {
-    const circuitData = window.currentCircuitData;
-    
-    if (!circuitData) {
-      showPromptDialog('电路数据丢失，请重试');
-      popup.style.display = 'none';
-      return;
-    }
-    
-    // 检查是新建还是覆盖
-    if (document.getElementById('new-project-section').style.display === 'block') {
-      // 新建项目
-      const nameInput = document.getElementById('new-project-name');
-      const descInput = document.getElementById('new-project-desc');
-      const publicCheckbox = document.getElementById('new-project-public');
+    // 切换按钮
+    document.getElementById('menu-show-projects').onclick = function() {
+      document.getElementById('project-list-section').style.display = 'block';
+      document.getElementById('new-project-section').style.display = 'none';
       
-      if (!nameInput || !nameInput.value.trim()) {
-        showPromptDialog('请输入项目名称');
+      this.classList.add('popup-btn-primary');
+      this.classList.remove('popup-btn-secondary');
+      document.getElementById('menu-create-new').classList.remove('popup-btn-primary');
+      document.getElementById('menu-create-new').classList.add('popup-btn-secondary');
+      
+      // 切换到项目列表页时重置选择与底部按钮
+      window.selectedProjectIndex = undefined;
+      document.querySelectorAll('.project-item').forEach(p => p.classList.remove('selected'));
+      updateFooterButtons();
+    };
+    
+    document.getElementById('menu-create-new').onclick = function() {
+      document.getElementById('project-list-section').style.display = 'none';
+      document.getElementById('new-project-section').style.display = 'block';
+      
+      this.classList.add('popup-btn-primary');
+      this.classList.remove('popup-btn-secondary');
+      document.getElementById('menu-show-projects').classList.remove('popup-btn-primary');
+      document.getElementById('menu-show-projects').classList.add('popup-btn-secondary');
+      
+      // 新建页底部按钮：取消 + 新建项目
+      window.selectedProjectIndex = undefined;
+      updateFooterButtons(true);
+    };
+    
+    // 项目项选择
+    document.querySelectorAll('.project-item').forEach(item => {
+      item.onclick = function() {
+        // 移除其他项目的选中状态
+        document.querySelectorAll('.project-item').forEach(p => p.classList.remove('selected'));
+        // 添加当前项目的选中状态
+        this.classList.add('selected');
+        // 保存所选项目索引
+        window.selectedProjectIndex = parseInt(this.dataset.index);
+        updateFooterButtons();
+      };
+    });
+    
+    // 取消
+    btnCancel.onclick = function() {
+      popup.style.display = 'none';
+    };
+    
+    // 新建项目
+    btnCreate.onclick = function() {
+      // 切换到“新建项目”页签
+      const switchBtn = document.getElementById('menu-create-new');
+      if (switchBtn) switchBtn.click();
+    };
+    
+    // 保存并覆盖
+    btnSaveCover.onclick = function() {
+      const circuitData = window.currentCircuitData;
+      if (!circuitData) {
+        showPromptDialog('电路数据丢失，请重试');
+        popup.style.display = 'none';
         return;
       }
-      
-      console.log("保存新项目:", nameInput.value.trim());
-      saveCircuit({
-        userId: window.currentUserId,
-        circuitName: nameInput.value.trim(),
-        circuitData: circuitData,
-        description: descInput ? descInput.value.trim() : '',
-        isPublic: publicCheckbox && publicCheckbox.checked ? '1' : '0'
-      });
-    } else {
-      // 覆盖项目
       const selectedProjectIndex = window.selectedProjectIndex;
       const selectedItem = document.querySelector('.project-item.selected');
-      
       if (selectedItem && typeof selectedProjectIndex !== 'undefined' && window.projectsList) {
         const selectedCircuit = window.projectsList[selectedProjectIndex];
         if (selectedCircuit) {
-          console.log("覆盖现有项目:", selectedCircuit.circuitName);
+          console.log('覆盖现有项目:', selectedCircuit.circuitName);
           saveCircuit({
             circuitId: selectedCircuit.circuitId,
             userId: window.currentUserId,
@@ -1745,12 +1756,48 @@ function bindMenuEvents(userId) {
         showPromptDialog('请选择要覆盖的项目或创建新项目');
         return;
       }
+      popup.style.display = 'none';
+    };
+    
+    // 打开（占位逻辑）
+    btnOpen.onclick = function() {
+      if (typeof window.selectedProjectIndex === 'undefined' || !window.projectsList) {
+        showPromptDialog('请先选择一个项目');
+        return;
+      }
+      const selectedCircuit = window.projectsList[window.selectedProjectIndex];
+      console.log('准备打开项目:', selectedCircuit && selectedCircuit.circuitName);
+      showPromptDialog('项目打开功能即将实现');
+      popup.style.display = 'none';
+    };
+  }
+  
+  // 根据选择状态更新底部按钮
+  function updateFooterButtons(isNewTab = false) {
+    const btnCreate = document.getElementById('menu-create-btn');
+    const btnSaveCover = document.getElementById('menu-save-cover-btn');
+    const btnOpen = document.getElementById('menu-open-btn');
+    
+    if (isNewTab) {
+      // 新建页：取消 + 新建项目
+      btnCreate.style.display = 'inline-block';
+      btnSaveCover.style.display = 'none';
+      btnOpen.style.display = 'none';
+      return;
     }
     
-    // 隐藏菜单
-    popup.style.display = 'none';
-  };
-}
+    if (typeof window.selectedProjectIndex === 'undefined') {
+      // 未选中：取消 + 新建项目
+      btnCreate.style.display = 'inline-block';
+      btnSaveCover.style.display = 'none';
+      btnOpen.style.display = 'none';
+    } else {
+      // 已选中：取消 + 保存并覆盖 + 打开
+      btnCreate.style.display = 'none';
+      btnSaveCover.style.display = 'inline-block';
+      btnOpen.style.display = 'inline-block';
+    }
+  }
 
 // 显示登录提醒对话框
 function showLoginRequiredDialog() {
@@ -2031,14 +2078,16 @@ document.addEventListener('DOMContentLoaded', function() {
       popupContainer.style.right = '20px';
       popupContainer.style.width = '420px';  // 从350px增加到420px
       popupContainer.style.maxWidth = '90vw';
-      popupContainer.style.height = '600px';  // 从520px增加到600px
+      popupContainer.style.height = '670px';  
       popupContainer.style.maxHeight = '85vh';  // 从80vh增加到85vh
       popupContainer.style.backgroundColor = 'transparent';
       popupContainer.style.borderRadius = '10px';
-      popupContainer.style.boxShadow = '0 5px 25px rgba(0,0,0,0.18)';
+      popupContainer.style.boxShadow = 'none';
       popupContainer.style.zIndex = '10000';
       popupContainer.style.overflow = 'hidden';
-      popupContainer.style.animation = 'slideInRight 0.3s ease-out';
+      popupContainer.style.visibility = 'hidden';
+      popupContainer.style.opacity = '0';
+      popupContainer.style.animation = 'none';
       
       // 创建iframe
       const iframe = document.createElement('iframe');
@@ -2048,6 +2097,15 @@ document.addEventListener('DOMContentLoaded', function() {
       iframe.style.height = '100%';
       iframe.style.border = 'none';
       iframe.style.borderRadius = '10px';
+      
+      // 监听 iframe 加载完成后，再显示并播放弹窗动画
+      iframe.addEventListener('load', function() {
+        popupContainer.style.visibility = 'visible';
+        // 触发一次重绘以确保动画能从头播放
+        void popupContainer.offsetWidth;
+        popupContainer.style.animation = 'slideDownIn 0.2s ease-out';
+        popupContainer.style.opacity = '1';
+      });
       
       popupContainer.appendChild(iframe);
       document.body.appendChild(popupContainer);
@@ -2063,18 +2121,18 @@ document.addEventListener('DOMContentLoaded', function() {
       overlay.style.backgroundColor = 'rgba(0,0,0,0.3)';
       overlay.style.zIndex = '9999'; // 低于弹窗但高于其他内容
       overlay.style.opacity = '0';
-      overlay.style.transition = 'opacity 0.3s';
+      overlay.style.transition = 'opacity 0.2s';
       
       // 添加点击遮罩层关闭弹窗的功能
       overlay.addEventListener('click', function(e) {
-        // 确保点击的是遮罩层，而不是弹窗内部
-        if (e.target === overlay) {
-          // 先淡出
-          overlay.style.opacity = '0';
-          popupContainer.style.transform = 'translateX(30px)';
-          popupContainer.style.opacity = '0';
-          popupContainer.style.transition = 'opacity 0.15s ease-out, transform 0.15s ease-out';
-          
+                  // 确保点击的是遮罩层，而不是弹窗内部
+          if (e.target === overlay) {
+            // 先淡出
+            overlay.style.opacity = '0';
+            popupContainer.style.transform = 'translateY(-20px)';
+            popupContainer.style.opacity = '0';
+            popupContainer.style.transition = 'opacity 0.12s ease-out, transform 0.12s ease-out';
+                      
           // 关闭弹窗
           setTimeout(() => {
             if (document.body.contains(popupContainer)) {
@@ -2101,9 +2159,9 @@ document.addEventListener('DOMContentLoaded', function() {
       // 创建样式
       const style = document.createElement('style');
       style.textContent = `
-        @keyframes slideInRight {
-          from { transform: translateX(100%); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
+        @keyframes slideDownIn {
+          from { transform: translateY(-20px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
         }
       `;
       document.head.appendChild(style);
@@ -2126,9 +2184,9 @@ document.addEventListener('DOMContentLoaded', function() {
           if (overlay) {
             overlay.style.opacity = '0';
           }
-          popupContainer.style.transform = 'translateX(30px)';
+          popupContainer.style.transform = 'translateY(-20px)';
           popupContainer.style.opacity = '0';
-          popupContainer.style.transition = 'opacity 0.15s ease-out, transform 0.15s ease-out';
+          popupContainer.style.transition = 'opacity 0.12s ease-out, transform 0.12s ease-out';
           
           setTimeout(() => {
             if (document.body.contains(popupContainer)) {
@@ -2244,9 +2302,9 @@ document.addEventListener('DOMContentLoaded', function() {
           }
           
           if (popupContainer) {
-            popupContainer.style.transform = 'translateX(30px)';
+            popupContainer.style.transform = 'translateY(-20px)';
             popupContainer.style.opacity = '0';
-            popupContainer.style.transition = 'opacity 0.15s ease-out, transform 0.15s ease-out';
+            popupContainer.style.transition = 'opacity 0.12s ease-out, transform 0.12s ease-out';
           }
           
           // 延迟移除DOM元素
@@ -2286,17 +2344,25 @@ document.addEventListener('DOMContentLoaded', function() {
       const notification = document.createElement('div');
       notification.className = 'custom-notification';
       notification.style.position = 'fixed';
-      notification.style.bottom = '20px';
-      notification.style.left = '20px';
+      notification.style.top = '20px';
+      notification.style.right = '20px';
+      notification.style.left = 'auto';
+      notification.style.bottom = 'auto';
       notification.style.padding = '12px 20px';
       notification.style.borderRadius = '8px';
       notification.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
       notification.style.zIndex = '10000';
-      notification.style.maxWidth = '90vw';
+      notification.style.maxWidth = '360px';
+      notification.style.width = 'auto';
       notification.style.minWidth = '200px';
-      notification.style.animation = 'fadeIn 0.3s, slideUp 0.3s';
-      notification.style.display = 'flex';
+      notification.style.maxHeight = '56px';
+      notification.style.height = 'auto';
+      notification.style.overflow = 'hidden';
+      notification.style.animation = 'fadeIn 0.25s ease-out, slideDown 0.25s ease-out';
+      notification.style.display = 'inline-flex';
       notification.style.alignItems = 'center';
+      notification.style.boxSizing = 'border-box';
+      notification.style.pointerEvents = 'none';
       
       // 根据类型设置样式
       switch(type) {
@@ -2321,6 +2387,10 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // 添加消息
       const messageText = document.createElement('span');
+      messageText.style.whiteSpace = 'nowrap';
+      messageText.style.overflow = 'hidden';
+      messageText.style.textOverflow = 'ellipsis';
+      messageText.style.maxWidth = '320px';
       messageText.textContent = message;
       notification.appendChild(messageText);
       
@@ -2334,18 +2404,20 @@ document.addEventListener('DOMContentLoaded', function() {
           to { opacity: 1; }
         }
         
-        @keyframes slideUp {
-          from { transform: translateY(20px); }
+        @keyframes slideDown {
+          from { transform: translateY(-10px); }
           to { transform: translateY(0); }
         }
+        .custom-notification { max-width: 360px; width: auto; box-sizing: border-box; display: inline-flex; pointer-events: none; max-height: 56px; overflow: hidden; }
+        .custom-notification span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       `;
       document.head.appendChild(style);
       
       // 自动消失
       setTimeout(() => {
         notification.style.opacity = '0';
-        notification.style.transform = 'translateY(20px)';
-        notification.style.transition = 'opacity 0.3s, transform 0.3s';
+        notification.style.transform = 'translateY(-10px)';
+        notification.style.transition = 'opacity 0.25s, transform 0.25s';
         setTimeout(() => {
           if (document.body.contains(notification)) {
             document.body.removeChild(notification);

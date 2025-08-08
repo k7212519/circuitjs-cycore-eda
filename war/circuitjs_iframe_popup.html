@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>保存项目</title>
   <style>
+    :root { --project-item-height: 92px; }
     /* 基础样式 */
     * {
       box-sizing: border-box;
@@ -21,6 +22,21 @@
       height: 100vh;
       overflow: hidden;
       border-radius: 16px;
+      animation: none !important;
+      transform-origin: top center;
+      box-shadow: 0 5px 30px rgba(0,0,0,0.2);
+    }
+    
+    /* 弹出动画 */
+    @keyframes popupAppear {
+      from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
     }
     
     .content {
@@ -54,13 +70,13 @@
     }
     
     .tab.active {
-      color: #5e35b1;
-      border-bottom: 2px solid #5e35b1;
+      color: #2196f3;
+      border-bottom: 2px solid #2196f3;
       font-weight: 600; /* 增加字重 */
     }
     
     .tab.inactive:hover {
-      color: #5e35b1;
+      color: #2196f3;
     }
     
     /* 关闭按钮 */
@@ -95,7 +111,7 @@
       display: none;
       flex: 1;
       overflow-y: hidden;
-      height: calc(100% - 80px);
+      height: calc(100% - 60px);
     }
     
     .tab-content.active {
@@ -105,14 +121,15 @@
     
     /* 项目列表 */
     .project-list {
-      max-height: none;
-      flex: 1;
+      /* 固定显示4项的高度：4 * item高度 + 3条分隔线(1px) + 上下内边距(0) */
+      max-height: calc(var(--project-item-height) * 4 + 3px);
+      min-height: calc(var(--project-item-height) * 4 + 3px);
       overflow-y: auto;
-      margin-bottom: 15px;
+      margin-bottom: 10px; /* 略微收紧底部留白 */
       border: 1px solid #f0f0f0;
       border-radius: 12px;
       box-shadow: inset 0 0 10px rgba(0,0,0,0.03);
-      min-height: 320px; /* 确保至少能显示4个项目 */
+      flex: 0 0 auto;
     }
     
     .project-item {
@@ -122,11 +139,84 @@
       transition: all 0.15s ease-out;
       position: relative;
       z-index: 1;
-      min-height: 80px; /* 增加最小高度 */
+      min-height: var(--project-item-height);
+      height: var(--project-item-height);
       box-sizing: border-box;
       display: flex;
       flex-direction: column;
       justify-content: center;
+      user-select: none; /* 防止文本选择 */
+    }
+    
+    /* 最后一个项目不需要底部边框 */
+    .project-item:last-child {
+      border-bottom: none;
+    }
+    
+    /* 添加项目内容和操作按钮容器 */
+    .project-content {
+      flex: 1;
+      padding-right: 60px; /* 为按钮预留更多空间 */
+      pointer-events: none; /* 让点击穿透到项目本身 */
+    }
+    
+    .project-actions {
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: none; /* 默认隐藏 */
+      gap: 12px; /* 按钮间距 */
+      align-items: center;
+      z-index: 2; /* 确保按钮在最上层 */
+    }
+    
+    .project-item.selected .project-actions {
+      display: flex; /* 选中时显示 */
+    }
+    
+    .action-button {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      background-color: #f5f5f5;
+      pointer-events: auto; /* 确保按钮可点击 */
+    }
+    
+    .action-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .action-button:active {
+      transform: translateY(0);
+    }
+    
+    .action-button svg {
+      width: 18px;
+      height: 18px;
+    }
+    
+    .open-button {
+      color: #2196f3;
+    }
+    
+    .open-button:hover {
+      background-color: #f0e6ff;
+    }
+    
+    .delete-button {
+      color: #ff5252;
+    }
+    
+    .delete-button:hover {
+      background-color: #ffebee;
     }
     
     .project-item:hover {
@@ -137,7 +227,7 @@
     
     .project-item.selected {
       background-color: #f0e6ff;
-      border-left: 3px solid #5e35b1;
+      border-left: 3px solid #2196f3;
     }
     
     /* 添加点击动画效果 */
@@ -186,7 +276,7 @@
     
     /* 输入框 */
     .input-group {
-      margin-bottom: 18px;
+      margin-bottom: 12px; /* 统一收紧输入块间距 */
       flex-shrink: 0;
     }
     
@@ -211,7 +301,7 @@
     }
     
     input[type="text"]:focus, textarea:focus {
-      border-color: #5e35b1;
+      border-color: #2196f3;
       outline: none;
       box-shadow: 0 0 0 3px rgba(94, 53, 177, 0.15);
       background-color: #fff;
@@ -268,7 +358,7 @@
     }
     
     .btn-primary {
-      background-color: #5e35b1;
+      background-color: #2196f3;
       color: white;
     }
     
@@ -277,6 +367,16 @@
       border: 1px solid #eaeaea;
       color: #333;
     }
+
+    .btn-danger {
+      background-color: #e53935;
+      color: #fff;
+    }
+
+    .btn-info {
+      background-color: #2196f3;
+      color: #fff;
+    }
     
     /* 搜索框 */
     #projectSearch {
@@ -284,7 +384,7 @@
       background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%23999" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>');
       background-repeat: no-repeat;
       background-position: 15px center;
-      margin-bottom: 20px; /* 增加下方间距 */
+      margin-bottom: 8px; /* 收紧与列表间距 */
       height: 46px; /* 增加高度 */
       font-size: 16px; /* 增加字体大小 */
     }
@@ -293,8 +393,9 @@
     .notification {
       position: fixed;
       top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
+      right: 20px;
+      left: auto;
+      transform: none;
       padding: 14px 20px;
       border-radius: 12px;
       box-shadow: 0 6px 16px rgba(0,0,0,0.12);
@@ -302,13 +403,13 @@
       font-weight: 500;
       z-index: 1000;
       min-width: 250px;
-      text-align: center;
-      animation: fadeInDown 0.3s;
+      text-align: left;
+      animation: notifySlideIn 0.25s ease-out;
     }
     
-    @keyframes fadeInDown {
-      from { opacity: 0; transform: translate(-50%, -20px); }
-      to { opacity: 1; transform: translate(-50%, 0); }
+    @keyframes notifySlideIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     
     .notification-error {
@@ -357,7 +458,7 @@
       width: 40px;
       height: 40px;
       border: 3px solid rgba(94, 53, 177, 0.1);
-      border-top: 3px solid #5e35b1;
+      border-top: 3px solid #2196f3;
       border-radius: 50%;
       margin-bottom: 15px;
       animation: spin 1s linear infinite;
@@ -418,7 +519,9 @@
     
     <div class="buttons">
       <button class="btn btn-secondary" onclick="closePopup()">取消</button>
-      <button class="btn btn-primary" onclick="saveProject()">保存</button>
+      <button id="btnCreateNew" class="btn btn-info" onclick="switchTab('new')">新建项目</button>
+      <button id="btnPrimarySave" class="btn btn-danger" onclick="saveProject()" style="display:none;">保存并覆盖</button>
+      <button id="btnOpenBottom" class="btn btn-info" onclick="openSelectedProject()" style="display:none;">打开</button>
     </div>
   </div>
   
@@ -426,6 +529,12 @@
     // 选中的项目
     let selectedProjectId = null;
     let selectedProjectIndex = null;
+
+    // 分页加载状态
+    let pageLimit = 10;
+    let currentOffset = 0;
+    let isLoadingMore = false;
+    let hasMore = true;
     
     // 页面加载完成后初始化
     window.onload = function() {
@@ -461,17 +570,36 @@
       const newTab = document.getElementById('newTab');
       const existingContent = document.getElementById('existingContent');
       const newContent = document.getElementById('newContent');
+      const btnPrimarySave = document.getElementById('btnPrimarySave');
+      const btnOpenBottom = document.getElementById('btnOpenBottom');
+      const btnCreateNew = document.getElementById('btnCreateNew');
       
       if (tab === 'existing') {
         existingTab.className = 'tab active';
         newTab.className = 'tab inactive';
         existingContent.className = 'tab-content active';
         newContent.className = 'tab-content';
+        // 初始状态：未选中任何项目
+        selectedProjectId = null;
+        selectedProjectIndex = null;
+        // 按钮：仅显示“取消/新建项目”，隐藏“保存/打开”
+        btnPrimarySave.style.display = 'none';
+        btnOpenBottom.style.display = 'none';
+        if (btnCreateNew) btnCreateNew.style.display = 'inline-block';
       } else {
         existingTab.className = 'tab inactive';
         newTab.className = 'tab active';
         existingContent.className = 'tab-content';
         newContent.className = 'tab-content active';
+        // 新建页：显示“保存”，隐藏“新建项目/打开”，保存按钮使用主题色
+        btnPrimarySave.textContent = '保存';
+        btnPrimarySave.className = 'btn btn-primary';
+        btnPrimarySave.disabled = false;
+        btnPrimarySave.style.opacity = '1';
+        btnPrimarySave.style.cursor = 'pointer';
+        btnPrimarySave.style.display = 'inline-block';
+        btnOpenBottom.style.display = 'none';
+        if (btnCreateNew) btnCreateNew.style.display = 'none';
       }
     }
     
@@ -586,19 +714,166 @@
           
           html += `
             <div class="project-item" data-id="${circuitId}" data-index="${index}" onclick="selectProject(${circuitId}, ${index})">
-              <div class="project-name">${circuitName}</div>
-              <div class="project-info">
-                <span>${formattedDate}</span>
-                <span>${isPublic}</span>
+              <div class="project-content">
+                <div class="project-name">${circuitName}</div>
+                <div class="project-info">
+                  <span>${formattedDate}</span>
+                  <span>${isPublic}</span>
+                </div>
+              </div>
+                             <div class="project-actions">
+                <!-- 选中项时仅保留删除按钮，打开按钮移至底部主按钮区 -->
+                <button class="action-button delete-button" onclick="deleteProject(event, ${circuitId}, ${index})" title="删除项目">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                  </svg>
+                </button>
               </div>
             </div>
           `;
         });
         projectListElement.innerHTML = html;
+        // 初始化分页状态并绑定滚动加载
+        try {
+          currentOffset = Array.isArray(window.projectsList) ? window.projectsList.length : 0;
+          hasMore = (window.projectsList && window.projectsList.length >= pageLimit);
+          if (projectListElement && !projectListElement._scrollBound) {
+            projectListElement.addEventListener('scroll', onProjectListScroll);
+            projectListElement._scrollBound = true;
+          }
+        } catch (bindErr) {
+          console.error('绑定滚动事件失败:', bindErr);
+        }
       } catch (e) {
         console.error("渲染项目列表错误:", e);
         projectListElement.innerHTML = `<div class="project-item"><div class="project-name">加载项目列表出错: ${e.message}</div></div>`;
       }
+    }
+    
+    // 监听项目列表滚动，触底加载更多
+    function onProjectListScroll(e) {
+      const el = e.target;
+      if (!hasMore || isLoadingMore) return;
+      const threshold = 40; // 提前40px触发
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - threshold) {
+        loadMoreProjects();
+      }
+    }
+
+    // 加载更多项目（分页）
+    function loadMoreProjects() {
+      try {
+        if (isLoadingMore || !hasMore) return;
+        isLoadingMore = true;
+
+        const token = (window.parent.API && window.parent.API.getValidToken) ? window.parent.API.getValidToken() : (window.parent.localStorage ? window.parent.localStorage.getItem('eda_token') : null);
+        const apiBaseUrl = window.parent.API_BASE_URL || (window.parent.API && window.parent.API.API_BASE_URL) || (window.parent.location.protocol + '//' + window.parent.location.hostname + ':8088');
+        if (!token) {
+          console.warn('缺少token，无法加载更多');
+          isLoadingMore = false;
+          return;
+        }
+
+        const url = `${apiBaseUrl}/cycore/circuit/user/current?limit=${pageLimit}&offset=${currentOffset}`;
+        fetch(url, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token.trim()}`,
+            'Content-Type': 'application/json'
+          }
+        })
+          .then(r => r.json())
+          .then(resp => {
+            if (resp && resp.code === 200) {
+              const records = Array.isArray(resp.data?.records) ? resp.data.records : (Array.isArray(resp.data) ? resp.data : []);
+              appendProjects(records || []);
+              currentOffset += (records ? records.length : 0);
+              hasMore = (records && records.length === pageLimit);
+            } else {
+              console.warn('加载更多失败:', resp && resp.msg);
+              hasMore = false;
+            }
+          })
+          .catch(err => {
+            console.error('加载更多出错:', err);
+            hasMore = false;
+          })
+          .finally(() => {
+            isLoadingMore = false;
+          });
+      } catch (err) {
+        console.error('loadMoreProjects执行异常:', err);
+        isLoadingMore = false;
+      }
+    }
+
+    // 追加项目到列表
+    function appendProjects(items) {
+      if (!items || items.length === 0) return;
+      const listEl = document.getElementById('projectList');
+      if (!listEl) return;
+
+      // 初始化全局projectsList
+      if (!Array.isArray(window.projectsList)) window.projectsList = [];
+
+      const frag = document.createDocumentFragment();
+      items.forEach((circuit, indexOffset) => {
+        if (!circuit) return;
+        const circuitId = circuit.circuitId || 0;
+        const circuitName = circuit.circuitName || '未命名项目';
+        const updateTime = circuit.updateTime || circuit.createTime || new Date().toISOString();
+        const isPublic = circuit.isPublic === '1' ? '公开' : '私有';
+
+        // 计算在全局列表中的索引
+        const index = window.projectsList.length;
+        window.projectsList.push(circuit);
+
+        const item = document.createElement('div');
+        item.className = 'project-item';
+        item.setAttribute('data-id', String(circuitId));
+        item.setAttribute('data-index', String(index));
+        item.onclick = function () { selectProject(circuitId, index); };
+
+        const content = document.createElement('div');
+        content.className = 'project-content';
+        const nameEl = document.createElement('div');
+        nameEl.className = 'project-name';
+        nameEl.textContent = circuitName;
+        const infoEl = document.createElement('div');
+        infoEl.className = 'project-info';
+        const spanLeft = document.createElement('span');
+        try { spanLeft.textContent = new Date(updateTime).toLocaleString(); } catch { spanLeft.textContent = '未知时间'; }
+        const spanRight = document.createElement('span');
+        spanRight.textContent = isPublic;
+        infoEl.appendChild(spanLeft);
+        infoEl.appendChild(spanRight);
+        content.appendChild(nameEl);
+        content.appendChild(infoEl);
+
+        const actions = document.createElement('div');
+        actions.className = 'project-actions';
+        const delBtn = document.createElement('button');
+        delBtn.className = 'action-button delete-button';
+        delBtn.title = '删除项目';
+        delBtn.onclick = function (event) { deleteProject(event, circuitId, index); };
+        delBtn.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            <line x1="10" y1="11" x2="10" y2="17"></line>
+            <line x1="14" y1="11" x2="14" y2="17"></line>
+          </svg>`;
+        actions.appendChild(delBtn);
+
+        item.appendChild(content);
+        item.appendChild(actions);
+        frag.appendChild(item);
+      });
+
+      listEl.appendChild(frag);
     }
     
     // 选择项目
@@ -616,6 +891,65 @@
       if (selectedItem) {
         selectedItem.classList.add('selected');
       }
+      
+      // 更新底部按钮：改为“保存并覆盖”，启用，并显示“打开”按钮
+      const btnPrimarySave = document.getElementById('btnPrimarySave');
+      const btnOpenBottom = document.getElementById('btnOpenBottom');
+      const btnCreateNew = document.getElementById('btnCreateNew');
+      if (btnPrimarySave) {
+        btnPrimarySave.textContent = '保存并覆盖';
+        btnPrimarySave.className = 'btn btn-danger';
+        btnPrimarySave.disabled = false;
+        btnPrimarySave.style.opacity = '1';
+        btnPrimarySave.style.cursor = 'pointer';
+        btnPrimarySave.style.display = 'inline-block';
+      }
+      if (btnOpenBottom) {
+        btnOpenBottom.style.display = 'inline-block';
+      }
+      if (btnCreateNew) {
+        btnCreateNew.style.display = 'none';
+      }
+    }
+    
+    // 打开项目
+    function openProject(event, circuitId, index) {
+      // 条目内打开按钮已移除，保留函数占位避免报错
+      if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+      if (typeof circuitId !== 'undefined' && typeof index !== 'undefined') {
+        selectProject(circuitId, index);
+      }
+      console.log(`准备打开项目 ID: ${circuitId}, 索引: ${index}`);
+      showNotification("项目打开功能即将实现", "info");
+    }
+
+    // 底部“打开”按钮逻辑（先实现前端提示）
+    function openSelectedProject() {
+      if (selectedProjectId == null) {
+        showNotification('请先选择一个项目', 'error');
+        return;
+      }
+      console.log(`准备打开项目 ID: ${selectedProjectId}, 索引: ${selectedProjectIndex}`);
+      showNotification('项目打开功能即将实现', 'info');
+      // 后续可通过 postMessage 通知父页面执行打开逻辑
+      // window.parent.postMessage({ type: 'openCircuit', data: { circuitId: selectedProjectId, index: selectedProjectIndex } }, '*');
+    }
+    
+    // 删除项目
+    function deleteProject(event, circuitId, index) {
+      // 阻止事件冒泡，避免触发项目选择
+      event.stopPropagation();
+      
+      console.log(`准备删除项目 ID: ${circuitId}, 索引: ${index}`);
+      showNotification("项目删除功能即将实现", "info");
+      
+      // TODO: 实现项目删除逻辑
+      // 这里暂时留空，后续实现
+      
+      // 可以添加确认对话框
+      // if (confirm("确定要删除该项目吗？")) {
+      //   // 执行删除操作
+      // }
     }
     
     // 过滤项目列表
@@ -634,7 +968,7 @@
     // 保存项目
     function saveProject() {
       // 防止重复点击保存按钮
-      const saveButton = document.querySelector('.btn-primary');
+      const saveButton = document.getElementById('btnPrimarySave');
       if (saveButton.disabled) {
         console.log("保存操作正在进行中，请勿重复点击");
         showNotification("正在保存，请稍候...", "info");
@@ -672,6 +1006,7 @@
       const isNewTab = document.getElementById('newContent').classList.contains('active');
       let saveData = {};
       
+      // 新建页允许直接保存；现有页必须选中条目才允许保存（此处已由按钮态控制）
       if (isNewTab) {
         // 新建项目
         const projectName = document.getElementById('projectName').value.trim();
@@ -713,6 +1048,18 @@
           saveButton.disabled = false;
           saveButton.style.opacity = '1';
           saveButton.style.cursor = 'pointer';
+          return;
+        }
+        
+        // 覆盖确认
+        const overwriteName = selectedProject.circuitName || '该项目';
+        const confirmed = window.confirm(`确认覆盖项目“${overwriteName}”？此操作不可撤销。`);
+        if (!confirmed) {
+          // 恢复按钮状态
+          saveButton.disabled = false;
+          saveButton.style.opacity = '1';
+          saveButton.style.cursor = 'pointer';
+          showNotification('已取消覆盖操作', 'info');
           return;
         }
         
@@ -760,8 +1107,8 @@
       // 3秒后自动消失
       setTimeout(() => {
         notification.style.opacity = '0';
-        notification.style.transform = 'translate(-50%, -20px)';
-        notification.style.transition = 'opacity 0.3s, transform 0.3s';
+        notification.style.transform = 'translateY(-10px)';
+        notification.style.transition = 'opacity 0.25s ease-in-out, transform 0.25s ease-in-out';
         setTimeout(() => notification.remove(), 300);
       }, 3000);
     }
