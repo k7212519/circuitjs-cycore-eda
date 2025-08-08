@@ -42,8 +42,7 @@
       </button>
       <div id="projectDropdown" class="dropdown-content">
         <a href="#" id="saveToCloudBtn">保存到云端</a>
-        <a href="myCircuits.html">我的项目</a>
-  </div>
+      </div>
     </div>
     
     <!-- 个人中心按钮 -->
@@ -66,20 +65,32 @@
     // 全局变量，用于保存从GWT应用获取的电路数据
     var circuitTextData = null;
     
+    // 屏蔽不重要的日志（设置 window.__EDA_DEBUG__ = true 可恢复）
+    (function() {
+      try {
+        if (!window.__EDA_DEBUG__) {
+          const noop = function(){};
+          console.log = noop;
+          if (console.info) console.info = noop;
+          if (console.debug) console.debug = noop;
+        }
+      } catch (e) {}
+    })();
+    
     // 用于接收GWT应用发送的电路文本数据的回调函数
     function receiveCircuitText(text) {
-      console.log("接收到电路文本数据，长度: " + (text ? text.length : 0));
+      // console.log("接收到电路文本数据，长度: " + (text ? text.length : 0));
       circuitTextData = text;
     }
     
     // 顶部菜单功能
     document.addEventListener('DOMContentLoaded', function() {
-      console.log("文档已加载，开始初始化顶部菜单");
+      // console.log("文档已加载，开始初始化顶部菜单");
       
       // 检查是否有来自登录页面的待保存电路数据
       const circuitToSave = sessionStorage.getItem('circuit_to_save');
       if (circuitToSave) {
-        console.log("检测到登录后需要保存的电路数据");
+        // console.log("检测到登录后需要保存的电路数据");
         sessionStorage.removeItem('circuit_to_save');
         
         // 等待页面和API完全加载
@@ -2276,7 +2287,7 @@ document.addEventListener('DOMContentLoaded', function() {
       window.saveCircuitData = function(saveData) {
         // 防止重复点击保存
         if (window.isSaving) {
-          console.log("保存操作正在进行中，请勿重复点击");
+          // console.log("保存操作正在进行中，请勿重复点击");
           showCustomNotification("正在保存，请稍候...", "info");
                 return;
               }
@@ -2317,7 +2328,7 @@ document.addEventListener('DOMContentLoaded', function() {
           return response.json();
         })
         .then(data => {
-          console.log("保存成功:", data);
+          // console.log("保存成功:", data);
           showCustomNotification("项目保存成功!", "success");
           
           // 重置保存状态
@@ -2347,7 +2358,7 @@ document.addEventListener('DOMContentLoaded', function() {
                   
                   // 更新全局项目列表
                   window.projectsList = newProjectsList;
-                  console.log("项目列表已更新:", newProjectsList.length);
+                  // console.log("项目列表已更新:", newProjectsList.length);
                 }
     })
     .catch(error => {
@@ -2503,7 +2514,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // 添加新的事件监听器
         newBtn.addEventListener('click', function(e) {
           e.preventDefault();
-          console.log("保存到云端按钮被点击 (清理后的监听器)");
+          // console.log("保存到云端按钮被点击 (清理后的监听器)");
           
           // 隐藏下拉菜单
           document.getElementById('projectDropdown').classList.remove('show');
@@ -2512,11 +2523,11 @@ document.addEventListener('DOMContentLoaded', function() {
           forceDirectRequest();
         });
         
-        console.log("已重置保存到云端按钮的事件监听器");
+        // console.log("已重置保存到云端按钮的事件监听器");
       }
     })();
 
-    // “我的考试”点击提示暂未开放
+    // "我的考试"点击提示暂未开放
     const myExamLink = document.getElementById('myExamLink');
     if (myExamLink) {
       myExamLink.addEventListener('click', function(e) {

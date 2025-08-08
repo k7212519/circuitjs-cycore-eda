@@ -539,7 +539,7 @@
     // 页面加载完成后初始化
     window.onload = function() {
       try {
-        console.log("iframe弹窗已加载");
+        // console.log("iframe弹窗已加载");
         
         // 从父窗口获取项目列表数据
         window.projectsList = window.parent.projectsListData || [];
@@ -548,7 +548,7 @@
           window.projectsList = [];
         }
         
-        console.log(`获取到${window.projectsList.length}个项目`);
+        // console.log(`获取到${window.projectsList.length}个项目`);
         
         // 设置默认项目名
         const projectNameInput = document.getElementById('projectName');
@@ -919,7 +919,7 @@
       if (typeof circuitId !== 'undefined' && typeof index !== 'undefined') {
         selectProject(circuitId, index);
       }
-      console.log(`准备打开项目 ID: ${circuitId}, 索引: ${index}`);
+      // console.log(`准备打开项目 ID: ${circuitId}, 索引: ${index}`);
       showNotification("项目打开功能即将实现", "info");
     }
 
@@ -929,7 +929,7 @@
         showNotification('请先选择一个项目', 'error');
         return;
       }
-      console.log(`准备打开项目 ID: ${selectedProjectId}, 索引: ${selectedProjectIndex}`);
+      // console.log(`准备打开项目 ID: ${selectedProjectId}, 索引: ${selectedProjectIndex}`);
       showNotification('正在打开项目...', 'info');
       // 通知父页面执行打开逻辑
       window.parent.postMessage({ type: 'openCircuit', data: { circuitId: selectedProjectId, index: selectedProjectIndex } }, '*');
@@ -1018,7 +1018,7 @@
       // 防止重复点击保存按钮
       const saveButton = document.getElementById('btnPrimarySave');
       if (saveButton.disabled) {
-        console.log("保存操作正在进行中，请勿重复点击");
+        // console.log("保存操作正在进行中，请勿重复点击");
         showNotification("正在保存，请稍候...", "info");
         return;
       }
@@ -1122,14 +1122,14 @@
       }
       
       // 输出保存数据信息
-      console.log("准备保存数据:", {
-        circuitId: saveData.circuitId || '新建项目',
-        userId: saveData.userId,
-        circuitName: saveData.circuitName,
-        dataLength: saveData.circuitData.length,
-        description: saveData.description,
-        isPublic: saveData.isPublic
-      });
+      // console.log("准备保存数据:", {
+      //   circuitId: saveData.circuitId || '新建项目',
+      //   userId: saveData.userId,
+      //   circuitName: saveData.circuitName,
+      //   dataLength: saveData.circuitData.length,
+      //   description: saveData.description,
+      //   isPublic: saveData.isPublic
+      // });
       
       // 发送消息到父窗口保存
       window.parent.postMessage({ type: 'saveCircuit', data: saveData }, '*');
