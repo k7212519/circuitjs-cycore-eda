@@ -884,7 +884,7 @@ showCustomNotification('正在保存项目...', 'info');
       
       // 获取token和API基础URL
       const token = window.API && window.API.getValidToken ? window.API.getValidToken() : localStorage.getItem('eda_token');
-      const apiBaseUrl = window.API_BASE_URL || 'http://192.168.1.103:8088'; // 使用静态IP地址
+      const apiBaseUrl = window.API_BASE_URL || (window.API && window.API.API_BASE_URL) || (window.location.protocol + '//' + window.location.hostname + ':8088');
       
       console.log("开始获取项目列表, token长度:", token ? token.length : 0, "API基础URL:", apiBaseUrl);
       
@@ -1987,7 +1987,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // showCustomNotification("正在加载项目列表...", "info");
         
         // 使用原生fetch API绕过GWT
-        const apiBaseUrl = window.API_BASE_URL || 'http://192.168.1.103:8088';
+        const apiBaseUrl = window.API_BASE_URL || (window.API && window.API.API_BASE_URL) || (window.location.protocol + '//' + window.location.hostname + ':8088');
         
         // 先验证token有效性
         fetch(`${apiBaseUrl}/eda/login/validate`, {
@@ -2307,7 +2307,7 @@ document.addEventListener('DOMContentLoaded', function() {
                   return;
                 }
                 
-        const apiBaseUrl = window.API_BASE_URL || 'http://192.168.1.103:8088';
+        const apiBaseUrl = window.API_BASE_URL || (window.API && window.API.API_BASE_URL) || (window.location.protocol + '//' + window.location.hostname + ':8088');
         
         // 显示保存中通知
         showCustomNotification("正在保存项目...", "info");

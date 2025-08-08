@@ -5,11 +5,11 @@
 
 // API基础URL，可以根据环境配置
 // 使用明确的后端API服务器地址，而不是前端静态服务器
-const API_BASE_URL = window.location.protocol + '//' + window.location.hostname + ':8088'; // 默认使用本地开发服务器
+// const API_BASE_URL = window.location.protocol + '//' + window.location.hostname + ':8088'; // 默认使用本地开发服务器
 
 // 如果需要在不同环境中切换，可以取消注释下面的代码
-// const isProduction = window.location.hostname !== 'localhost' && !window.location.hostname.includes('192.168');
-// const API_BASE_URL = isProduction ? 'https://api.example.com' : 'http://localhost:8080';
+const isProduction = window.location.hostname !== 'localhost' && !window.location.hostname.includes('192.168');
+const API_BASE_URL = isProduction ? 'https://apisim.cycore.com.cn' : 'http://192.168.1.103:8088';
 
 // 获取有效的token，确保格式正确
 const getValidToken = () => {
@@ -610,3 +610,7 @@ window.API = API;
 
 // 添加token工具函数到API对象
 window.API.getValidToken = getValidToken;
+
+// 暴露 API 基础地址到全局与 API 对象
+window.API.API_BASE_URL = API_BASE_URL;
+window.API_BASE_URL = API_BASE_URL;
