@@ -519,7 +519,7 @@
     
     <div class="buttons">
       <button class="btn btn-secondary" onclick="closePopup()">取消</button>
-      <button id="btnCreateNew" class="btn btn-info" onclick="switchTab('new')">新建项目</button>
+      <button id="btnCreateNew" class="btn btn-info" onclick="switchTab('new')">新建项目并保存</button>
       <button id="btnPrimarySave" class="btn btn-danger" onclick="saveProject()" style="display:none;">保存并覆盖</button>
       <button id="btnOpenBottom" class="btn btn-info" onclick="openSelectedProject()" style="display:none;">打开</button>
     </div>
@@ -923,33 +923,81 @@
       showNotification("项目打开功能即将实现", "info");
     }
 
-    // 底部“打开”按钮逻辑（先实现前端提示）
+    // 底部“打开”按钮逻辑
     function openSelectedProject() {
       if (selectedProjectId == null) {
         showNotification('请先选择一个项目', 'error');
         return;
       }
       console.log(`准备打开项目 ID: ${selectedProjectId}, 索引: ${selectedProjectIndex}`);
-      showNotification('项目打开功能即将实现', 'info');
-      // 后续可通过 postMessage 通知父页面执行打开逻辑
-      // window.parent.postMessage({ type: 'openCircuit', data: { circuitId: selectedProjectId, index: selectedProjectIndex } }, '*');
+      showNotification('正在打开项目...', 'info');
+      // 通知父页面执行打开逻辑
+      window.parent.postMessage({ type: 'openCircuit', data: { circuitId: selectedProjectId, index: selectedProjectIndex } }, '*');
     }
     
     // 删除项目
     function deleteProject(event, circuitId, index) {
       // 阻止事件冒泡，避免触发项目选择
       event.stopPropagation();
-      
-      console.log(`准备删除项目 ID: ${circuitId}, 索引: ${index}`);
-      showNotification("项目删除功能即将实现", "info");
-      
-      // TODO: 实现项目删除逻辑
-      // 这里暂时留空，后续实现
-      
-      // 可以添加确认对话框
-      // if (confirm("确定要删除该项目吗？")) {
-      //   // 执行删除操作
-      // }
+
+      if (!circuitId) {
+        showNotification('无效的项目ID', 'error');
+        return;
+      }
+
+      // 二次确认
+      const confirmed = window.confirm('确定要删除该项目吗？删除后不可恢复。');
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        const token = (window.parent.API && window.parent.API.getValidToken) ? window.parent.API.getValidToken() : (window.parent.localStorage ? window.parent.localStorage.getItem('eda_token') : null);
+        if (!token) {
+          showNotification('未登录或令牌失效', 'error');
+          return;
+        }
+
+        // 通过父窗口API统一请求
+        if (window.parent.API && typeof window.parent.API.deleteCircuit === 'function') {
+          const userId = (window.projectsList && window.projectsList[index] && window.projectsList[index].userId) || null;
+          window.parent.API.deleteCircuit(circuitId, userId)
+            .then(resp => {
+              if (resp && resp.code === 200) {
+                showNotification('删除成功', 'success');
+                // 从UI移除该项
+                const item = document.querySelector(`.project-item[data-id="${circuitId}"]`);
+                if (item && item.parentNode) item.parentNode.removeChild(item);
+                // 同步移除全局列表数据
+                if (Array.isArray(window.projectsList)) {
+                  window.projectsList = window.projectsList.filter(c => String(c.circuitId) !== String(circuitId));
+                }
+                // 重置选择与底部按钮
+                if (selectedProjectId === circuitId) {
+                  selectedProjectId = null;
+                  selectedProjectIndex = null;
+                  const btnPrimarySave = document.getElementById('btnPrimarySave');
+                  const btnOpenBottom = document.getElementById('btnOpenBottom');
+                  const btnCreateNew = document.getElementById('btnCreateNew');
+                  if (btnPrimarySave) btnPrimarySave.style.display = 'none';
+                  if (btnOpenBottom) btnOpenBottom.style.display = 'none';
+                  if (btnCreateNew) btnCreateNew.style.display = 'inline-block';
+                }
+              } else {
+                showNotification('删除失败: ' + (resp && resp.msg ? resp.msg : '服务器错误'), 'error');
+              }
+            })
+            .catch(err => {
+              console.error('删除失败:', err);
+              showNotification('删除失败: ' + err.message, 'error');
+            });
+        } else {
+          showNotification('API未加载，无法删除', 'error');
+        }
+      } catch (e) {
+        console.error('删除过程异常:', e);
+        showNotification('删除失败: ' + e.message, 'error');
+      }
     }
     
     // 过滤项目列表

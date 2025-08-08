@@ -54,7 +54,7 @@
       </button>
       <div id="userDropdown" class="dropdown-content">
         <a href="userProfile.html">我的资料</a>
-        <a href="myCircuits.html">我的项目</a>
+        <a href="#" id="myExamLink">我的考试</a>
         <a href="logout.html">退出登录</a>
       </div>
     </div>
@@ -446,45 +446,57 @@
       }
     }
     
-    // 加载电路数据
+    // 加载电路数据（优先使用官方JS接口 CircuitJS1.importCircuit）
     function loadCircuitData(data, name) {
       try {
-        // 创建脚本注入LoadCircuit功能
-        const script = document.createElement('script');
-        script.textContent = `
-          try {
-            if (window.circuitjs1 && window.circuitjs1.theSim) {
-              // 创建一个Blob对象并使用URL.createObjectURL创建一个URL
-              var blob = new Blob([${JSON.stringify(data)}], {type: 'text/plain'});
-              var url = URL.createObjectURL(blob);
-              
-              // 尝试加载电路
-              window.circuitjs1.theSim.readCircuit(${JSON.stringify(data)});
-              
-              // 设置电路标题
-              if (${JSON.stringify(name)}) {
-                window.circuitjs1.theSim.setCircuitTitle(${JSON.stringify(name)});
-              }
-              
-              console.log("电路加载成功");
-              
-              // 显示提示
-              if (window.showPromptDialog) {
-                window.showPromptDialog("电路加载成功: " + ${JSON.stringify(name || "")});
-              }
+        const tryImport = () => {
+          if (window.CircuitJS1 && typeof window.CircuitJS1.importCircuit === 'function') {
+            window.CircuitJS1.importCircuit(data, false);
+            // 可选：设置标题（如果暴露了theSim）
+            if (name && window.circuitjs1 && window.circuitjs1.theSim && typeof window.circuitjs1.theSim.setCircuitTitle === 'function') {
+              window.circuitjs1.theSim.setCircuitTitle(name);
             }
-          } catch (e) {
-            console.error("加载电路失败:", e);
-            if (window.showPromptDialog) {
-              window.showPromptDialog("加载电路失败: " + e.message);
-            }
+
+            console.log('电路加载成功');
+            return true;
           }
-        `;
-        document.head.appendChild(script);
-        document.head.removeChild(script);
+          return false;
+        };
+
+        if (!tryImport()) {
+          // 等待GWT模块完成初始化后再导入
+          let attempts = 0;
+          const maxAttempts = 50; // ~10秒
+          const intervalId = setInterval(() => {
+            attempts++;
+            if (tryImport()) {
+              clearInterval(intervalId);
+              return;
+            }
+            if (attempts >= maxAttempts) {
+              clearInterval(intervalId);
+              console.warn('等待CircuitJS1.importCircuit超时，尝试后备方式');
+              // 后备：尝试直接调用theSim.readCircuit（若可用）
+              try {
+                if (window.circuitjs1 && window.circuitjs1.theSim && typeof window.circuitjs1.theSim.readCircuit === 'function') {
+                  window.circuitjs1.theSim.readCircuit(data);
+                  if (name && typeof window.circuitjs1.theSim.setCircuitTitle === 'function') {
+                    window.circuitjs1.theSim.setCircuitTitle(name);
+                  }
+
+                } else {
+                  showPromptDialog('加载电路失败: 模块未就绪');
+                }
+              } catch (err) {
+                console.error('后备加载失败:', err);
+                showPromptDialog('加载电路失败: ' + err.message);
+              }
+            }
+          }, 200);
+        }
       } catch (e) {
-        console.error("注入加载电路脚本失败:", e);
-        showPromptDialog("加载电路失败: " + e.message);
+        console.error('加载电路过程异常:', e);
+        showPromptDialog('加载电路失败: ' + e.message);
       }
     }
     
@@ -1307,6 +1319,9 @@ showCustomNotification('正在保存项目...', 'info');
 .popup-btn:active {
   transform: translateY(1px);
 }
+/* 仅调整个人中心下拉菜单文字颜色为黑色 */
+#userDropdown a { color: #000; }
+#userDropdown a:visited { color: #000; }
 </style>
 
 <script>
@@ -1721,7 +1736,7 @@ function loadProjectMenuItems() {
     
     // 新建项目
     btnCreate.onclick = function() {
-      // 切换到“新建项目”页签
+      // 切换到"新建项目"页签
       const switchBtn = document.getElementById('menu-create-new');
       if (switchBtn) switchBtn.click();
     };
@@ -2199,14 +2214,63 @@ document.addEventListener('DOMContentLoaded', function() {
           
           // 移除消息监听器
           window.removeEventListener('message', window.savePopupMessageHandler);
-        } else if (event.data.type === 'saveCircuit') {
+                } else if (event.data.type === 'saveCircuit') {
           // 保存电路数据并移除监听器，防止重复保存
           saveCircuitData(event.data.data);
           // 不在这里移除事件监听器，等待保存完成后关闭弹窗时移除
+        } else if (event.data.type === 'openCircuit') {
+          const openData = event.data.data || {};
+          const circuitId = openData.circuitId;
+          if (!circuitId) {
+            showCustomNotification('未提供circuitId', 'error');
+            return;
+          }
+          const token = localStorage.getItem('eda_token');
+          const apiBaseUrl = window.API_BASE_URL || (window.API && window.API.API_BASE_URL) || (window.location.protocol + '//' + window.location.hostname + ':8088');
+          if (!token) {
+            showCustomNotification('无法获取token，请重新登录', 'error');
+            return;
+          }
+          fetch(`${apiBaseUrl}/cycore/circuit/${circuitId}`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token.trim()}` }
+          })
+            .then(r => {
+              if (!r.ok) throw new Error(`HTTP错误: ${r.status}`);
+              return r.json();
+            })
+            .then(resp => {
+              if (resp && resp.code === 200 && resp.data && resp.data.circuitData) {
+                const text = resp.data.circuitData;
+                const name = resp.data.circuitName || '';
+                // 加载到GWT
+                loadCircuitData(text, name);
+                showCustomNotification('项目已打开', 'success');
+                // 关闭弹窗
+                const overlayEl = document.getElementById('popup-overlay');
+                if (overlayEl) overlayEl.style.opacity = '0';
+                popupContainer.style.transform = 'translateY(-20px)';
+                popupContainer.style.opacity = '0';
+                popupContainer.style.transition = 'opacity 0.12s ease-out, transform 0.12s ease-out';
+                setTimeout(() => {
+                  if (document.body.contains(popupContainer)) document.body.removeChild(popupContainer);
+                  if (overlayEl && document.body.contains(overlayEl)) document.body.removeChild(overlayEl);
+                  if (window.savePopupMessageHandler) {
+                    window.removeEventListener('message', window.savePopupMessageHandler);
+                  }
+                }, 150);
+              } else {
+                const msg = (resp && resp.msg) ? resp.msg : '未获取到电路数据';
+                showCustomNotification(`打开失败: ${msg}`, 'error');
+              }
+            })
+            .catch(err => {
+              showCustomNotification(`打开失败: ${err.message}`, 'error');
+            });
         }
-      };
-      
-      window.addEventListener('message', window.savePopupMessageHandler);
+       };
+       
+       window.addEventListener('message', window.savePopupMessageHandler);
       
       // 定义保存函数
       window.saveCircuitData = function(saveData) {
@@ -2451,6 +2515,19 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log("已重置保存到云端按钮的事件监听器");
       }
     })();
+
+    // “我的考试”点击提示暂未开放
+    const myExamLink = document.getElementById('myExamLink');
+    if (myExamLink) {
+      myExamLink.addEventListener('click', function(e) {
+        e.preventDefault();
+        if (typeof showPromptDialog === 'function') {
+          showPromptDialog('暂未开放');
+        } else {
+          alert('暂未开放');
+        }
+      });
+    }
     </script>
 
 <!-- 引入API.js -->
