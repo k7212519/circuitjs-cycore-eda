@@ -55,7 +55,7 @@ function createMainWindow() {
   } else {
     const prodIndex = path.join(process.resourcesPath, 'site', 'index.html');
     mainWindow.loadFile(prodIndex);
-    mainWindow.webContents.openDevTools({ mode: 'detach' });
+    // mainWindow.webContents.openDevTools({ mode: 'detach' }); //生产环境关闭devTools
   }
 }
 
