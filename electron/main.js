@@ -1,12 +1,36 @@
 const { app, BrowserWindow, protocol } = require('electron');
 const path = require('path');
+const fs = require('fs');
+
+function resolveWindowIcon(isDev) {
+  const candidatePaths = isDev
+    ? [
+        path.resolve(__dirname, 'build', 'icons', 'icon.png'),
+        path.resolve(__dirname, 'build', 'icons', 'icon.ico'),
+        path.resolve(__dirname, 'build', 'icons', 'png', '512x512.png')
+      ]
+    : [
+        path.join(process.resourcesPath, 'icons', 'icon.png'),
+        path.join(process.resourcesPath, 'icons', '512x512.png')
+      ];
+  for (const p of candidatePaths) {
+    try {
+      if (fs.existsSync(p)) return p;
+    } catch (_) {}
+  }
+  return undefined;
+}
 
 function createMainWindow() {
+  const isDev = !app.isPackaged;
+  const iconPath = resolveWindowIcon(isDev);
+
   const mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
     minWidth: 1024,
     minHeight: 640,
+    icon: iconPath,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -14,8 +38,6 @@ function createMainWindow() {
       sandbox: false
     }
   });
-
-  const isDev = !app.isPackaged;
 
   if (isDev) {
     const devIndex = path.resolve(__dirname, '..', 'site', 'index.html');
