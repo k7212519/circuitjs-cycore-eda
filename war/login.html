@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CYCORE电路芯片仿真系统 - 登录</title>
+    <title>CYCORE电路芯片仿真系统</title>
     <style>
         :root {
             --primary-color: #3b226e;  /* 深紫色 */
@@ -346,6 +346,9 @@
                 <div class="register-link" style="margin-top: 15px;">
                     <a href="register.html" class="register-btn-link">注册新账号</a>
                 </div>
+                <div class="offline-link" style="margin-top: 16px; text-align: center;">
+                    <a href="#" id="offline-link" style="color: var(--primary-color); text-decoration: underline; font-weight: 600; font-size: 13px;">访客模式</a>
+                </div>
         </form>
             
             <div class="footer-section"></div>
@@ -364,6 +367,7 @@
             const loginError = document.getElementById('login-error');
             const loginBtn = document.getElementById('login-btn');
             const rememberMe = document.getElementById('remember');
+            const offlineLink = document.getElementById('offline-link');
             
             // 从localStorage获取保存的用户名（如果有）
             const savedUsername = localStorage.getItem('saved_username');
@@ -392,6 +396,8 @@
                             };
                             localStorage.setItem('eda_user', JSON.stringify(userData));
                             localStorage.setItem('userId', data.data.userId); // 确保userId单独存储
+                            // 清理离线模式标志
+                            sessionStorage.removeItem('offline_mode');
                             
                             // 检查是否有来自保存功能的重定向
                             const pendingSaveCircuit = sessionStorage.getItem('pending_save_circuit');
@@ -508,6 +514,8 @@
                         localStorage.setItem('userId', data.data.userId); // 直接存储userId便于快速访问
                         localStorage.setItem('eda_user', JSON.stringify(userData));
                         sessionStorage.setItem('authenticated', 'true');
+                        // 清理离线模式标志
+                        sessionStorage.removeItem('offline_mode');
                         
                         // 检查是否有来自保存功能的重定向
                         const pendingSaveCircuit = sessionStorage.getItem('pending_save_circuit');
@@ -541,6 +549,24 @@
                     loginBtn.innerHTML = originalBtnText;
                 });
             });
+
+            // 离线使用入口
+            if (offlineLink) {
+                offlineLink.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const ok = confirm('访客模式下无法保存项目到云端，仅可使用仿真功能');
+                    if (ok) {
+                        // 设置离线模式并清理登录状态
+                        sessionStorage.setItem('offline_mode', 'true');
+                        localStorage.removeItem('eda_token');
+                        localStorage.removeItem('eda_user');
+                        localStorage.removeItem('userId');
+                        sessionStorage.removeItem('authenticated');
+                        // 直接进入仿真页
+                        window.location.href = 'circuitjs.html';
+                    }
+                });
+            }
         });
     </script>
 </body>

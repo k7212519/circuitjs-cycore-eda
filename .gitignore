@@ -11,6 +11,8 @@ build/
 .project
 .settings/
 site/
+electron/dist/
+electron/node_modules/
 
 # GWT command line tools
 codeserver.log
