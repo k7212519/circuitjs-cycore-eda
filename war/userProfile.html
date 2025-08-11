@@ -5,7 +5,7 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>个人资料 - 电路仿真系统</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+
     <style>
         body {
             margin: 0;
@@ -151,10 +151,12 @@
         }
         .btn-primary {
             background-color: #5e35b1;
-            border-color: #5e35b1;
+            border: 1px solid #5e35b1;
+            color: #fff;
             padding: 10px 20px;
             border-radius: 8px;
             font-weight: 500;
+            cursor: pointer;
         }
         .btn-primary:hover {
             background-color: #4527A0;
@@ -168,10 +170,32 @@
             border-radius: 8px;
             font-weight: 500;
             margin-right: 10px;
+            cursor: pointer;
         }
         .btn-outline:hover {
             background-color: rgba(94, 53, 177, 0.1);
         }
+        /* 简化的栅格系统替代 Bootstrap 的 row/col */
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            margin-left: -8px;
+            margin-right: -8px;
+        }
+        .col-md-6 {
+            width: 50%;
+            padding-left: 8px;
+            padding-right: 8px;
+            box-sizing: border-box;
+        }
+        @media (max-width: 768px) {
+            .col-md-6 { width: 100%; }
+        }
+        /* 实用类替代 */
+        .d-flex { display: flex; }
+        .justify-content-end { justify-content: flex-end; }
+        .text-muted { color: #6c757d; }
+        .btn { display: inline-block; }
         .tab-container {
             margin-bottom: 30px;
             border-bottom: 1px solid #eee;
@@ -253,6 +277,107 @@
             margin-top: 5px;
             display: none;
         }
+
+        /* 现代化布局与输入居中优化 */
+        :root {
+            --container-max: 900px;
+            --form-max: 720px;
+            --input-max: 420px;
+            --label-width-desktop: 156px;
+            --label-width-mobile: 128px;
+            --gap: 16px;
+        }
+        .profile-container {
+            width: min(var(--container-max), 92vw);
+            min-height: 820px;
+            padding: 36px 28px;
+        }
+        .tab-content form {
+            max-width: var(--form-max);
+            margin: 0 auto;
+            padding: 0 12px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 4px 8px;
+        }
+        .profile-label {
+            width: var(--label-width-desktop);
+            text-align: right;
+            margin: 0;
+            color: #444;
+            white-space: nowrap;
+        }
+        .profile-input {
+            flex: 0 1 var(--input-max);
+            max-width: var(--input-max);
+            width: 100%;
+        }
+        .password-input-group {
+            position: relative;
+            display: flex;
+            align-items: center;
+            width: 100%;
+            max-width: var(--input-max);
+            margin: 0;
+        }
+        .password-input-group .profile-input {
+            width: 100%;
+            padding-right: 40px;
+        }
+        .password-toggle {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            color: #777;
+        }
+        .password-toggle:hover { color: #5e35b1; }
+        .quota-info {
+            max-width: var(--form-max);
+            margin: 0 auto 20px;
+        }
+        @media (max-width: 600px) {
+            .profile-label { width: var(--label-width-mobile); text-align: left; }
+        }
+
+        /* 栅格与间距优化 */
+        .tab-content .row {
+            gap: var(--gap);
+            margin: 0 auto;
+            max-width: var(--form-max);
+        }
+        .tab-content .col-md-6 {
+            width: auto;                /* 自动宽度，便于居中与间距 */
+            flex: 1 1 calc(50% - var(--gap));
+            min-width: 260px;           /* 防止过窄 */
+        }
+        @media (max-width: 768px) {
+            .tab-content .col-md-6 { flex-basis: 100%; }
+        }
+
+        /* 输入与按钮组间距 */
+        .form-group + .form-group { margin-top: 14px; }
+        .d-flex.justify-content-end { gap: 10px; }
+
+        /* 视觉微调 */
+        .profile-container { border: 1px solid rgba(0,0,0,0.04); }
+        .tab-item { transition: color .2s ease; }
+        .tab-item.active { color: #5e35b1; }
+        .tab-item:hover { color: #4527A0; }
     </style>
     <!-- 登录验证脚本 -->
     <script>
@@ -432,11 +557,9 @@
                     <span class="quota-value" id="accountStatus">加载中...</span>
                 </div>
             </div>
-            <p class="text-muted">如需增加配额，请联系管理员。</p>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="api.js"></script>
 
     <script>
