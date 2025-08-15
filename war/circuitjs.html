@@ -35,6 +35,12 @@
   <body>
   <!-- 添加顶部按钮和下拉菜单 -->
   <div class="header-nav">
+    <!-- 暗黑模式切换按钮 -->
+    <div class="theme-toggle">
+      <button id="themeToggleBtn" class="theme-btn">
+        <img src="img/svg/mode-light-filled.svg" alt="切换主题" class="btn-icon theme-icon" id="themeIcon">
+      </button>
+    </div>
     <!-- 项目按钮 -->
     <div class="dropdown">
       <button id="projectBtn" class="dropbtn">
@@ -106,6 +112,36 @@
             showProjectMenu();
           }
         }, 2000);
+      }
+      
+      // 主题切换按钮逻辑
+      const themeToggleBtn = document.getElementById('themeToggleBtn');
+      const themeIcon = document.getElementById('themeIcon');
+      
+      // 检查当前主题状态（默认为浅色模式）
+      let isDarkMode = localStorage.getItem('darkMode') === 'true';
+      
+      // 初始化图标
+      updateThemeIcon();
+      
+      // 绑定点击事件
+      themeToggleBtn.addEventListener('click', function() {
+        isDarkMode = !isDarkMode;
+        localStorage.setItem('darkMode', isDarkMode);
+        updateThemeIcon();
+        // 主题切换逻辑将在后续实现
+        console.log("主题模式切换为:", isDarkMode ? "暗黑模式" : "浅色模式");
+      });
+      
+      // 更新主题图标
+      function updateThemeIcon() {
+        if (isDarkMode) {
+          themeIcon.src = "img/svg/mode-dark-filled.svg";
+          themeIcon.alt = "切换到浅色模式";
+        } else {
+          themeIcon.src = "img/svg/mode-light-filled.svg";
+          themeIcon.alt = "切换到暗黑模式";
+        }
       }
       
       // 检查保存按钮是否存在
@@ -1334,6 +1370,29 @@ showCustomNotification('正在保存项目...', 'info');
 /* 仅调整个人中心下拉菜单文字颜色为黑色 */
 #userDropdown a { color: #000; }
 #userDropdown a:visited { color: #000; }
+
+/* 主题切换按钮样式 */
+.theme-toggle {
+  margin-right: 10px;
+}
+.theme-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+.theme-btn:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+.theme-icon {
+  width: 24px;
+  height: 24px;
+}
 </style>
 
 <script>
