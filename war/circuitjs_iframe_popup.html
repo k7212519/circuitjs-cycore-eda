@@ -4,8 +4,64 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>保存项目</title>
+  <!-- 在渲染前立即检测暗黑模式 -->
+  <script>
+    // 立即检测父页面的暗黑模式并设置适当的类，避免闪烁
+    (function() {
+      try {
+        // 首先检查URL参数
+        const urlParams = new URLSearchParams(window.location.search);
+        let isDarkMode = urlParams.get('theme') === 'dark';
+        
+        // 如果URL参数中没有主题信息，则尝试从父窗口获取
+        if (!isDarkMode && window.parent) {
+          // 尝试从父窗口的变量中读取
+          if (typeof window.parent.currentThemeIsDark !== 'undefined') {
+            isDarkMode = window.parent.currentThemeIsDark;
+          }
+          // 尝试从父窗口的DOM中读取
+          else if (window.parent.document && window.parent.document.body) {
+            isDarkMode = window.parent.document.body.classList.contains('dark-mode');
+          }
+          // 尝试从父窗口的localStorage读取
+          else if (window.parent.localStorage) {
+            isDarkMode = window.parent.localStorage.getItem('darkMode') === 'true';
+          }
+        }
+
+        // 应用暗黑模式
+        if (isDarkMode) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      } catch (e) {
+        console.error("预检测暗黑模式失败:", e);
+      }
+    })();
+  </script>
   <style>
     :root { --project-item-height: 92px; }
+    
+    /* 快速应用暗黑模式预设，防止闪烁 */
+    html[data-theme='dark'] {
+      background-color: #2d2d2d; /* 稍微调亮，与外部popup一致 */
+      color-scheme: dark;
+    }
+    
+    html[data-theme='dark'] body {
+      background-color: #2d2d2d; /* 稍微调亮 */
+      color: #e0e0e0;
+    }
+    
+    html[data-theme='dark'] input,
+    html[data-theme='dark'] textarea,
+    html[data-theme='dark'] select,
+    html[data-theme='dark'] button.btn-secondary,
+    html[data-theme='dark'] .close-btn {
+      background-color: #383838; /* 调亮一点 */
+      color: #e0e0e0;
+      border-color: #555;
+    }
+    
     /* 基础样式 */
     * {
       box-sizing: border-box;
@@ -92,7 +148,7 @@
       justify-content: center;
       border-radius: 50%;
       background-color: #f5f5f5;
-      transition: all 0.2s;
+      transition: none; /* 移除过渡效果，避免闪烁 */
       z-index: 100;
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
@@ -184,7 +240,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all 0.2s ease;
+      transition: transform 0.2s ease; /* 只保留变换的过渡 */
       background-color: #f5f5f5;
       pointer-events: auto; /* 确保按钮可点击 */
     }
@@ -294,7 +350,7 @@
       border: 1px solid #e0e0e0;
       border-radius: 8px;
       font-size: 15px;
-      transition: all 0.3s;
+      transition: box-shadow 0.3s; /* 只保留阴影过渡效果，移除背景和颜色变化 */
       -webkit-user-select: text !important;
       user-select: text !important;
       background-color: #fafafa;
@@ -342,7 +398,7 @@
       border-radius: 8px;
       font-weight: 500;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: transform 0.2s ease, box-shadow 0.2s ease; /* 只保留变换和阴影过渡 */
       border: none;
       font-size: 16px; /* 增加字体大小 */
       margin-left: 12px;
@@ -387,6 +443,7 @@
       margin-bottom: 8px; /* 收紧与列表间距 */
       height: 46px; /* 增加高度 */
       font-size: 16px; /* 增加字体大小 */
+      transition: none; /* 移除过渡效果，防止背景闪烁 */
     }
     
     /* 通知样式 */
@@ -468,6 +525,139 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+
+    /* 暗黑模式样式 */
+    body.dark-mode {
+      background-color: #2d2d2d; /* 与html[data-theme='dark']一致 */
+      color: #e0e0e0;
+      box-shadow: 0 5px 30px rgba(0,0,0,0.5);
+    }
+
+    body.dark-mode .tabs {
+      border-bottom-color: #444;
+    }
+
+    body.dark-mode .tab {
+      color: #aaa;
+    }
+
+    body.dark-mode .tab.active {
+      color: #64b5f6;
+      border-bottom-color: #64b5f6;
+    }
+
+    body.dark-mode .tab.inactive:hover {
+      color: #90caf9;
+    }
+
+    body.dark-mode .close-btn {
+      background-color: #444;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+
+    body.dark-mode .close-btn svg {
+      stroke: #ccc;
+    }
+
+    body.dark-mode .close-btn:hover {
+      background-color: #555;
+    }
+
+    body.dark-mode .project-list {
+      border-color: #444;
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+    }
+
+    body.dark-mode .project-item {
+      border-bottom-color: #444;
+    }
+
+    body.dark-mode .project-item:hover {
+      background-color: #383838; /* 稍微调亮一点，原来是#333 */
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    body.dark-mode .project-item.selected {
+      background-color: #3c2e63; /* 暗紫色 */
+      border-left-color: #64b5f6;
+    }
+
+    body.dark-mode .project-item:active {
+      background-color: #3c3c3c;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    body.dark-mode .project-name {
+      color: #e0e0e0;
+    }
+
+    body.dark-mode .project-info {
+      color: #999;
+    }
+
+    body.dark-mode label {
+      color: #bbb;
+    }
+
+    body.dark-mode input[type="text"],
+    body.dark-mode textarea {
+      background-color: #383838; /* 稍微调亮一点，原来是#333 */
+      border-color: #555;
+      color: #e0e0e0;
+    }
+
+    body.dark-mode input[type="text"]:focus,
+    body.dark-mode textarea:focus {
+      border-color: #64b5f6;
+      background-color: #404040; /* 调亮一点，原来是#3c3c3c */
+      box-shadow: 0 0 0 3px rgba(100, 181, 246, 0.2);
+    }
+
+    body.dark-mode .buttons {
+      border-top-color: #444;
+    }
+
+    body.dark-mode .btn-secondary {
+      background-color: #424242;
+      border-color: #555;
+      color: #e0e0e0;
+    }
+
+    body.dark-mode .action-button {
+      background-color: #444;
+    }
+
+    body.dark-mode .action-button:hover {
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    body.dark-mode .delete-button:hover {
+      background-color: #4a2222;
+    }
+
+    /* 暗黑模式滚动条 */
+    body.dark-mode ::-webkit-scrollbar-track {
+      background: #383838; /* 调亮一点，原来是#333 */
+    }
+
+    body.dark-mode ::-webkit-scrollbar-thumb {
+      background-color: #555;
+      border: 2px solid #383838; /* 调亮一点，原来是#333 */
+    }
+
+    body.dark-mode ::-webkit-scrollbar-thumb:hover {
+      background-color: #666;
+    }
+
+    /* 暗黑模式下搜索框 */
+    body.dark-mode #projectSearch {
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%23bbb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>');
+    }
+
+    body.dark-mode .loading-spinner {
+      border-color: rgba(255, 255, 255, 0.1);
+      border-top-color: #64b5f6;
+    }
   </style>
 </head>
 <body>
@@ -526,6 +716,17 @@
   </div>
   
   <script>
+    // 在DOM加载前立即应用暗黑模式
+    (function() {
+      try {
+        if (document.documentElement.getAttribute('data-theme') === 'dark') {
+          document.body.classList.add('dark-mode');
+        }
+      } catch (e) {
+        console.error("初始暗黑模式应用失败:", e);
+      }
+    })();
+
     // 选中的项目
     let selectedProjectId = null;
     let selectedProjectIndex = null;
@@ -555,6 +756,16 @@
         if (projectNameInput) {
           projectNameInput.value = `我的电路 ${new Date().toLocaleString()}`;
         }
+
+        // 检测父窗口的暗黑模式
+        checkDarkMode();
+        
+        // 监听父窗口的主题变化
+        window.addEventListener('message', function(event) {
+          if (event.data && event.data.type === 'themeChanged') {
+            checkDarkMode();
+          }
+        });
         
         // 加载项目列表
         loadProjectsList();
@@ -563,6 +774,25 @@
         showNotification("初始化失败: " + error.message, "error");
       }
     };
+
+    // 检测并同步父页面的暗黑模式
+    function checkDarkMode() {
+      try {
+        // 检查父页面是否为暗黑模式
+        const isDarkMode = window.parent.document.body.classList.contains('dark-mode');
+        
+        // 应用暗黑模式到iframe
+        if (isDarkMode) {
+          document.body.classList.add('dark-mode');
+          document.documentElement.setAttribute('data-theme', 'dark');
+        } else {
+          document.body.classList.remove('dark-mode');
+          document.documentElement.removeAttribute('data-theme');
+        }
+      } catch (e) {
+        console.error("检查暗黑模式失败:", e);
+      }
+    }
     
     // 切换标签页
     function switchTab(tab) {
@@ -582,7 +812,7 @@
         // 初始状态：未选中任何项目
         selectedProjectId = null;
         selectedProjectIndex = null;
-        // 按钮：仅显示“取消/新建项目”，隐藏“保存/打开”
+        // 按钮：仅显示"取消/新建项目"，隐藏"保存/打开"
         btnPrimarySave.style.display = 'none';
         btnOpenBottom.style.display = 'none';
         if (btnCreateNew) btnCreateNew.style.display = 'inline-block';
@@ -591,7 +821,7 @@
         newTab.className = 'tab active';
         existingContent.className = 'tab-content';
         newContent.className = 'tab-content active';
-        // 新建页：显示“保存”，隐藏“新建项目/打开”，保存按钮使用主题色
+        // 新建页：显示"保存"，隐藏"新建项目/打开"，保存按钮使用主题色
         btnPrimarySave.textContent = '保存';
         btnPrimarySave.className = 'btn btn-primary';
         btnPrimarySave.disabled = false;

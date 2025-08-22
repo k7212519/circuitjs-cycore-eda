@@ -1,0 +1,153 @@
+/* menu.css - 菜单样式，包含暗黑模式支持 */
+
+/* 导航菜单 - 默认(浅色)模式 */
+.header-nav {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    display: flex;
+    gap: 15px;
+}
+
+.dropbtn {
+    background-color: #5e35b1; 
+    color: white; 
+    border: none; 
+    padding: 10px 20px; 
+    border-radius: 20px; 
+    cursor: pointer; 
+    font-size: 15px; 
+    display: flex; 
+    align-items: center; 
+    gap: 10px;
+}
+
+.btn-icon {
+    width: 20px;
+    height: 20px;
+    filter: brightness(0) invert(1); /* 白色图标 */
+}
+
+/* 导航下拉菜单 */
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    right: 0;
+    margin-top: 8px;
+    background-color: rgba(255, 255, 255, 0.8); /* 半透明背景 */
+    backdrop-filter: blur(8px); /* 磨砂效果 */
+    -webkit-backdrop-filter: blur(8px); /* Safari 兼容 */
+    width: 100%; /* 与按钮宽度一致 */
+    min-width: 160px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.1);
+    z-index: 1;
+    border-radius: 16px; /* 大圆角 */
+    overflow: hidden; /* 确保内容不溢出圆角 */
+    border: 1px solid rgba(255, 255, 255, 0.2); /* 细微边框增强立体感 */
+}
+
+.dropdown-content a {
+    color: #333;
+    padding: 12px 16px;
+    text-decoration: none;
+    display: block;
+    text-align: center; /* 水平居中 */
+    transition: all 0.2s ease; /* 平滑过渡效果 */
+    font-size: 15px; /* 加大字号 */
+    font-weight: 500; /* 适度加粗 */
+}
+
+.dropdown-content a:hover {
+    background-color: rgba(94, 53, 177, 0.1); /* 与按钮颜色协调的hover效果 */
+    text-decoration: none; /* 移除下划线 */
+    color: #333; /* 保持黑色文字 */
+}
+
+.show {
+    display: block;
+}
+
+/* 主题切换按钮样式 */
+.theme-toggle {
+    margin-right: 10px;
+}
+
+.theme-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+}
+
+.theme-btn:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.theme-icon {
+    width: 24px;
+    height: 24px;
+}
+
+/* 暗黑模式样式 */
+body.dark-mode .dropdown-content {
+    background-color: rgba(33, 33, 33, 0.85); /* 暗色半透明背景 */
+    border: 1px solid rgba(70, 70, 70, 0.3); /* 暗色边框 */
+    box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .dropdown-content a {
+    color: #e0e0e0; /* 浅灰色文字，增强可读性 */
+}
+
+body.dark-mode .dropdown-content a:hover {
+    background-color: rgba(94, 53, 177, 0.2); /* 更深的紫色，适合暗色背景 */
+    color: #ffffff; /* 悬停时文字变白色 */
+}
+
+body.dark-mode .theme-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1); /* 暗模式下的悬停效果 */
+}
+
+/* 项目保存弹窗样式适配暗黑模式 */
+body.dark-mode #project-save-dialog,
+body.dark-mode #project-save-popup {
+    background-color: #212121;
+    color: #e0e0e0;
+}
+
+body.dark-mode .project-item {
+    border-bottom-color: #444;
+}
+
+body.dark-mode .project-item:hover {
+    background-color: #333;
+}
+
+body.dark-mode .project-item.selected {
+    background-color: #3c2e63;
+}
+
+body.dark-mode input[type="text"],
+body.dark-mode textarea,
+body.dark-mode select {
+    background-color: #333;
+    border-color: #555;
+    color: #e0e0e0;
+}
+
+body.dark-mode .popup-btn-secondary {
+    background-color: #424242;
+    border-color: #555;
+    color: #e0e0e0;
+} 

@@ -392,7 +392,6 @@ MouseOutHandler, MouseWheelHandler {
     String startLabel = null;
     String startCircuitText = null;
     String startCircuitLink = null;
-//    String baseURL = "http://www.falstad.com/circuit/";
     
     public void init() {
 
@@ -672,6 +671,7 @@ MouseOutHandler, MouseWheelHandler {
 			scopes[i].setRect(scopes[i].rect);
 		    setOptionInStorage("whiteBackground", printableCheckItem.getState());
 		    updateCircuit(); // 这会更新所有UI元素的背景色
+		    updateMenuBarTheme(); // 更新菜单栏主题样式
 		}
 	}));
 	printableCheckItem.setState(printable);
@@ -1672,6 +1672,9 @@ MouseOutHandler, MouseWheelHandler {
             if (logoPanel != null)
                 logoPanel.getElement().getStyle().setBackgroundColor(COLOR_DARK_BG);
         }
+        
+        // 更新菜单栏主题样式
+        updateMenuBarTheme();
 
         // Clear the frame
         g.fillRect(0, 0, canvasWidth, canvasHeight);
@@ -2657,7 +2660,7 @@ MouseOutHandler, MouseWheelHandler {
 	circuitMatrix = new double[matrixSize][matrixSize];
 	circuitRightSide = new double[matrixSize];
 	nodeVoltages = new double[nodeList.size()-1];
-	if (lastNodeVoltages == null || lastNodeVoltages.length != nodeVoltages.length)
+	if (lastNodeVoltages == null || lastNodeVoltages.length != nodeList.size()-1)
 	    lastNodeVoltages = new double[nodeList.size()-1];
 	origMatrix = new double[matrixSize][matrixSize];
 	origRightSide = new double[matrixSize];
@@ -6855,7 +6858,9 @@ MouseOutHandler, MouseWheelHandler {
 	        getElements: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::getJSElements()(); } ),
 	        getCircuitAsSVG: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::doExportAsSVGFromAPI()(); } ),
 	        exportCircuit: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::dumpCircuit()(); } ),
-	        importCircuit: $entry(function(circuit, subcircuitsOnly) { return that.@com.lushprojects.circuitjs1.client.CirSim::importCircuitFromText(Ljava/lang/String;Z)(circuit, subcircuitsOnly); })
+	        importCircuit: $entry(function(circuit, subcircuitsOnly) { return that.@com.lushprojects.circuitjs1.client.CirSim::importCircuitFromText(Ljava/lang/String;Z)(circuit, subcircuitsOnly); } ),
+	        toggleWhiteBackground: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::toggleWhiteBackground()(); } ),
+	        isWhiteBackground: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::isWhiteBackground()(); } )
 	    };
 	    var hook = $wnd.oncircuitjsloaded;
 	    if (hook)
@@ -6886,6 +6891,81 @@ MouseOutHandler, MouseWheelHandler {
 		if (hook)
 			hook($wnd.CircuitJS1, svgData);
 	}-*/;
+	
+	boolean isWhiteBackground() {
+		return printableCheckItem.getState();
+	}
+
+	boolean toggleWhiteBackground() {
+		boolean newState = !printableCheckItem.getState();
+		printableCheckItem.setState(newState);
+		setOptionInStorage("whiteBackground", newState);
+		
+		// 修改菜单栏样式以适应黑暗模式
+		updateMenuBarTheme();
+		
+		repaint();
+		return newState;
+	}
+	
+	// 不需要重写updateCircuit方法
+
+	// 更新菜单栏主题样式
+	void updateMenuBarTheme() {
+	    // 检查printableCheckItem是否已初始化
+	    if (printableCheckItem == null || mainMenuBar == null)
+	        return;
+	        
+	    try {
+	        // 根据当前背景色更新菜单栏主题
+	        boolean isWhiteBg = printableCheckItem.getState();
+	        
+	        if (isWhiteBg) {
+	            // 浅色模式
+	            if (mainMenuBar != null)
+	                mainMenuBar.removeStyleName("gwt-MenuBar-dark");
+	            if (fileMenuBar != null)
+	                fileMenuBar.removeStyleName("gwt-MenuBar-dark");
+	            if (optionsMenuBar != null)
+	                optionsMenuBar.removeStyleName("gwt-MenuBar-dark");
+	            if (elmMenuBar != null)
+	                elmMenuBar.removeStyleName("gwt-MenuBar-dark");
+	                
+	            if (subcircuitMenuBar != null) {
+	                for (int i = 0; i < subcircuitMenuBar.length; i++) {
+	                    if (subcircuitMenuBar[i] != null)
+	                        subcircuitMenuBar[i].removeStyleName("gwt-MenuBar-dark");
+	                }
+	            }
+	            
+	            if (selectScopeMenuBar != null)
+	                selectScopeMenuBar.removeStyleName("gwt-MenuBar-dark");
+	        } else {
+	            // 暗色模式
+	            if (mainMenuBar != null)
+	                mainMenuBar.addStyleName("gwt-MenuBar-dark");
+	            if (fileMenuBar != null)
+	                fileMenuBar.addStyleName("gwt-MenuBar-dark");
+	            if (optionsMenuBar != null)
+	                optionsMenuBar.addStyleName("gwt-MenuBar-dark");
+	            if (elmMenuBar != null)
+	                elmMenuBar.addStyleName("gwt-MenuBar-dark");
+	                
+	            if (subcircuitMenuBar != null) {
+	                for (int i = 0; i < subcircuitMenuBar.length; i++) {
+	                    if (subcircuitMenuBar[i] != null)
+	                        subcircuitMenuBar[i].addStyleName("gwt-MenuBar-dark");
+	                }
+	            }
+	            
+	            if (selectScopeMenuBar != null)
+	                selectScopeMenuBar.addStyleName("gwt-MenuBar-dark");
+	        }
+	    } catch (Exception e) {
+	        // 忽略任何可能的错误，以防止页面崩溃
+	        // console("错误: " + e.getMessage());
+	    }
+	}
 
 	class UndoItem {
 	    public String dump;

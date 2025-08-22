@@ -1,0 +1,67 @@
+/* menu-dark.css - GWT菜单栏的暗黑模式样式 */
+
+/* 菜单栏暗黑模式样式 */
+.gwt-MenuBar-dark {
+  background-color: #2d2d2d !important;
+  border-color: #383838 !important;
+  color: #e0e0e0 !important;
+}
+
+.gwt-MenuBar-dark .gwt-MenuItem {
+  color: #e0e0e0 !important;
+  background-color: #2d2d2d !important;
+}
+
+.gwt-MenuBar-dark .gwt-MenuItem-selected, 
+.gwt-MenuBar-dark .gwt-MenuItem:hover {
+  background-color: #3c2e63 !important; /* 暗紫色，与项目选中颜色一致 */
+  color: #ffffff !important;
+}
+
+/* 弹出菜单的暗黑模式 */
+.gwt-MenuBarPopup .menuPopupMiddleCenter {
+  background-color: #2d2d2d !important;
+}
+
+.gwt-MenuBarPopup .menuPopupTopCenter,
+.gwt-MenuBarPopup .menuPopupBottomCenter,
+.gwt-MenuBarPopup .menuPopupTopLeft,
+.gwt-MenuBarPopup .menuPopupTopRight,
+.gwt-MenuBarPopup .menuPopupBottomLeft,
+.gwt-MenuBarPopup .menuPopupBottomRight,
+.gwt-MenuBarPopup .menuPopupMiddleLeft,
+.gwt-MenuBarPopup .menuPopupMiddleRight {
+  background-color: #383838 !important;
+  border-color: #444 !important;
+}
+
+/* 菜单项分隔符的暗黑模式样式 */
+.gwt-MenuBar-dark .gwt-MenuItemSeparator {
+  border-color: #444 !important;
+}
+
+.gwt-MenuBar-dark .gwt-MenuItemSeparator .menuSeparatorInner {
+  border-top: 1px solid #444 !important;
+}
+
+/* 禁用的菜单项 */
+.gwt-MenuBar-dark .gwt-MenuItem-disabled {
+  color: #777 !important;
+}
+
+/* 子菜单箭头颜色 */
+.gwt-MenuBar-dark .subMenuIcon {
+  color: #aaa !important;
+}
+
+/* 上下文菜单暗黑模式样式 */
+.gwt-PopupPanel.menuPopup {
+  background-color: #2d2d2d !important;
+  border: 1px solid #444 !important;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* 菜单栏图标在暗黑模式下的颜色调整 */
+.gwt-MenuBar-dark img {
+  filter: invert(1) brightness(0.8) !important;
+} 

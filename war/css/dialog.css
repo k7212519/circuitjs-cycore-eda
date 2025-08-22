@@ -142,4 +142,72 @@
     border: none; 
     border-radius: 4px; 
     cursor: pointer;
+}
+
+/* 暗黑模式对话框样式 */
+body.dark-mode .dialog-container {
+    background-color: #222;
+    color: #e0e0e0;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
+}
+
+body.dark-mode .dialog-btn-secondary {
+    background-color: #333;
+    border: 1px solid #444;
+    color: #e0e0e0;
+}
+
+body.dark-mode .project-item {
+    border-bottom-color: #444;
+}
+
+body.dark-mode .project-item:hover {
+    background-color: #333;
+}
+
+body.dark-mode .project-item.selected {
+    background-color: #3c2e63; /* 暗紫色 */
+}
+
+body.dark-mode #project-save-dialog {
+    background-color: #222;
+    color: #e0e0e0;
+}
+
+body.dark-mode #project-save-dialog h2 {
+    color: #9575cd; /* 浅紫色 */
+}
+
+body.dark-mode .loading-spinner {
+    border-color: #333;
+    border-top-color: #7e57c2; /* 浅紫色 */
+}
+
+body.dark-mode .cancel-button {
+    background-color: #333;
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+/* 暗黑模式提示对话框 */
+body.dark-mode .prompt-dialog {
+    background-color: #222;
+    color: #e0e0e0;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* 暗黑模式输入控件 */
+body.dark-mode input[type="text"], 
+body.dark-mode textarea, 
+body.dark-mode select {
+    background-color: #333;
+    color: #e0e0e0;
+    border-color: #444;
+}
+
+body.dark-mode input[type="text"]:focus, 
+body.dark-mode textarea:focus, 
+body.dark-mode select:focus {
+    border-color: #7e57c2;
+    outline: none;
 } 

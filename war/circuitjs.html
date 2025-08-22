@@ -22,6 +22,8 @@
     
     <!-- 引入CSS文件 -->
     <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/menu.css">
+    <link rel="stylesheet" href="css/menu-dark.css">
     <link rel="stylesheet" href="css/dialog.css">
     <link rel="stylesheet" href="css/popup.css">
     <link rel="stylesheet" href="font/fontello.css">
@@ -121,15 +123,61 @@
       // 检查当前主题状态（默认为浅色模式）
       let isDarkMode = localStorage.getItem('darkMode') === 'true';
       
+      // 初始化页面主题
+      if (isDarkMode) {
+        document.body.classList.add('dark-mode');
+      } else {
+        document.body.classList.remove('dark-mode');
+      }
+      
       // 初始化图标
       updateThemeIcon();
+      
+      // 页面加载后同步GWT背景与当前主题
+      setTimeout(function() {
+        if (window.CircuitJS1) {
+          // 获取GWT当前背景状态（true表示白色背景）
+          const isWhiteBg = window.CircuitJS1.isWhiteBackground ? window.CircuitJS1.isWhiteBackground() : false;
+          // 如果GWT白背景状态与isDarkMode不匹配，则同步
+          if ((isWhiteBg && isDarkMode) || (!isWhiteBg && !isDarkMode)) {
+            console.log("同步GWT背景与主题设置");
+            window.CircuitJS1.toggleWhiteBackground();
+          }
+        }
+      }, 1500); // 给GWT应用足够的加载时间
       
       // 绑定点击事件
       themeToggleBtn.addEventListener('click', function() {
         isDarkMode = !isDarkMode;
         localStorage.setItem('darkMode', isDarkMode);
+        
+        // 更新body类以应用暗黑模式CSS
+        if (isDarkMode) {
+          document.body.classList.add('dark-mode');
+        } else {
+          document.body.classList.remove('dark-mode');
+        }
+        
         updateThemeIcon();
-        // 主题切换逻辑将在后续实现
+        
+        // 调用GWT项目中的主题切换方法
+        if (window.CircuitJS1 && typeof window.CircuitJS1.toggleWhiteBackground === 'function') {
+          // 注意：CircuitJS1中白背景状态与isDarkMode相反
+          var isWhiteBg = window.CircuitJS1.toggleWhiteBackground();
+          console.log("主题已切换，GWT白色背景状态:", isWhiteBg);
+        } else {
+          console.log("无法切换GWT背景，CircuitJS1接口未就绪");
+        }
+        
+        // 通知iframe主题已变更
+        const popup = document.getElementById('corner-project-popup');
+        if (popup) {
+          const iframe = popup.querySelector('#save-popup-iframe');
+          if (iframe && iframe.contentWindow) {
+            iframe.contentWindow.postMessage({ type: 'themeChanged', isDarkMode }, '*');
+          }
+        }
+        
         console.log("主题模式切换为:", isDarkMode ? "暗黑模式" : "浅色模式");
       });
       
@@ -138,9 +186,11 @@
         if (isDarkMode) {
           themeIcon.src = "img/svg/mode-dark-filled.svg";
           themeIcon.alt = "切换到浅色模式";
+          themeToggleBtn.title = "当前为暗色模式，点击切换到浅色模式";
         } else {
           themeIcon.src = "img/svg/mode-light-filled.svg";
           themeIcon.alt = "切换到暗黑模式";
+          themeToggleBtn.title = "当前为浅色模式，点击切换到暗色模式";
         }
       }
       
@@ -209,7 +259,20 @@
       
       // 从sessionStorage加载保存的电路数据（如果有）
       loadSavedCircuitIfExists();
+      
+      // 初始化主题
+      applyCurrentTheme();
     });
+    
+    // 应用当前主题设置
+    function applyCurrentTheme() {
+      const isDarkMode = localStorage.getItem('darkMode') === 'true';
+      if (isDarkMode) {
+        document.body.classList.add('dark-mode');
+      } else {
+        document.body.classList.remove('dark-mode');
+      }
+    }
     
     // 获取电路数据的几种方式
     function getCircuitData(callback) {
@@ -1367,32 +1430,7 @@ showCustomNotification('正在保存项目...', 'info');
 .popup-btn:active {
   transform: translateY(1px);
 }
-/* 仅调整个人中心下拉菜单文字颜色为黑色 */
-#userDropdown a { color: #000; }
-#userDropdown a:visited { color: #000; }
-
-/* 主题切换按钮样式 */
-.theme-toggle {
-  margin-right: 10px;
-}
-.theme-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s;
-}
-.theme-btn:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-}
-.theme-icon {
-  width: 24px;
-  height: 24px;
-}
+/* 已移动到menu.css */
 </style>
 
 <script>
@@ -2150,6 +2188,10 @@ document.addEventListener('DOMContentLoaded', function() {
       window.projectsListData = window.projectsList || [];
       window.circuitDataToSave = circuitData;
       
+      // 检查当前主题状态
+      const isDarkMode = document.body.classList.contains('dark-mode');
+      window.currentThemeIsDark = isDarkMode;
+      
       // 清除可能存在的旧弹窗
       const oldPopup = document.getElementById('corner-project-popup');
       if (oldPopup) {
@@ -2167,7 +2209,7 @@ document.addEventListener('DOMContentLoaded', function() {
       popupContainer.style.height = '670px';  
       popupContainer.style.maxHeight = '85vh';  // 从80vh增加到85vh
       popupContainer.style.backgroundColor = 'transparent';
-      popupContainer.style.borderRadius = '10px';
+      popupContainer.style.borderRadius = '16px';
       popupContainer.style.boxShadow = 'none';
       popupContainer.style.zIndex = '10000';
       popupContainer.style.overflow = 'hidden';
@@ -2175,10 +2217,10 @@ document.addEventListener('DOMContentLoaded', function() {
       popupContainer.style.opacity = '0';
       popupContainer.style.animation = 'none';
       
-      // 创建iframe
+      // 创建iframe，添加暗黑模式参数
       const iframe = document.createElement('iframe');
       iframe.id = 'save-popup-iframe';
-      iframe.src = 'circuitjs_iframe_popup.html';  // 使用外部HTML文件
+      iframe.src = isDarkMode ? 'circuitjs_iframe_popup.html?theme=dark' : 'circuitjs_iframe_popup.html';
       iframe.style.width = '100%';
       iframe.style.height = '100%';
       iframe.style.border = 'none';
