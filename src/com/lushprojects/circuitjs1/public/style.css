@@ -83,8 +83,6 @@
 .dark-background .menuPopupTopLeft, 
 .dark-background .menuPopupTopCenter, 
 .dark-background .menuPopupTopRight,
-.dark-background .menuPopupMiddleLeft, 
-.dark-background .menuPopupMiddleRight, 
 .dark-background .menuPopupMiddleCenter,
 .dark-background .menuPopupBottomLeft, 
 .dark-background .menuPopupBottomCenter, 
@@ -179,8 +177,20 @@ html, body {
     }
     
     .menuPopupTopLeft, .menuPopupTopCenter, .menuPopupTopRight,
-    .menuPopupMiddleLeft, .menuPopupMiddleRight, .menuPopupMiddleCenter,
+    .menuPopupMiddleCenter,
     .menuPopupBottomLeft, .menuPopupBottomCenter, .menuPopupBottomRight {
         background: #e6f2ff !important;
     }
+}
+
+/* 移除中间行左右两侧的占位单元格 */
+.menuPopupMiddleLeft,
+.menuPopupMiddleRight,
+.menuPopupMiddleLeftInner,
+.menuPopupMiddleRightInner {
+    display: none !important;
+    width: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
 }

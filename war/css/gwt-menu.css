@@ -9,8 +9,6 @@
 
 /* 弹出菜单样式 */
 .gwt-MenuBarPopup {
-  margin-top: 2px !important;
-  padding: 4px !important;
   border-radius: 6px !important;
   border: none !important;
   overflow: hidden !important;

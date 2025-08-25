@@ -16,10 +16,21 @@
   color: #ffffff !important;
 }
 
+/* 垂直菜单栏的暗黑模式样式 */
+.gwt-MenuBar-vertical {
+  background-color: #ffffff !important;
+}
+
+body.dark-mode .gwt-MenuBar-vertical,
+.gwt-MenuBar-dark.gwt-MenuBar-vertical {
+  background-color: #2d2d2d !important;
+  color: #e0e0e0 !important;
+  border: none !important;
+}
+
 /* 弹出菜单的暗黑模式 - 现代简约风格 */
 .gwt-MenuBarPopup {
   margin-top: 2px !important;
-  padding: 4px !important;
   border-radius: 6px !important;
   border: none !important;
   overflow: hidden !important;
@@ -30,21 +41,7 @@
   background-color: #2d2d2d !important;
   border: none !important;
   border-radius: 6px !important;
-  padding: 4px 0 !important;
   min-width: 300px !important;
-}
-
-.gwt-MenuBarPopup .menuPopupTopCenter,
-.gwt-MenuBarPopup .menuPopupBottomCenter,
-.gwt-MenuBarPopup .menuPopupTopLeft,
-.gwt-MenuBarPopup .menuPopupTopRight,
-.gwt-MenuBarPopup .menuPopupBottomLeft,
-.gwt-MenuBarPopup .menuPopupBottomRight,
-.gwt-MenuBarPopup .menuPopupMiddleLeft,
-.gwt-MenuBarPopup .menuPopupMiddleRight {
-  background-color: transparent !important;
-  background-image: none !important;
-  border: none !important;
 }
 
 /* 菜单项分隔符的暗黑模式样式 */
@@ -70,6 +67,23 @@
   color: rgba(255, 255, 255, 0.7) !important;
   font-size: 12px !important;
   margin-right: 2px !important;
+}
+
+/* 子菜单箭头选中状态颜色 - 默认浅色模式 */
+.subMenuIcon-selected {
+  background-color: rgba(94, 53, 177, 0.08) !important; /* 浅色模式默认值 */
+}
+
+/* 浅色模式下确保子菜单箭头选中状态为浅色 */
+body:not(.dark-mode) .subMenuIcon-selected {
+  background-color: rgba(94, 53, 177, 0.08) !important; /* 浅色 */
+}
+
+/* 暗黑模式下子菜单箭头选中状态颜色 */
+body.dark-mode .subMenuIcon-selected,
+.gwt-MenuBar-dark .subMenuIcon-selected,
+body.dark-mode .gwt-MenuBarPopup .subMenuIcon-selected {
+  background-color: rgba(94, 53, 177, 0.5) !important; /* 更暗的颜色，适合黑暗模式 */
 }
 
 /* 上下文菜单暗黑模式样式 */
@@ -127,4 +141,145 @@
   color: rgba(255, 255, 255, 0.6) !important;
   font-size: 12px !important;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+}
+
+/* 二级菜单和子菜单的暗色主题样式 */
+.gwt-MenuBarPopup .gwt-MenuBar-dark {
+  background-color: transparent !important;
+}
+
+.gwt-MenuBarPopup .gwt-MenuBar-dark .gwt-MenuItem {
+  color: #e0e0e0 !important;
+  background-color: transparent !important;
+  padding: 8px 12px !important;
+  border: none !important;
+  transition: background-color 0.15s ease, color 0.15s ease !important;
+  font-size: 14px !important;
+  font-weight: normal !important;
+  display: block !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.gwt-MenuBarPopup .gwt-MenuBar-dark .gwt-MenuItem-selected,
+.gwt-MenuBarPopup .gwt-MenuBar-dark .gwt-MenuItem:hover {
+  background-color: rgba(94, 53, 177, 0.5) !important;
+  color: #ffffff !important;
+  border-radius: 3px !important;
+}
+
+/* 确保嵌套菜单也应用暗色主题 */
+.gwt-MenuBarPopup .gwt-MenuBarPopup .menuPopupMiddleCenter {
+  background-color: #2d2d2d !important;
+}
+
+.gwt-MenuBarPopup .gwt-MenuBarPopup .gwt-MenuItem {
+  color: #e0e0e0 !important;
+  background-color: transparent !important;
+}
+
+.gwt-MenuBarPopup .gwt-MenuBarPopup .gwt-MenuItem-selected,
+.gwt-MenuBarPopup .gwt-MenuBarPopup .gwt-MenuItem:hover {
+  background-color: rgba(94, 53, 177, 0.5) !important;
+  color: #ffffff !important;
+}
+
+/* 确保所有弹出菜单应用暗色主题 */
+.gwt-MenuBarPopup .gwt-MenuItem {
+  color: #e0e0e0 !important;
+  background-color: transparent !important;
+}
+
+.gwt-MenuBarPopup .gwt-MenuItem-selected,
+.gwt-MenuBarPopup .gwt-MenuItem:hover {
+  background-color: rgba(94, 53, 177, 0.5) !important;
+  color: #ffffff !important;
+}
+
+/* 强制所有菜单项宽度占满容器 */
+.gwt-MenuBarPopup table,
+.gwt-PopupPanel.menuPopup table,
+.gwt-MenuBarPopup .gwt-MenuBarPopup table {
+  width: 100% !important;
+}
+
+/* 强制所有菜单项宽度占满容器 */
+.gwt-MenuBarPopup .gwt-MenuItem,
+.gwt-PopupPanel.menuPopup .gwt-MenuItem,
+.gwt-MenuBarPopup .gwt-MenuBarPopup .gwt-MenuItem {
+  display: block !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* 电路菜单特殊处理 - 确保其子菜单也应用暗色主题 */
+body:not(.dark-mode) .gwt-MenuBarPopup .menuPopupMiddleCenter {
+  background-color: #ffffff !important;
+}
+
+body:not(.dark-mode) .gwt-MenuBarPopup .gwt-MenuItem {
+  color: #333333 !important;
+}
+
+body:not(.dark-mode) .gwt-MenuBarPopup .gwt-MenuItem-selected,
+body:not(.dark-mode) .gwt-MenuBarPopup .gwt-MenuItem:hover {
+  background-color: rgba(94, 53, 177, 0.08) !important;
+  color: #5e35b1 !important;
+}
+
+/* 暗色模式下强制所有菜单背景和文字颜色 */
+body.dark-mode .gwt-MenuBarPopup .menuPopupMiddleCenter,
+body.dark-mode .gwt-MenuBarPopup .gwt-MenuBarPopup .menuPopupMiddleCenter {
+  background-color: #2d2d2d !important;
+}
+
+body.dark-mode .gwt-MenuBarPopup .gwt-MenuItem,
+body.dark-mode .gwt-MenuBarPopup .gwt-MenuBarPopup .gwt-MenuItem {
+  color: #e0e0e0 !important;
+  background-color: transparent !important;
+}
+
+body.dark-mode .gwt-MenuBarPopup .gwt-MenuItem-selected,
+body.dark-mode .gwt-MenuBarPopup .gwt-MenuItem:hover,
+body.dark-mode .gwt-MenuBarPopup .gwt-MenuBarPopup .gwt-MenuItem-selected,
+body.dark-mode .gwt-MenuBarPopup .gwt-MenuBarPopup .gwt-MenuItem:hover {
+  background-color: rgba(94, 53, 177, 0.5) !important;
+  color: #ffffff !important;
+}
+
+/* 修复垂直菜单在暗色模式下的背景色 */
+body.dark-mode .gwt-MenuBar-vertical {
+  background-color: #2d2d2d !important;
+  color: #e0e0e0 !important;
+  border: none !important;
+}
+
+body.dark-mode .gwt-MenuBar-vertical .gwt-MenuItem {
+  color: #e0e0e0 !important;
+  background-color: transparent !important;
+}
+
+body.dark-mode .gwt-MenuBar-vertical .gwt-MenuItem-selected,
+body.dark-mode .gwt-MenuBar-vertical .gwt-MenuItem:hover {
+  background-color: rgba(94, 53, 177, 0.5) !important;
+  color: #ffffff !important;
+}
+
+/* 确保弹出菜单中的垂直菜单也应用暗色主题 */
+.gwt-MenuBarPopup .gwt-MenuBar-vertical {
+  background-color: transparent !important;
+}
+
+body.dark-mode .gwt-MenuBarPopup .gwt-MenuBar-vertical {
+  background-color: transparent !important;
+}
+
+/* 处理所有可能的组合 */
+body.dark-mode .gwt-MenuBar-vertical.gwt-MenuBar-dark,
+body.dark-mode .gwt-MenuBarPopup .gwt-MenuBar-vertical,
+.gwt-MenuBar-dark.gwt-MenuBar-vertical,
+.gwt-MenuBarPopup .gwt-MenuBar-dark.gwt-MenuBar-vertical {
+  background-color: #2d2d2d !important;
+  color: #e0e0e0 !important;
+  border: none !important;
 } 
