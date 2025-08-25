@@ -58,6 +58,8 @@ import com.google.gwt.user.client.Event.NativePreviewHandler;
 import com.google.gwt.event.dom.client.MouseWheelEvent;
 import com.google.gwt.event.dom.client.MouseWheelHandler;
 import com.google.gwt.core.client.Callback;
+import com.lushprojects.circuitjs1.client.module.ThemeManager;
+import com.lushprojects.circuitjs1.client.module.UndoManager;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.JavaScriptObject;
 import com.google.gwt.core.client.JsArray;
@@ -125,8 +127,10 @@ MouseOutHandler, MouseWheelHandler {
     MenuItem aboutItem;
     MenuItem importFromLocalFileItem, importFromTextItem, exportAsUrlItem, exportAsLocalFileItem, exportAsTextItem,
             printItem, recoverItem, saveFileItem;
+    public MenuItem getRecoverItem() { return recoverItem; }
     MenuItem undoItem, redoItem, cutItem, copyItem, pasteItem, selectAllItem, optionsItem, flipXItem, flipYItem, flipXYItem;
     MenuBar optionsMenuBar;
+    public MenuBar getOptionsMenuBar() { return optionsMenuBar; }
     CheckboxMenuItem dotsCheckItem;
     CheckboxMenuItem voltsCheckItem;
     CheckboxMenuItem powerCheckItem;
@@ -137,6 +141,7 @@ MouseOutHandler, MouseWheelHandler {
     CheckboxMenuItem euroResistorCheckItem;
     CheckboxMenuItem euroGatesCheckItem;
     CheckboxMenuItem printableCheckItem;
+    public CheckboxMenuItem getPrintableCheckItem() { return printableCheckItem; }
     CheckboxMenuItem conventionCheckItem;
     CheckboxMenuItem noEditCheckItem;
     CheckboxMenuItem mouseWheelEditCheckItem;
@@ -148,6 +153,7 @@ MouseOutHandler, MouseWheelHandler {
     private Scrollbar powerBar;
     private FlowPanel logoPanel;
     MenuBar elmMenuBar;
+    public MenuBar getElmMenuBar() { return elmMenuBar; }
     MenuItem elmEditMenuItem;
     MenuItem elmCutMenuItem;
     MenuItem elmCopyMenuItem;
@@ -164,14 +170,23 @@ MouseOutHandler, MouseWheelHandler {
     MenuItem combineAllItem;
     MenuItem separateAllItem;
     MenuBar mainMenuBar;
+    public MenuBar getMainMenuBar() { return mainMenuBar; }
     boolean hideMenu = false;
     MenuBar selectScopeMenuBar;
+    public MenuBar getSelectScopeMenuBar() { return selectScopeMenuBar; }
     Vector<MenuItem> selectScopeMenuItems;
     MenuBar subcircuitMenuBar[];
+    public MenuBar[] getSubcircuitMenuBar() { return subcircuitMenuBar; }
+    // 主题管理需要访问的主菜单下拉菜单栏
+    MenuBar editMenuBar;
+    public MenuBar getEditMenuBar() { return editMenuBar; }
+    MenuBar drawMenuBar;
+    public MenuBar getDrawMenuBar() { return drawMenuBar; }
+    MenuBar scopesMenuBar;
+    public MenuBar getScopesMenuBar() { return scopesMenuBar; }
     MenuItem scopeRemovePlotMenuItem;
     MenuItem scopeSelectYMenuItem;
     ScopePopupMenu scopePopupMenu;
-    // Element sidePanelCheckboxLabel; // 已移除
    
     String lastCursorStyle;
     boolean mouseWasOverSplitter = false;
@@ -273,7 +288,12 @@ MouseOutHandler, MouseWheelHandler {
     String clipboard;
     String recovery;
     Rectangle circuitArea;
-    Vector<UndoItem> undoStack, redoStack;
+    // Delegated managers
+    ThemeManager themeManager;
+    UndoManager undoManager;
+    com.lushprojects.circuitjs1.client.module.StorageManager storageManager;
+    com.lushprojects.circuitjs1.client.module.MenuManager menuManager;
+
     double transform[];
     boolean unsavedChanges;
     HashMap<String, String> classToLabelMap;
@@ -282,6 +302,7 @@ MouseOutHandler, MouseWheelHandler {
     DockLayoutPanel layoutPanel;
     MenuBar menuBar;
     MenuBar fileMenuBar;
+    public MenuBar getFileMenuBar() { return fileMenuBar; }
     VerticalPanel verticalPanel;
     CellPanel buttonPanel;
     private boolean mouseDragging;
@@ -381,12 +402,17 @@ MouseOutHandler, MouseWheelHandler {
 
 //    Circuit applet;
 
-    CirSim() {
+    	CirSim() {
 //	super("Circuit Simulator v1.6d");
 //	applet = a;
 //	useFrame = false;
 	theSim = this;
-    }
+	// initialize managers
+	this.themeManager = new ThemeManager(this);
+	this.undoManager = new UndoManager(this);
+	this.storageManager = new com.lushprojects.circuitjs1.client.module.StorageManager(this);
+	this.menuManager = new com.lushprojects.circuitjs1.client.module.MenuManager(this);
+	}
 
     String startCircuit = null;
     String startLabel = null;
@@ -571,41 +597,41 @@ MouseOutHandler, MouseWheelHandler {
 	buttonPanel.getElement().getStyle().setProperty("display", "table");
 	buttonPanel.getElement().getStyle().setWidth(80, Unit.PCT);
 
-	m = new MenuBar(true);
-	m.addItem(undoItem = menuItemWithShortcut("ccw", "Undo", Locale.LS(ctrlMetaKey + "Z"), new MyCommand("edit","undo")));
-	m.addItem(redoItem = menuItemWithShortcut("cw", "Redo", Locale.LS(ctrlMetaKey + "Y"), new MyCommand("edit","redo")));
-	m.addSeparator();
-	m.addItem(cutItem = menuItemWithShortcut("scissors", "Cut", Locale.LS(ctrlMetaKey + "X"), new MyCommand("edit","cut")));
-	m.addItem(copyItem = menuItemWithShortcut("copy", "Copy", Locale.LS(ctrlMetaKey + "C"), new MyCommand("edit","copy")));
-	m.addItem(pasteItem = menuItemWithShortcut("paste", "Paste", Locale.LS(ctrlMetaKey + "V"), new MyCommand("edit","paste")));
+	editMenuBar = new MenuBar(true);
+	editMenuBar.addItem(undoItem = menuItemWithShortcut("ccw", "Undo", Locale.LS(ctrlMetaKey + "Z"), new MyCommand("edit","undo")));
+	editMenuBar.addItem(redoItem = menuItemWithShortcut("cw", "Redo", Locale.LS(ctrlMetaKey + "Y"), new MyCommand("edit","redo")));
+	editMenuBar.addSeparator();
+	editMenuBar.addItem(cutItem = menuItemWithShortcut("scissors", "Cut", Locale.LS(ctrlMetaKey + "X"), new MyCommand("edit","cut")));
+	editMenuBar.addItem(copyItem = menuItemWithShortcut("copy", "Copy", Locale.LS(ctrlMetaKey + "C"), new MyCommand("edit","copy")));
+	editMenuBar.addItem(pasteItem = menuItemWithShortcut("paste", "Paste", Locale.LS(ctrlMetaKey + "V"), new MyCommand("edit","paste")));
 	pasteItem.setEnabled(false);
 
-	m.addItem(menuItemWithShortcut("clone", "Duplicate", Locale.LS(ctrlMetaKey + "D"), new MyCommand("edit","duplicate")));
+	editMenuBar.addItem(menuItemWithShortcut("clone", "Duplicate", Locale.LS(ctrlMetaKey + "D"), new MyCommand("edit","duplicate")));
 
-	m.addSeparator();
-	m.addItem(selectAllItem = menuItemWithShortcut("select-all", "Select All", Locale.LS(ctrlMetaKey + "A"), new MyCommand("edit","selectAll")));
-	m.addSeparator();
-	m.addItem(menuItemWithShortcut("search", "Find Component...", "/", new MyCommand("edit", "search")));
-	m.addItem(iconMenuItem("target", weAreInUS(false) ? "Center Circuit" : "Centre Circuit", new MyCommand("edit", "centrecircuit")));
-	m.addItem(menuItemWithShortcut("zoom-11", "Zoom 100%", "0", new MyCommand("zoom", "zoom100")));
-	m.addItem(menuItemWithShortcut("zoom-in", "Zoom In", "+", new MyCommand("zoom", "zoomin")));
-	m.addItem(menuItemWithShortcut("zoom-out", "Zoom Out", "-", new MyCommand("zoom", "zoomout")));
-	m.addItem(flipXItem = iconMenuItem("flip-x", "Flip X", new MyCommand("edit", "flipx")));
-	m.addItem(flipYItem = iconMenuItem("flip-y", "Flip Y", new MyCommand("edit", "flipy")));
-	m.addItem(flipXYItem = iconMenuItem("flip-x-y", "Flip XY", new MyCommand("edit", "flipxy")));
-	menuBar.addItem(Locale.LS("Edit"),m);
+	editMenuBar.addSeparator();
+	editMenuBar.addItem(selectAllItem = menuItemWithShortcut("select-all", "Select All", Locale.LS(ctrlMetaKey + "A"), new MyCommand("edit","selectAll")));
+	editMenuBar.addSeparator();
+	editMenuBar.addItem(menuItemWithShortcut("search", "Find Component...", "/", new MyCommand("edit", "search")));
+	editMenuBar.addItem(iconMenuItem("target", weAreInUS(false) ? "Center Circuit" : "Centre Circuit", new MyCommand("edit", "centrecircuit")));
+	editMenuBar.addItem(menuItemWithShortcut("zoom-11", "Zoom 100%", "0", new MyCommand("zoom", "zoom100")));
+	editMenuBar.addItem(menuItemWithShortcut("zoom-in", "Zoom In", "+", new MyCommand("zoom", "zoomin")));
+	editMenuBar.addItem(menuItemWithShortcut("zoom-out", "Zoom Out", "-", new MyCommand("zoom", "zoomout")));
+	editMenuBar.addItem(flipXItem = iconMenuItem("flip-x", "Flip X", new MyCommand("edit", "flipx")));
+	editMenuBar.addItem(flipYItem = iconMenuItem("flip-y", "Flip Y", new MyCommand("edit", "flipy")));
+	editMenuBar.addItem(flipXYItem = iconMenuItem("flip-x-y", "Flip XY", new MyCommand("edit", "flipxy")));
+	menuBar.addItem(Locale.LS("Edit"),editMenuBar);
 
-	MenuBar drawMenuBar = new MenuBar(true);
+	drawMenuBar = new MenuBar(true);
 	drawMenuBar.setAutoOpen(true);
 
 	menuBar.addItem(Locale.LS("Draw"), drawMenuBar);
 
-	m = new MenuBar(true);
-	m.addItem(stackAllItem = iconMenuItem("lines", "Stack All", new MyCommand("scopes", "stackAll")));
-	m.addItem(unstackAllItem = iconMenuItem("columns", "Unstack All", new MyCommand("scopes", "unstackAll")));
-	m.addItem(combineAllItem = iconMenuItem("object-group", "Combine All", new MyCommand("scopes", "combineAll")));
-	m.addItem(separateAllItem = iconMenuItem("object-ungroup", "Separate All", new MyCommand("scopes", "separateAll")));
-	menuBar.addItem(Locale.LS("Scopes"), m);
+	scopesMenuBar = new MenuBar(true);
+	scopesMenuBar.addItem(stackAllItem = iconMenuItem("lines", "Stack All", new MyCommand("scopes", "stackAll")));
+	scopesMenuBar.addItem(unstackAllItem = iconMenuItem("columns", "Unstack All", new MyCommand("scopes", "unstackAll")));
+	scopesMenuBar.addItem(combineAllItem = iconMenuItem("object-group", "Combine All", new MyCommand("scopes", "combineAll")));
+	scopesMenuBar.addItem(separateAllItem = iconMenuItem("object-ungroup", "Separate All", new MyCommand("scopes", "separateAll")));
+	menuBar.addItem(Locale.LS("Scopes"), scopesMenuBar);
 
 	optionsMenuBar = m = new MenuBar(true );
 	menuBar.addItem(Locale.LS("Options"), optionsMenuBar);
@@ -705,8 +731,8 @@ MouseOutHandler, MouseWheelHandler {
 		mainMenuBar = new MenuBar(true); //true右键菜单竖向排列  false水平排列
 
 	mainMenuBar.setAutoOpen(true);
-	composeMainMenu(mainMenuBar, 0);
-	composeMainMenu(drawMenuBar, 1);
+	menuManager.composeMainMenu(mainMenuBar, 0);
+	menuManager.composeMainMenu(drawMenuBar, 1);
 	loadShortcuts();
 
 	// 移除topPanelCheckbox和topPanelCheckboxLabel的添加
@@ -855,8 +881,7 @@ MouseOutHandler, MouseWheelHandler {
 	elmList = new Vector<CircuitElm>();
 	adjustables = new Vector<Adjustable>();
 	//	setupList = new Vector();
-	undoStack = new Vector<UndoItem>();
-	redoStack = new Vector<UndoItem>();
+	// undo/redo now managed by UndoManager
 
 
 	scopes = new Scope[20];
@@ -1177,7 +1202,7 @@ MouseOutHandler, MouseWheelHandler {
     boolean shown = false;
     
     // this is called twice, once for the Draw menu, once for the right mouse popup menu
-    public void composeMainMenu(MenuBar mainMenuBar, int num) {
+    	public void composeMainMenu(MenuBar mainMenuBar, int num) { /* delegated to MenuManager */
     	mainMenuBar.addItem(getClassCheckItem(Locale.LS("Add Wire"), "WireElm"));
     	mainMenuBar.addItem(getClassCheckItem(Locale.LS("Add Resistor"), "ResistorElm"));
 
@@ -3403,42 +3428,34 @@ MouseOutHandler, MouseWheelHandler {
 	theSim.repaint();
     }
         
-    static native void electronSaveAs(String dump) /*-{
-        $wnd.showSaveDialog().then(function (file) {
-            if (file.canceled)
-            	return;
-            $wnd.saveFile(file, dump);
-            @com.lushprojects.circuitjs1.client.CirSim::electronSaveAsCallback(Ljava/lang/String;)(file.filePath.toString());
-        });
-    }-*/;
+    static void electronSaveAs(String dump) {
+        com.lushprojects.circuitjs1.client.module.ElectronBridge.electronSaveAs(dump);
+    }
 
-    static native void electronSave(String dump) /*-{
-        $wnd.saveFile(null, dump);
-        @com.lushprojects.circuitjs1.client.CirSim::electronSaveCallback()();
-    }-*/;
+    static void electronSave(String dump) {
+        com.lushprojects.circuitjs1.client.module.ElectronBridge.electronSave(dump);
+    }
     
     static void electronOpenFileCallback(String text, String name) {
 	LoadFile.doLoadCallback(text, name);
 	theSim.allowSave(true);
     }
     
-    static native void electronOpenFile() /*-{
-        $wnd.openFile(function (text, name) {
-            @com.lushprojects.circuitjs1.client.CirSim::electronOpenFileCallback(Ljava/lang/String;Ljava/lang/String;)(text, name);
-        });
-    }-*/;
+    static void electronOpenFile() {
+        com.lushprojects.circuitjs1.client.module.ElectronBridge.electronOpenFile();
+    }
     
-    static native void toggleDevTools() /*-{
-        $wnd.toggleDevTools();
-    }-*/;
+    static void toggleDevTools() {
+        com.lushprojects.circuitjs1.client.module.ElectronBridge.toggleDevTools();
+    }
     
-    static native boolean isElectron() /*-{
-        return ($wnd.openFile != undefined);
-    }-*/;    
+    static boolean isElectron() {
+        return com.lushprojects.circuitjs1.client.module.ElectronBridge.isElectron();
+    }    
 
-    static native String getElectronStartCircuitText() /*-{
-    	return $wnd.startCircuitText;
-    }-*/;    
+    static String getElectronStartCircuitText() {
+        return com.lushprojects.circuitjs1.client.module.ElectronBridge.getElectronStartCircuitText();
+    }    
     
     void allowSave(boolean b) {
 	if (saveFileItem != null)
@@ -4839,11 +4856,12 @@ MouseOutHandler, MouseWheelHandler {
     	    	    menuPlot=scopes[scopeSelected].selectedPlot;
     	    	    scopePopupMenu.doScopePopupChecks(false, canStackScope(scopeSelected), canCombineScope(scopeSelected), 
     	    		    canUnstackScope(scopeSelected), scopes[scopeSelected]);
-    	    	    contextPanel=new PopupPanel(true);
-    	    	    contextPanel.add(scopePopupMenu.getMenuBar());
-    	    	    y=Math.max(0, Math.min(menuClientY,canvasHeight-160));
-    	    	    contextPanel.setPopupPosition(menuClientX, y);
-    	    	    contextPanel.show();
+    	    	    	    	    contextPanel=new PopupPanel(true);
+	    	    contextPanel.addStyleName("menuPopup");
+	    	    contextPanel.add(scopePopupMenu.getMenuBar());
+	    	    y=Math.max(0, Math.min(menuClientY,canvasHeight-160));
+	    	    contextPanel.setPopupPosition(menuClientX, y);
+	    	    contextPanel.show();
     		}
     	} else if (mouseElm != null) {
     	    	if (! (mouseElm instanceof ScopeElm)) {
@@ -4879,29 +4897,32 @@ MouseOutHandler, MouseWheelHandler {
     	    	    elmFlipXMenuItem.setEnabled(canFlipX);
     	    	    elmFlipYMenuItem.setEnabled(canFlipY);
     	    	    elmFlipXYMenuItem.setEnabled(canFlipXY);
-    	    	    contextPanel=new PopupPanel(true);
-    	    	    contextPanel.add(elmMenuBar);
-    	    	    contextPanel.setPopupPosition(menuClientX, menuClientY);
-    	    	    contextPanel.show();
+    	    	    	    	    contextPanel=new PopupPanel(true);
+	    	    contextPanel.addStyleName("menuPopup");
+	    	    contextPanel.add(elmMenuBar);
+	    	    contextPanel.setPopupPosition(menuClientX, menuClientY);
+	    	    contextPanel.show();
     	    	} else {
     	    	    ScopeElm s = (ScopeElm) mouseElm;
     	    	    if (s.elmScope.canMenu()) {
     	    		menuPlot = s.elmScope.selectedPlot;
     	    		scopePopupMenu.doScopePopupChecks(true, false, false, false, s.elmScope);
-    			contextPanel=new PopupPanel(true);
-    			contextPanel.add(scopePopupMenu.getMenuBar());
-    			contextPanel.setPopupPosition(menuClientX, menuClientY);
-    			contextPanel.show();
+    				    	contextPanel=new PopupPanel(true);
+	    	contextPanel.addStyleName("menuPopup");
+	    	contextPanel.add(scopePopupMenu.getMenuBar());
+	    	contextPanel.setPopupPosition(menuClientX, menuClientY);
+	    	contextPanel.show();
     	    	    }
     	    	}
     	} else {
     		doMainMenuChecks();
-    		contextPanel=new PopupPanel(true);
-    		contextPanel.add(mainMenuBar);
-    		x=Math.max(0, Math.min(menuClientX, canvasWidth-400));
-    		y=Math.max(0, Math.min(menuClientY, canvasHeight-450));
-    		contextPanel.setPopupPosition(x,y);
-    		contextPanel.show();
+    			    	contextPanel=new PopupPanel(true);
+	    	contextPanel.addStyleName("menuPopup");
+	    	contextPanel.add(mainMenuBar);
+	    	x=Math.max(0, Math.min(menuClientX, canvasWidth-400));
+	    	y=Math.max(0, Math.min(menuClientY, canvasHeight-450));
+	    	contextPanel.setPopupPosition(x,y);
+	    	contextPanel.show();
     	}
     }
 
@@ -5261,53 +5282,29 @@ MouseOutHandler, MouseWheelHandler {
 	setCanvasSize();
     }
 
-    void pushUndo() {
-    	redoStack.removeAllElements();
-    	String s = dumpCircuit();
-    	if (undoStack.size() > 0 &&
-    			s.compareTo(undoStack.lastElement().dump) == 0)
-    	    return;
-    	undoStack.add(new UndoItem(s));
-    	enableUndoRedo();
-    	savedFlag = false;
-    }
+    		void pushUndo() {
+		undoManager.pushUndo();
+	}
 
-    void doUndo() {
-    	if (undoStack.size() == 0)
-    		return;
-    	redoStack.add(new UndoItem(dumpCircuit()));
-    	UndoItem ui = undoStack.remove(undoStack.size()-1);
-    	loadUndoItem(ui);
-    	enableUndoRedo();
-    }
+	void doUndo() {
+		undoManager.doUndo();
+	}
 
-    void doRedo() {
-    	if (redoStack.size() == 0)
-    		return;
-    	undoStack.add(new UndoItem(dumpCircuit()));
-    	UndoItem ui = redoStack.remove(redoStack.size()-1);
-    	loadUndoItem(ui);
-    	enableUndoRedo();
-    }
+	void doRedo() {
+		undoManager.doRedo();
+	}
 
-    void loadUndoItem(UndoItem ui) {
-	readCircuit(ui.dump, RC_NO_CENTER);
-	transform[0] = transform[3] = ui.scale;
-	transform[4] = ui.transform4;
-	transform[5] = ui.transform5;
-    }
-    
-    void doRecover() {
-	pushUndo();
-	readCircuit(recovery);
-	allowSave(false);
-	recoverItem.setEnabled(false);
-    }
-    
-    void enableUndoRedo() {
-    	redoItem.setEnabled(redoStack.size() > 0);
-    	undoItem.setEnabled(undoStack.size() > 0);
-    }
+	void loadUndoItem(com.lushprojects.circuitjs1.client.module.UndoItem ui) {
+		undoManager.loadUndoItem(ui);
+	}
+	
+	void doRecover() {
+		undoManager.doRecover();
+	}
+	
+	void enableUndoRedo() {
+		undoManager.enableUndoRedo();
+	}
 
     void setMouseMode(int mode)
 {
@@ -5422,33 +5419,20 @@ MouseOutHandler, MouseWheelHandler {
     }
 
     void writeClipboardToStorage() {
-    	Storage stor = Storage.getLocalStorageIfSupported();
-    	if (stor == null)
-    		return;
-    	stor.setItem("circuitClipboard", clipboard);
+    	storageManager.writeClipboard(clipboard);
     }
     
     void readClipboardFromStorage() {
-    	Storage stor = Storage.getLocalStorageIfSupported();
-    	if (stor == null)
-    		return;
-    	clipboard = stor.getItem("circuitClipboard");
+    	clipboard = storageManager.readClipboard();
     }
 
     void writeRecoveryToStorage() {
 	console("write recovery");
-    	Storage stor = Storage.getLocalStorageIfSupported();
-    	if (stor == null)
-    		return;
-    	String s = dumpCircuit();
-    	stor.setItem("circuitRecovery", s);
+    	storageManager.writeRecovery(dumpCircuit());
     }
 
     void readRecovery() {
-	Storage stor = Storage.getLocalStorageIfSupported();
-	if (stor == null)
-		return;
-	recovery = stor.getItem("circuitRecovery");
+	recovery = storageManager.readRecovery();
     }
 
 
@@ -5846,123 +5830,14 @@ MouseOutHandler, MouseWheelHandler {
     // matrix to be factored.  ipvt[] returns an integer vector of pivot
     // indices, used in the lu_solve() routine.
     static boolean lu_factor(double a[][], int n, int ipvt[]) {
-	int i,j,k;
-	
-	// check for a possible singular matrix by scanning for rows that
-	// are all zeroes
-	for (i = 0; i != n; i++) { 
-	    boolean row_all_zeros = true;
-	    for (j = 0; j != n; j++) {
-		if (a[i][j] != 0) {
-		    row_all_zeros = false;
-		    break;
-		}
-	    }
-	    // if all zeros, it's a singular matrix
-	    if (row_all_zeros)
-		return false;
-	}
-	
-        // use Crout's method; loop through the columns
-	for (j = 0; j != n; j++) {
-	    
-	    // calculate upper triangular elements for this column
-	    for (i = 0; i != j; i++) {
-		double q = a[i][j];
-		for (k = 0; k != i; k++)
-		    q -= a[i][k]*a[k][j];
-		a[i][j] = q;
-	    }
-
-	    // calculate lower triangular elements for this column
-	    double largest = 0;
-	    int largestRow = -1;
-	    for (i = j; i != n; i++) {
-		double q = a[i][j];
-		for (k = 0; k != j; k++)
-		    q -= a[i][k]*a[k][j];
-		a[i][j] = q;
-		double x = Math.abs(q);
-		if (x >= largest) {
-		    largest = x;
-		    largestRow = i;
-		}
-	    }
-	    
-	    // pivoting
-	    if (j != largestRow) {
-		if (largestRow == -1) {
-		    console("largestRow == -1");
-		    return false;
-		}
-		double x;
-		for (k = 0; k != n; k++) {
-		    x = a[largestRow][k];
-		    a[largestRow][k] = a[j][k];
-		    a[j][k] = x;
-		}
-	    }
-
-	    // keep track of row interchanges
-	    ipvt[j] = largestRow;
-
-	    // check for zeroes; if we find one, it's a singular matrix.
-	    // we used to avoid them, but that caused weird bugs.  For example,
-	    // two inverters with outputs connected together should be flagged
-	    // as a singular matrix, but it was allowed (with weird currents)
-	    if (a[j][j] == 0.0) {
-		console("didn't avoid zero");
-//		a[j][j]=1e-18;
-		return false;
-	    }
-
-	    if (j != n-1) {
-		double mult = 1.0/a[j][j];
-		for (i = j+1; i != n; i++)
-		    a[i][j] *= mult;
-	    }
-	}
-	return true;
+	return com.lushprojects.circuitjs1.client.module.LinearAlgebra.lu_factor(a, n, ipvt);
     }
 
     // Solves the set of n linear equations using a LU factorization
     // previously performed by lu_factor.  On input, b[0..n-1] is the right
     // hand side of the equations, and on output, contains the solution.
     static void lu_solve(double a[][], int n, int ipvt[], double b[]) {
-	int i;
-
-	// find first nonzero b element
-	for (i = 0; i != n; i++) {
-	    int row = ipvt[i];
-
-	    double swap = b[row];
-	    b[row] = b[i];
-	    b[i] = swap;
-	    if (swap != 0)
-		break;
-	}
-	
-	int bi = i++;
-	for (; i < n; i++) {
-	    int row = ipvt[i];
-	    int j;
-	    double tot = b[row];
-	    
-	    b[row] = b[i];
-	    // forward substitution using the lower triangular matrix
-	    for (j = bi; j < i; j++)
-		tot -= a[i][j]*b[j];
-	    b[i] = tot;
-	}
-	for (i = n-1; i >= 0; i--) {
-	    double tot = b[i];
-	    
-	    // back-substitution using the upper triangular matrix
-	    int j;
-	    for (j = i+1; j != n; j++)
-		tot -= a[i][j]*b[j];
-	    b[i] = tot/a[i][i];
-	}
+	com.lushprojects.circuitjs1.client.module.LinearAlgebra.lu_solve(a, n, ipvt, b);
     }
 
     
@@ -6100,8 +5975,8 @@ MouseOutHandler, MouseWheelHandler {
     	case 412: return new CrystalElm(x1, y1, x2, y2, f, st);
     	case 413: return new SRAMElm(x1, y1, x2, y2, f, st);
     	case 414: return new TimeDelayRelayElm(x1, y1, x2, y2, f, st);
-	case 415: return new DCMotorElm(x1, y1, x2, y2, f, st);
-	case 416: return new MBBSwitchElm(x1, y1, x2, y2, f, st);
+    	case 415: return new DCMotorElm(x1, y1, x2, y2, f, st);
+    	case 416: return new MBBSwitchElm(x1, y1, x2, y2, f, st);
     	case 417: return new UnijunctionElm(x1, y1, x2, y2, f, st);
     	case 418: return new ExtVoltageElm(x1, y1, x2, y2, f, st);
     	case 419: return new DecimalDisplayElm(x1, y1, x2, y2, f, st);
@@ -6281,7 +6156,7 @@ MouseOutHandler, MouseWheelHandler {
     		return (CircuitElm) new CounterElm(x1, y1);
     	
 	// if you take out RingCounterElm, it will break subcircuits
-    	// if you take out DecadeElm, it will break the menus and people's saved shortcuts
+	// if you take out DecadeElm, it will break the menus and people's saved shortcuts
     	if (n=="DecadeElm" || n=="RingCounterElm")
     		return (CircuitElm) new RingCounterElm(x1, y1);
     	
@@ -6787,26 +6662,7 @@ MouseOutHandler, MouseWheelHandler {
 	}
 	
 	static void invertMatrix(double a[][], int n) {
-	    int ipvt[] = new int[n];
-	    lu_factor(a, n, ipvt);
-	    int i, j;
-	    double b[] = new double[n];
-	    double inva[][] = new double[n][n];
-	    
-	    // solve for each column of identity matrix
-	    for (i = 0; i != n; i++) {
-		for (j = 0; j != n; j++)
-		    b[j] = 0;
-		b[i] = 1;
-		lu_solve(a, n, ipvt, b);
-		for (j = 0; j != n; j++)
-		    inva[j][i] = b[j];
-	    }
-	    
-	    // return in original matrix
-	    for (i = 0; i != n; i++)
-		for (j = 0; j != n; j++)
-		    a[i][j] = inva[i][j];
+	    com.lushprojects.circuitjs1.client.module.LinearAlgebra.invertMatrix(a, n);
 	}
 	
 	double getLabeledNodeVoltage(String name) {
@@ -6893,90 +6749,44 @@ MouseOutHandler, MouseWheelHandler {
 	}-*/;
 	
 	boolean isWhiteBackground() {
-		return printableCheckItem.getState();
+		return themeManager.isWhiteBackground();
 	}
 
 	boolean toggleWhiteBackground() {
-		boolean newState = !printableCheckItem.getState();
-		printableCheckItem.setState(newState);
-		setOptionInStorage("whiteBackground", newState);
-		
-		// 修改菜单栏样式以适应黑暗模式
-		updateMenuBarTheme();
-		
-		repaint();
-		return newState;
+		return themeManager.toggleWhiteBackground();
 	}
 	
 	// 不需要重写updateCircuit方法
 
 	// 更新菜单栏主题样式
 	void updateMenuBarTheme() {
-	    // 检查printableCheckItem是否已初始化
-	    if (printableCheckItem == null || mainMenuBar == null)
-	        return;
-	        
-	    try {
-	        // 根据当前背景色更新菜单栏主题
-	        boolean isWhiteBg = printableCheckItem.getState();
-	        
-	        if (isWhiteBg) {
-	            // 浅色模式
-	            if (mainMenuBar != null)
-	                mainMenuBar.removeStyleName("gwt-MenuBar-dark");
-	            if (fileMenuBar != null)
-	                fileMenuBar.removeStyleName("gwt-MenuBar-dark");
-	            if (optionsMenuBar != null)
-	                optionsMenuBar.removeStyleName("gwt-MenuBar-dark");
-	            if (elmMenuBar != null)
-	                elmMenuBar.removeStyleName("gwt-MenuBar-dark");
-	                
-	            if (subcircuitMenuBar != null) {
-	                for (int i = 0; i < subcircuitMenuBar.length; i++) {
-	                    if (subcircuitMenuBar[i] != null)
-	                        subcircuitMenuBar[i].removeStyleName("gwt-MenuBar-dark");
-	                }
-	            }
-	            
-	            if (selectScopeMenuBar != null)
-	                selectScopeMenuBar.removeStyleName("gwt-MenuBar-dark");
-	        } else {
-	            // 暗色模式
-	            if (mainMenuBar != null)
-	                mainMenuBar.addStyleName("gwt-MenuBar-dark");
-	            if (fileMenuBar != null)
-	                fileMenuBar.addStyleName("gwt-MenuBar-dark");
-	            if (optionsMenuBar != null)
-	                optionsMenuBar.addStyleName("gwt-MenuBar-dark");
-	            if (elmMenuBar != null)
-	                elmMenuBar.addStyleName("gwt-MenuBar-dark");
-	                
-	            if (subcircuitMenuBar != null) {
-	                for (int i = 0; i < subcircuitMenuBar.length; i++) {
-	                    if (subcircuitMenuBar[i] != null)
-	                        subcircuitMenuBar[i].addStyleName("gwt-MenuBar-dark");
-	                }
-	            }
-	            
-	            if (selectScopeMenuBar != null)
-	                selectScopeMenuBar.addStyleName("gwt-MenuBar-dark");
-	        }
-	    } catch (Exception e) {
-	        // 忽略任何可能的错误，以防止页面崩溃
-	        // console("错误: " + e.getMessage());
-	    }
+		themeManager.updateMenuBarTheme();
 	}
 
-	class UndoItem {
-	    public String dump;
-	    public double scale, transform4, transform5;
-	    UndoItem(String d) {
-		dump = d;
-		scale = transform[0];
-		transform4 = transform[4];
-		transform5 = transform[5];
-	    }
-	}
+	// Public wrappers for module access
+	public MenuItem getUndoMenuItem() { return undoItem; }
+	public MenuItem getRedoMenuItem() { return redoItem; }
+	public String getRecovery() { return recovery; }
+	public int getRCNoCenter() { return RC_NO_CENTER; }
+	public void allowSavePublic(boolean b) { allowSave(b); }
+	public void readCircuitPublic(String text) { readCircuit(text); }
+	public void readCircuitPublic(String text, int flags) { readCircuit(text, flags); }
+	public String dumpCircuitPublic() { return dumpCircuit(); }
+	public void setSavedFlagFalse() { savedFlag = false; }
+	public double getTransformScale() { return transform[0]; }
+	public void setTransformScale(double s) { transform[0] = transform[3] = s; }
+	public double getTransform4() { return transform[4]; }
+	public void setTransform4(double v) { transform[4] = v; }
+	public double getTransform5() { return transform[5]; }
+	public void setTransform5(double v) { transform[5] = v; }
+	public void repaintPublic() { repaint(); }
+	public void setOptionInStoragePublic(String key, boolean val) { setOptionInStorage(key, val); }
+	// Menu-related public wrappers
+	public void composeSubcircuitMenuPublic() { composeSubcircuitMenu(); }
+	public void doPopupMenuPublic() { doPopupMenu(); }
+	public MenuItem getClassCheckItemPublic(String s, String t) { return getClassCheckItem(s, t); }
+	public MenuItem iconMenuItemPublic(String icon, String text, Command cmd) { return iconMenuItem(icon, text, cmd); }
+	public MenuItem menuItemWithShortcutPublic(String icon, String text, String shortcut, MyCommand cmd) { return menuItemWithShortcut(icon, text, shortcut, cmd); }
 
 }
 

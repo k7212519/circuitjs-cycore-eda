@@ -136,3 +136,51 @@
   font-size: 12px !important;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
 } 
+
+/* 统一条目宽度与容器一致，以及右键菜单与下拉菜单风格一致 */
+.gwt-MenuBarPopup table,
+.gwt-PopupPanel.menuPopup table {
+  width: 100% !important;
+}
+
+.gwt-MenuBarPopup .gwt-MenuItem,
+.gwt-PopupPanel.menuPopup .gwt-MenuItem {
+  color: #333333 !important;
+  background-color: transparent !important;
+  padding: 8px 12px !important;
+  border: none !important;
+  transition: background-color 0.15s ease, color 0.15s ease !important;
+  font-size: 14px !important;
+  font-weight: normal !important;
+  display: block !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.gwt-PopupPanel.menuPopup .menuPopupMiddleCenter {
+  background-color: #ffffff !important;
+  border: none !important;
+  border-radius: 6px !important;
+  padding: 4px 0 !important;
+}
+
+.gwt-PopupPanel.menuPopup .gwt-MenuItem-selected,
+.gwt-PopupPanel.menuPopup .gwt-MenuItem:hover,
+.gwt-MenuBarPopup .gwt-MenuItem-selected,
+.gwt-MenuBarPopup .gwt-MenuItem:hover {
+  background-color: rgba(94, 53, 177, 0.08) !important;
+  color: #5e35b1 !important;
+  border-radius: 3px !important;
+}
+
+/* 分隔符统一 */
+.gwt-PopupPanel.menuPopup .gwt-MenuItemSeparator {
+  border: none !important;
+  margin: 6px 8px !important;
+  height: 1px !important;
+}
+
+.gwt-PopupPanel.menuPopup .gwt-MenuItemSeparator .menuSeparatorInner {
+  border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
+  height: 1px !important;
+} 
