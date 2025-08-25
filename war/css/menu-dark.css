@@ -37,7 +37,7 @@ body.dark-mode .gwt-MenuBar-vertical,
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3) !important;
 }
 
-.gwt-MenuBarPopup .menuPopupMiddleCenter {
+body.dark-mode .gwt-MenuBarPopup .menuPopupMiddleCenter {
   background-color: #2d2d2d !important;
   border: none !important;
   border-radius: 6px !important;
@@ -87,7 +87,7 @@ body.dark-mode .gwt-MenuBarPopup .subMenuIcon-selected {
 }
 
 /* 上下文菜单暗黑模式样式 */
-.gwt-PopupPanel.menuPopup {
+body.dark-mode .gwt-PopupPanel.menuPopup {
   background-color: #2d2d2d !important;
   border: none !important;
   border-radius: 8px !important;
