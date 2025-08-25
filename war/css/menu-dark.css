@@ -41,7 +41,7 @@ body.dark-mode .gwt-MenuBar-vertical,
   background-color: #2d2d2d !important;
   border: none !important;
   border-radius: 6px !important;
-  min-width: 300px !important;
+  min-width: 240px !important;
 }
 
 /* 菜单项分隔符的暗黑模式样式 */

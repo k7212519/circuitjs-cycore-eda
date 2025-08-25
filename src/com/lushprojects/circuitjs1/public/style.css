@@ -194,3 +194,8 @@ html, body {
     margin: 0 !important;
     border: 0 !important;
 }
+
+/* 深色模式下页面背景改为黑色，避免底部白条 */
+body.dark-mode {
+    background-color: #000000 !important;
+}

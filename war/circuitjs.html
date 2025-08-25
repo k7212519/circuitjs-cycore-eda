@@ -127,8 +127,10 @@
       // 初始化页面主题
       if (isDarkMode) {
         document.body.classList.add('dark-mode');
+        document.documentElement.style.backgroundColor = '#000000';
       } else {
         document.body.classList.remove('dark-mode');
+        document.documentElement.style.backgroundColor = '#ffffff';
       }
       
       // 初始化图标
@@ -155,8 +157,10 @@
         // 更新body类以应用暗黑模式CSS
         if (isDarkMode) {
           document.body.classList.add('dark-mode');
+          document.documentElement.style.backgroundColor = '#000000';
         } else {
           document.body.classList.remove('dark-mode');
+          document.documentElement.style.backgroundColor = '#ffffff';
         }
         
         updateThemeIcon();
@@ -270,8 +274,10 @@
       const isDarkMode = localStorage.getItem('darkMode') === 'true';
       if (isDarkMode) {
         document.body.classList.add('dark-mode');
+        document.documentElement.style.backgroundColor = '#000000';
       } else {
         document.body.classList.remove('dark-mode');
+        document.documentElement.style.backgroundColor = '#ffffff';
       }
     }
     

@@ -26,7 +26,7 @@
   border: none !important;
   border-radius: 6px !important;
   padding: 4px 0 !important;
-  min-width: 300px !important;
+  min-width: 240px !important;
 }
 
 .gwt-MenuBarPopup .menuPopupTopCenter,
@@ -181,4 +181,50 @@
 .gwt-PopupPanel.menuPopup .gwt-MenuItemSeparator .menuSeparatorInner {
   border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
   height: 1px !important;
+} 
+
+/* 修复菜单项布局：左侧标签与右侧快捷键（仅作用于包含 white-space:nowrap 的包裹层） */
+.gwt-MenuBarPopup .gwt-MenuItem > div[style*="white-space:nowrap"] {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+/* 覆盖左侧内层 div 的 width:100%; 让右侧快捷键有空间（限定在包裹层内） */
+.gwt-MenuBarPopup .gwt-MenuItem > div[style*="white-space:nowrap"] > div {
+  flex: 1 1 auto !important;
+  width: auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+} 
+
+/* 兼容绘制菜单中绝对定位的快捷键提示布局 */
+.gwt-MenuBarPopup .gwt-MenuItem {
+  position: relative !important;
+}
+
+.gwt-MenuBarPopup .gwt-MenuItem > div[style*="position:absolute"] {
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  right: 10px !important;
+  white-space: nowrap !important;
+}
+
+/* 规范勾选标记与文本的行高，防止高度被撑大 */
+.gwt-MenuBarPopup .gwt-MenuItem,
+.gwt-MenuBarPopup .gwt-MenuItem * {
+  line-height: 1.2 !important;
+}
+
+/* 细化：勾选标记固定最小宽度，保持行内容不跳动 */
+.gwt-MenuBarPopup .gwt-MenuItem > div[style*="width:15px"] {
+  display: inline-block !important;
+  min-width: 15px !important;
+  text-align: center !important;
 } 
