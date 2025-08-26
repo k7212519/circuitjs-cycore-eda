@@ -4661,6 +4661,8 @@ MouseOutHandler, MouseWheelHandler {
 	flipXItem.setEnabled(canFlipX);
 	flipYItem.setEnabled(canFlipY);
 	flipXYItem.setEnabled(canFlipXY);
+	// 控制工具栏"删除"按钮显隐（有选中则显示）
+	if (toolbar != null) toolbar.setDeleteVisible(selCount > 0);
     }
 
     void setMouseElm(CircuitElm ce) {
@@ -5468,11 +5470,12 @@ MouseOutHandler, MouseWheelHandler {
     			ce.delete();
     			elmList.removeElementAt(i);
     			hasDeleted = true;
-    		}
+    		    	}
     	}
     	if ( hasDeleted ) {
     	    deleteUnusedScopeElms();
     	    needAnalyze();
+    	    enableDisableMenuItems();
     	    writeRecoveryToStorage();
     	}    
     }

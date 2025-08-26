@@ -123,4 +123,7 @@ public interface IconResources extends ClientBundle {
     @Source("../public/img/svg/reset.svg")
     TextResource reset();
 
+    @Source("../public/img/svg/trash.svg")
+    TextResource trash();
+
 }

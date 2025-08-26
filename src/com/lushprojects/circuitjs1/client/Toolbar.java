@@ -15,6 +15,7 @@ public class Toolbar extends HorizontalPanel {
     private Label modeLabel;
     private HashMap<String, Label> highlightableButtons = new HashMap<>();
     private Label activeButton; // Currently active button
+    private Label deleteButton;
 
     Label resistorButton;
 
@@ -73,6 +74,44 @@ public class Toolbar extends HorizontalPanel {
         modeLabel.addStyleName("toolbar-mode-label");
         styleModeLabel(modeLabel);
         add(modeLabel);
+
+        // Add delete button next to mode label (hidden by default)
+        deleteButton = new Label();
+        deleteButton.addStyleName("toolbar-icon-label");
+        deleteButton.setText("");
+        String deleteIconSvg = IconResources.makeSvg(IconResources.INSTANCE.trash().getText(), 22);
+        String deleteText = Locale.LS("Delete");
+        deleteButton.getElement().setInnerHTML(
+                "<span style='display:inline-flex;align-items:center;white-space:nowrap;'>"
+              +   "<span style='display:inline-flex;align-items:center;margin-bottom:3px;'>" + deleteIconSvg + "</span>"
+              +   "<span style='display:inline-block;'>" + deleteText + "</span>"
+              + "</span>");
+        deleteButton.setTitle(Locale.LS("Delete"));
+        deleteButton.getElement().getStyle().setColor("#fff");
+        deleteButton.getElement().getStyle().setMarginLeft(8, Style.Unit.PX);
+        deleteButton.getElement().getStyle().setCursor(Style.Cursor.POINTER);
+        deleteButton.getElement().getStyle().setBackgroundColor("rgb(255, 100, 100)");
+        deleteButton.getElement().getStyle().setProperty("borderRadius", "1000px");
+        deleteButton.getElement().getStyle().setPaddingTop(2, Style.Unit.PX);
+        deleteButton.getElement().getStyle().setPaddingBottom(2, Style.Unit.PX);
+        deleteButton.getElement().getStyle().setPaddingLeft(8, Style.Unit.PX);
+        deleteButton.getElement().getStyle().setPaddingRight(10, Style.Unit.PX);
+        deleteButton.getElement().getStyle().setDisplay(Style.Display.FLEX);
+        deleteButton.getElement().getStyle().setProperty("alignItems", "center");
+        deleteButton.getElement().getStyle().setProperty("justifyContent", "center");
+        deleteButton.getElement().getStyle().setWidth(76, Style.Unit.PX);
+        deleteButton.getElement().getStyle().setHeight(36, Style.Unit.PX);
+        deleteButton.getElement().getStyle().setProperty("lineHeight", "60px");
+        deleteButton.getElement().getStyle().setFontSize(14, Style.Unit.PX);
+        deleteButton.setVisible(false);
+        // 点击触发删除（与键盘Delete一致）
+        deleteButton.addClickHandler(new ClickHandler() {
+            @Override
+            public void onClick(ClickEvent event) {
+                new MyCommand("edit", "delete").execute();
+            }
+        });
+        add(deleteButton);
     }
 
     public void setModeLabel(String text) {
@@ -286,6 +325,10 @@ public class Toolbar extends HorizontalPanel {
     public void setEuroResistors(boolean euro) {
         String icon = euro ? IconResources.INSTANCE.euroResistor().getText() : IconResources.INSTANCE.resistor().getText();
         resistorButton.getElement().setInnerHTML(makeSvg(icon, 24));
+    }
+
+    public void setDeleteVisible(boolean visible) {
+        if (deleteButton != null) deleteButton.setVisible(visible);
     }
 
     final String wireIcon = "<svg><g transform='scale(0.208) translate(7.5, 32)'>"
