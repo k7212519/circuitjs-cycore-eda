@@ -1289,6 +1289,57 @@ showCustomNotification('正在保存项目...', 'info');
     <!-- produced by the GWT compiler in the module output directory -->
     <!-- or generated automatically in development mode.             -->
     <script language="javascript" src="circuitjs1/circuitjs1.nocache.js"></script>
+    <script>
+      (function(){
+        if (window.__submenuCenteringInstalled) return;
+        window.__submenuCenteringInstalled = true;
+        var lastHoverItem = null;
+        document.addEventListener('mouseover', function(e){
+          var el = e.target;
+          while (el && el !== document.body) {
+            if (el.classList && el.classList.contains('gwt-MenuItem')) {
+              lastHoverItem = el;
+              break;
+            }
+            el = el.parentNode;
+          }
+        }, true);
+        var mo = new MutationObserver(function(muts){
+          muts.forEach(function(m){
+            Array.prototype.forEach.call(m.addedNodes || [], function(node){
+              if (!(node && node.nodeType === 1)) return;
+              var popups;
+              if (node.classList && node.classList.contains('gwt-MenuBarPopup')) {
+                popups = [node];
+              } else {
+                popups = node.querySelectorAll ? node.querySelectorAll('.gwt-MenuBarPopup') : [];
+              }
+              Array.prototype.forEach.call(popups, function(popup){
+                var parentItem = lastHoverItem;
+                if (!parentItem) return;
+                var verticalContainer = parentItem.closest && parentItem.closest('.gwt-MenuBar-vertical');
+                if (!verticalContainer) return;
+                requestAnimationFrame(function(){
+                  try {
+                    var pr = parentItem.getBoundingClientRect();
+                    var r = popup.getBoundingClientRect();
+                    if (!pr || !r || !r.height) return;
+                    var desiredTop = pr.top + pr.height/2 - r.height/2;
+                    var vh = window.innerHeight || document.documentElement.clientHeight || 0;
+                    var minTop = 0;
+                    var maxTop = Math.max(0, vh - r.height);
+                    desiredTop = Math.min(Math.max(desiredTop, minTop), maxTop);
+                    var scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
+                    popup.style.top = (desiredTop + scrollY) + 'px';
+                  } catch(_){}
+                });
+              });
+            });
+          });
+        });
+        mo.observe(document.body, { childList: true, subtree: true });
+      })();
+    </script>
     
     <!-- Include a history iframe to enable full GWT history support -->
     <!-- (the id must be exactly as shown)                           -->

@@ -412,6 +412,7 @@ MouseOutHandler, MouseWheelHandler {
 	this.undoManager = new UndoManager(this);
 	this.storageManager = new com.lushprojects.circuitjs1.client.module.StorageManager(this);
 	this.menuManager = new com.lushprojects.circuitjs1.client.module.MenuManager(this);
+
 	}
 
     String startCircuit = null;
@@ -1198,6 +1199,8 @@ MouseOutHandler, MouseWheelHandler {
 	}
 	
     }-*/;
+    
+
     
     boolean shown = false;
     
