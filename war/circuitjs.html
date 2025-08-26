@@ -105,9 +105,9 @@
         
         // 等待页面和API完全加载
         setTimeout(() => {
-          // 确保用户已登录
-          const userId = localStorage.getItem('userId');
-          const token = localStorage.getItem('eda_token');
+          // 确保用户已登录（同时检查sessionStorage和localStorage）
+          const userId = sessionStorage.getItem('userId') || localStorage.getItem('userId');
+          const token = sessionStorage.getItem('eda_token') || localStorage.getItem('eda_token');
           
           if (userId && token) {
             console.log("用户已登录，自动触发保存流程");
@@ -215,6 +215,57 @@
         // 切换当前下拉菜单显示状态
         document.getElementById('userDropdown').classList.toggle('show');
       });
+      
+      // 退出登录：拦截点击，调用后端注销并清理本地状态
+      (function() {
+        try {
+          var logoutLink = document.querySelector('#userDropdown a[href="logout.html"]');
+          if (logoutLink) {
+            logoutLink.addEventListener('click', function(e) {
+              e.preventDefault();
+              
+              var doCleanupAndRedirect = function() {
+                try {
+                  // 清理本地认证相关状态
+                  localStorage.removeItem('eda_token');
+                  sessionStorage.removeItem('eda_token');
+                  localStorage.removeItem('eda_user');
+                  localStorage.removeItem('eda_user_info');
+                  localStorage.removeItem('userId');
+                  sessionStorage.removeItem('userId');
+                  localStorage.removeItem('auth_error');
+                  // 不强制清理 saved_username，方便下次登录；但清理 saved_password
+                  localStorage.removeItem('saved_password');
+                  sessionStorage.removeItem('authenticated');
+                  sessionStorage.removeItem('offline_mode');
+                } catch(_) {}
+                // 跳转到登录页
+                window.location.href = 'login.html';
+              };
+              
+              try {
+                // 优先使用统一API模块
+                if (window.API && typeof window.API.logout === 'function') {
+                  API.logout().finally(doCleanupAndRedirect);
+                } else {
+                  // 后备：直接调用后端接口
+                  var token = (localStorage.getItem('eda_token') || '').trim();
+                  var apiBaseUrl = window.API_BASE_URL || (window.API && window.API.API_BASE_URL) || (window.location.protocol + '//' + window.location.hostname + ':8088');
+                  fetch(apiBaseUrl + '/eda/login', {
+                    method: 'DELETE',
+                    headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+                  }).finally(doCleanupAndRedirect);
+                }
+              } catch(err) {
+                // 出现异常也直接清理并跳转
+                doCleanupAndRedirect();
+              }
+            });
+          }
+        } catch (e) {
+          // 忽略绑定异常
+        }
+      })();
       
       // 项目按钮下拉菜单
       document.getElementById('projectBtn').addEventListener('click', function(e) {
@@ -623,8 +674,8 @@
       // 此函数不再使用，改为调用showProjectSaveDialog
       console.log("已弃用的函数saveCircuitToCloud被调用");
       
-      // 检查是否已登录
-      const userId = localStorage.getItem('userId');
+      // 检查是否已登录（同时检查sessionStorage和localStorage）
+      const userId = sessionStorage.getItem('userId') || localStorage.getItem('userId');
       if (userId) {
         window.currentCircuitData = circuitData;
         showProjectSaveDialog();
@@ -1661,7 +1712,7 @@ function showProjectMenu() {
 function loadProjectMenuItems() {
   console.log("加载项目菜单项");
   
-  const userId = localStorage.getItem('userId');
+  const userId = sessionStorage.getItem('userId') || localStorage.getItem('userId');
   const container = document.getElementById('project-menu-container');
   const popup = document.getElementById('project-save-popup');
   const defaultName = "我的电路 " + new Date().toLocaleString();
@@ -2120,7 +2171,7 @@ document.addEventListener('DOMContentLoaded', function() {
             userId = userObj.userId;
             console.log("从eda_user获取到用户ID:", userId);
           } else {
-            userId = localStorage.getItem('userId');
+            userId = sessionStorage.getItem('userId') || localStorage.getItem('userId');
             console.log("从userId获取到用户ID:", userId);
           }
         } catch (e) {
@@ -2132,8 +2183,8 @@ document.addEventListener('DOMContentLoaded', function() {
     return;
   }
   
-        // 获取token
-        const token = localStorage.getItem('eda_token');
+        // 获取token（同时检查sessionStorage和localStorage）
+        const token = sessionStorage.getItem('eda_token') || localStorage.getItem('eda_token');
         if (!token) {
           showCustomNotification("无法获取token，请先登录", "error");
           return;
@@ -2396,7 +2447,7 @@ document.addEventListener('DOMContentLoaded', function() {
             showCustomNotification('未提供circuitId', 'error');
             return;
           }
-          const token = localStorage.getItem('eda_token');
+          const token = sessionStorage.getItem('eda_token') || localStorage.getItem('eda_token');
           const apiBaseUrl = window.API_BASE_URL || (window.API && window.API.API_BASE_URL) || (window.location.protocol + '//' + window.location.hostname + ':8088');
           if (!token) {
             showCustomNotification('无法获取token，请重新登录', 'error');
@@ -2453,7 +2504,7 @@ document.addEventListener('DOMContentLoaded', function() {
               }
               
         window.isSaving = true;
-        const token = localStorage.getItem('eda_token');
+        const token = sessionStorage.getItem('eda_token') || localStorage.getItem('eda_token');
         
         if (!token) {
           showCustomNotification("无法获取令牌，请重新登录", "error");

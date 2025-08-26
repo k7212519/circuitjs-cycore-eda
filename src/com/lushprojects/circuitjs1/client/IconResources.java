@@ -126,4 +126,15 @@ public interface IconResources extends ClientBundle {
     @Source("../public/img/svg/trash.svg")
     TextResource trash();
 
+    @Source("../public/img/svg/and-gate.svg")
+    TextResource andGate();
+
+    @Source("../public/img/svg/or-gate.svg")
+    TextResource orGate();
+
+    @Source("../public/img/svg/not-gate.svg")
+    TextResource notGate();
+
+    @Source("../public/img/svg/xor-gate.svg")
+    TextResource xorGate();
 }

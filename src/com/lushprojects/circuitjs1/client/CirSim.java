@@ -785,11 +785,26 @@ MouseOutHandler, MouseWheelHandler {
 	runStopButton.getElement().getStyle().setProperty("outline", "none");
 	runStopButton.getElement().getStyle().setPadding(0, Unit.PX);
 	runStopButton.getElement().getStyle().setMarginTop(10, Unit.PX);
+	runStopButton.getElement().getStyle().setCursor(Style.Cursor.POINTER);
 	// 设置按钮尺寸
 	runStopButton.setHeight("100px");
 	runStopButton.setWidth("100px");
 	// 初始设置按钮图标
 	updateRunStopButtonIcon();
+	// 悬停效果（浅色用淡黑，深色用淡白）
+	runStopButton.addMouseOverHandler(new com.google.gwt.event.dom.client.MouseOverHandler() {
+		@Override
+		public void onMouseOver(com.google.gwt.event.dom.client.MouseOverEvent event) {
+			String hoverBg = isWhiteBackground() ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.12)";
+			runStopButton.getElement().getStyle().setBackgroundColor(hoverBg);
+		}
+	});
+	runStopButton.addMouseOutHandler(new com.google.gwt.event.dom.client.MouseOutHandler() {
+		@Override
+		public void onMouseOut(com.google.gwt.event.dom.client.MouseOutEvent event) {
+			runStopButton.getElement().getStyle().setBackgroundColor("transparent");
+		}
+	});
 	runStopButton.addClickHandler(new ClickHandler() {
 	    public void onClick(ClickEvent event) {
 		setSimRunning(!simIsRunning());
@@ -814,8 +829,22 @@ MouseOutHandler, MouseWheelHandler {
 	resetButton.getElement().getStyle().setProperty("justifyContent", "center");
 	resetButton.getElement().getStyle().setTextAlign(Style.TextAlign.CENTER);
 	resetButton.getElement().getStyle().setMarginTop(6, Unit.PX);
+	resetButton.getElement().getStyle().setCursor(Style.Cursor.POINTER);
 	// 初始设置复位按钮图标
 	updateResetButtonIcon();
+	// Hover effect for reset button (slightly lighter red)
+	resetButton.addMouseOverHandler(new com.google.gwt.event.dom.client.MouseOverHandler() {
+		@Override
+		public void onMouseOver(com.google.gwt.event.dom.client.MouseOverEvent event) {
+			resetButton.getElement().getStyle().setProperty("background", "#FF7D7D");
+		}
+	});
+	resetButton.addMouseOutHandler(new com.google.gwt.event.dom.client.MouseOutHandler() {
+		@Override
+		public void onMouseOut(com.google.gwt.event.dom.client.MouseOutEvent event) {
+			resetButton.getElement().getStyle().setProperty("background", "#FF6464");
+		}
+	});
 
 
 /*

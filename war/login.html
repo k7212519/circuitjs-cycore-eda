@@ -376,16 +376,13 @@
                 rememberMe.checked = true;
             }
             
-            // 检查是否已登录
-            const token = localStorage.getItem('eda_token');
-            const isLoggedIn = sessionStorage.getItem('authenticated') === 'true';
-            
-            if (token && isLoggedIn) {
-                // 验证token是否有效
+            // 启动时基于本地token自动验证登录（同时检查sessionStorage和localStorage）
+            const token = sessionStorage.getItem('eda_token') || localStorage.getItem('eda_token');
+            if (token) {
                 API.validateToken()
                     .then(data => {
                         if (data.code === 200) {
-                            // token有效，更新用户信息
+                            // token有效，更新用户信息并标记本会话为已认证
                             const userData = {
                                 userId: data.data.userId,
                                 username: data.data.username,
@@ -395,38 +392,44 @@
                                 loginTime: new Date().toISOString()
                             };
                             localStorage.setItem('eda_user', JSON.stringify(userData));
-                            localStorage.setItem('userId', data.data.userId); // 确保userId单独存储
-                            // 清理离线模式标志
-                            sessionStorage.removeItem('offline_mode');
                             
-                            // 检查是否有来自保存功能的重定向
+                            // 根据token来源决定userId存储位置
+                            if (sessionStorage.getItem('eda_token')) {
+                                sessionStorage.setItem('userId', data.data.userId);
+                            } else {
+                                localStorage.setItem('userId', data.data.userId);
+                            }
+                            
+                            sessionStorage.setItem('authenticated', 'true');
+                            sessionStorage.removeItem('offline_mode');
+
                             const pendingSaveCircuit = sessionStorage.getItem('pending_save_circuit');
                             const returnUrl = sessionStorage.getItem('return_url');
-                            
                             if (pendingSaveCircuit && returnUrl) {
-                                // 有待保存的电路，将数据保存到会话，并重定向回原页面
                                 sessionStorage.removeItem('pending_save_circuit');
                                 sessionStorage.removeItem('return_url');
                                 sessionStorage.setItem('circuit_to_save', pendingSaveCircuit);
-                                
-                                console.log("检测到有待保存的电路，重定向回原页面");
                                 window.location.href = returnUrl;
                             } else {
-                                // 正常登录流程，跳转到首页
                                 window.location.href = 'circuitjs.html';
                             }
                         } else {
-                            // token无效，清除登录状态
+                            // token无效，清理所有认证信息
                             localStorage.removeItem('eda_token');
+                            sessionStorage.removeItem('eda_token');
                             localStorage.removeItem('eda_user');
+                            localStorage.removeItem('userId');
+                            sessionStorage.removeItem('userId');
                             sessionStorage.removeItem('authenticated');
                         }
                     })
                     .catch(error => {
                         console.error('验证token失败:', error);
-                        // 清除登录状态
                         localStorage.removeItem('eda_token');
+                        sessionStorage.removeItem('eda_token');
                         localStorage.removeItem('eda_user');
+                        localStorage.removeItem('userId');
+                        sessionStorage.removeItem('userId');
                         sessionStorage.removeItem('authenticated');
                     });
             }
@@ -498,7 +501,7 @@
                             localStorage.removeItem('saved_password');
                         }
                         
-                        // 保存token和用户信息
+                        // 保存token和用户信息（按记住我选项决定持久化或会话）
                         // 确保token格式正确，不含额外空格
                         const token = data.data.token ? data.data.token.trim() : "";
                         const userData = {
@@ -510,8 +513,23 @@
                             loginTime: new Date().toISOString()
                         };
                         
-                        localStorage.setItem('eda_token', token);
-                        localStorage.setItem('userId', data.data.userId); // 直接存储userId便于快速访问
+                        // token存储
+                        if (rememberMe.checked) {
+                            localStorage.setItem('eda_token', token);
+                            sessionStorage.removeItem('eda_token');
+                        } else {
+                            sessionStorage.setItem('eda_token', token);
+                            localStorage.removeItem('eda_token');
+                        }
+                        
+                        // userId 持久化，便于跨会话恢复（只在记住我时持久化，否则仅本会话）
+                        if (rememberMe.checked) {
+                            localStorage.setItem('userId', data.data.userId);
+                        } else {
+                            sessionStorage.setItem('userId', data.data.userId);
+                            localStorage.removeItem('userId');
+                        }
+                        
                         localStorage.setItem('eda_user', JSON.stringify(userData));
                         sessionStorage.setItem('authenticated', 'true');
                         // 清理离线模式标志
