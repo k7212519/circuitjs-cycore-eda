@@ -69,6 +69,26 @@ class RailElm extends VoltageElm {
 	else if (waveform == WF_DC || waveform == WF_VAR) {
 	    g.setColor(needsHighlight() ? selectColor : whiteColor);
 	    setPowerColor(g, false);
+	    
+	    // 绘制标准电源符号（横线加竖线）
+	    // double len = circleSize * 0.5; // 原来是 circleSize * 2，现在缩小为1/4
+		double len = circleSize * 0.8;
+
+	    Point p2 = interpPoint(point1, point2, 1-(circleSize/dn));
+	    Point p3 = new Point();
+	    Point p4 = new Point();
+	    
+	    // 计算横线的两个端点
+	    double perpDx = -(point2.y - point1.y) / dn;
+	    double perpDy = (point2.x - point1.x) / dn;
+	    p3.x = (int)(p2.x - perpDx * len);
+	    p3.y = (int)(p2.y - perpDy * len);
+	    p4.x = (int)(p2.x + perpDx * len);
+	    p4.y = (int)(p2.y + perpDy * len);
+	    
+	    // 绘制横线
+	    drawThickLine(g, p3, p4);
+	    
 	    double v = getVoltage();
 	    String s;
 	    if (Math.abs(v) < 1)
