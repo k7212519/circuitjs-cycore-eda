@@ -144,7 +144,120 @@
     cursor: pointer;
 }
 
-/* 暗黑模式对话框样式 */
+/* 现代化 GWT Dialog 样式 */
+.gwt-DialogBox.modern-dialog {
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    border-radius: 12px; /* 外层也加圆角，统一裁剪 */
+    overflow: hidden;    /* 裁剪内部方形边角，阴影呈圆角 */
+}
+
+.gwt-DialogBox.modern-dialog .Caption {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 16px;
+    font-weight: 600;
+    padding: 12px 16px;
+    border: none;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+    color: #222;
+    background: #ffffff;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+.gwt-DialogBox.modern-dialog .dialog-body {
+    background: #ffffff;
+    padding: 16px;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14);
+    width: 480px;
+    max-width: calc(100vw - 40px);
+    max-height: calc(100vh - 160px);
+    overflow: auto;
+}
+
+/* 输入、选择与文本域统一样式 */
+.gwt-DialogBox.modern-dialog input[type="text"],
+.gwt-DialogBox.modern-dialog textarea,
+.gwt-DialogBox.modern-dialog select,
+.gwt-DialogBox.modern-dialog .gwt-TextBox,
+.gwt-DialogBox.modern-dialog .gwt-TextArea,
+.gwt-DialogBox.modern-dialog .gwt-ListBox {
+    width: 100%;
+    box-sizing: border-box;
+    background: #ffffff;
+    color: #222;
+    border: 1px solid #d9d9d9;
+    border-radius: 8px;
+    padding: 8px 10px;
+}
+
+/* 行为按钮统一样式 */
+.gwt-DialogBox.modern-dialog .gwt-Button {
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 1px solid #d0d0d0;
+    background: #fafafa;
+    cursor: pointer;
+}
+
+.gwt-DialogBox.modern-dialog .gwt-Button:hover {
+    border-color: #bfbfbf;
+    background: #f5f5f5;
+}
+
+/* 暗黑模式（依赖 body.dark-mode） */
+body.dark-mode .gwt-DialogBox.modern-dialog .Caption {
+    background: #1e1f22;
+    color: #e8e8e8;
+    border: none;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+/* 移除中间内容容器的默认内边距 */
+.gwt-DialogBox .dialogMiddleCenter {
+    padding: 0 !important;
+}
+
+body.dark-mode .gwt-DialogBox.modern-dialog .dialog-body {
+    background: #1b1c1f;
+    color: #e8e8e8;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+}
+
+body.dark-mode .gwt-DialogBox.modern-dialog input[type="text"],
+body.dark-mode .gwt-DialogBox.modern-dialog textarea,
+body.dark-mode .gwt-DialogBox.modern-dialog select,
+body.dark-mode .gwt-DialogBox.modern-dialog .gwt-TextBox,
+body.dark-mode .gwt-DialogBox.modern-dialog .gwt-TextArea,
+body.dark-mode .gwt-DialogBox.modern-dialog .gwt-ListBox {
+    background: #232428;
+    color: #e8e8e8;
+    border: 1px solid #323438;
+}
+
+body.dark-mode .gwt-DialogBox.modern-dialog .gwt-Button {
+    color: #e8e8e8;
+    background: #2a2b30;
+    border: 1px solid #3a3c42;
+}
+
+body.dark-mode .gwt-DialogBox.modern-dialog .gwt-Button:hover {
+    background: #30323a;
+    border-color: #4a4d55;
+}
+
+/* 滚动条优化 */
+.gwt-DialogBox.modern-dialog .dialog-body::-webkit-scrollbar { width: 10px; }
+.gwt-DialogBox.modern-dialog .dialog-body::-webkit-scrollbar-track { background: transparent; }
+.gwt-DialogBox.modern-dialog .dialog-body::-webkit-scrollbar-thumb { background-color: rgba(0,0,0,0.2); border-radius: 8px; }
+body.dark-mode .gwt-DialogBox.modern-dialog .dialog-body::-webkit-scrollbar-thumb { background-color: rgba(255,255,255,0.2); }
+
+/* 暗黑模式对话框样式（保留原有自定义结构兼容） */
 body.dark-mode .dialog-container {
     background-color: #222;
     color: #e0e0e0;
@@ -196,7 +309,7 @@ body.dark-mode .prompt-dialog {
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
-/* 暗黑模式输入控件 */
+/* 暗黑模式输入控件（保留） */
 body.dark-mode input[type="text"], 
 body.dark-mode textarea, 
 body.dark-mode select {
@@ -210,4 +323,40 @@ body.dark-mode textarea:focus,
 body.dark-mode select:focus {
     border-color: #7e57c2;
     outline: none;
+}
+
+/* 彻底移除可能的顶部边框和外轮廓，避免顶端出现白线 */
+.gwt-DialogBox.modern-dialog,
+.gwt-DialogBox.modern-dialog .Caption,
+.gwt-DialogBox.modern-dialog .dialog-body {
+    border-top: none !important;
+    outline: none !important;
+}
+
+/* 某些主题使用 box-shadow 形成上边缘高光，这里去除 */
+body.dark-mode .gwt-DialogBox.modern-dialog,
+body.dark-mode .gwt-DialogBox.modern-dialog .Caption {
+    box-shadow: none !important;
+}
+
+/* 底部内层圆角，保证阴影为圆角外观 */
+.gwt-DialogBox.modern-dialog .dialogBottomLeftInner,
+.gwt-DialogBox.modern-dialog .dialogBottomRightInner {
+    border-bottom-left-radius: 12px !important;
+    border-bottom-right-radius: 12px !important;
+    overflow: hidden;
+}
+
+/* 移除 GWT 默认 DialogBox 九宫格切片背景（去掉 circles.png 等背景图） */
+.gwt-DialogBox .dialogTopLeft,
+.gwt-DialogBox .dialogTopRight,
+.gwt-DialogBox .dialogBottomLeft,
+.gwt-DialogBox .dialogBottomRight,
+.gwt-DialogBox .dialogTopCenter,
+.gwt-DialogBox .dialogBottomCenter,
+.gwt-DialogBox .dialogMiddleLeft,
+.gwt-DialogBox .dialogMiddleRight,
+.gwt-DialogBox .dialogMiddleCenter {
+    background: none !important;
+    background-image: none !important;
 } 

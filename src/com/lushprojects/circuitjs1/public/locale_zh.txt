@@ -1063,6 +1063,7 @@
 "subcircuit ("="子电路("
 "Device has no external inputs/outputs!"="没有外部输入/输出设备!"
 "Edit Subcircuit Model"="编辑子电路模型"
+"Subcircuits..."="子电路管理"
 "Drag the pins to the desired position"="把针到所需的位置"
 "Width"="宽度"
 "Height"="高度"

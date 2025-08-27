@@ -21,6 +21,7 @@ package com.lushprojects.circuitjs1.client;
 
 
 import com.google.gwt.user.client.ui.DialogBox;
+import com.google.gwt.user.client.ui.Widget;
 
 class Dialog extends DialogBox  {
 
@@ -28,6 +29,17 @@ class Dialog extends DialogBox  {
 
 	Dialog() {
 		closeOnEnter = true;
+		setGlassEnabled(true);
+		setAnimationEnabled(true);
+		addStyleName("modern-dialog");
+	}
+
+	@Override
+	public void setWidget(Widget w) {
+		super.setWidget(w);
+		if (w != null) {
+			w.addStyleName("dialog-body");
+		}
 	}
 
 	public void closeDialog()
