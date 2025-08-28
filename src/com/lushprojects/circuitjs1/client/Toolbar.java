@@ -65,6 +65,9 @@ public class Toolbar extends HorizontalPanel {
         add(createIconButton(IconResources.INSTANCE.transistor().getText(), "NTransistorElm"));
         // add(createIconButton(IconResources.INSTANCE.pnpTransistor().getText(), "PTransistorElm"));
 
+        // 逻辑门下拉按钮（默认 AND），点击展开 AND/OR/NOT/XOR 选项
+        add(createLogicGateDropdown());
+
         // Spacer to push the mode label to the right
         HorizontalPanel spacer = new HorizontalPanel();
         add(spacer);
@@ -73,7 +76,8 @@ public class Toolbar extends HorizontalPanel {
         modeLabel = new Label("Default Mode");
         modeLabel.addStyleName("toolbar-mode-label");
         styleModeLabel(modeLabel);
-        add(modeLabel);
+        modeLabel.setVisible(false);
+        // add(modeLabel); // temporarily disabled per requirement
 
         // Add delete button next to mode label (hidden by default)
         deleteButton = new Label();
@@ -115,7 +119,7 @@ public class Toolbar extends HorizontalPanel {
     }
 
     public void setModeLabel(String text) {
-        modeLabel.setText(Locale.LS("Mode: ") + text);
+        modeLabel.setText(Locale.LS("MODE: ") + text);
     }
 
     private Label createIconButton(String icon, String cls) {
@@ -144,11 +148,13 @@ public class Toolbar extends HorizontalPanel {
         iconLabel.addMouseOverHandler(event -> {
             if (iconLabel != activeButton) {
                 iconLabel.getElement().getStyle().setColor("black"); // Darken icon on hover
+                iconLabel.getElement().getStyle().setBackgroundColor("rgba(255,255,255,0.12)");
             }
         });
         iconLabel.addMouseOutHandler(event -> {
             if (iconLabel != activeButton) {
                 iconLabel.getElement().getStyle().setColor("#333"); // Reset color on mouse out
+                iconLabel.getElement().getStyle().setBackgroundColor(null);
             }
         });
 
@@ -215,6 +221,13 @@ public class Toolbar extends HorizontalPanel {
         return finalSvgOpenTag + s.substring(tagEnd);
     }
 
+    // Inject inline width/height for a specific SVG string without affecting others
+    private String setSvgInlineSize(String svg, int size) {
+        int idx = svg.indexOf("<svg");
+        if (idx == -1) return svg;
+        return svg.replaceFirst("<svg", "<svg style='width:" + size + "px!important;height:" + size + "px!important;display:inline-block;flex:0 0 " + size + "px'");
+    }
+
     // New method for creating variant buttons
     private Label createButtonSet(String info[]) {
         MyCommand mainCommand = new MyCommand("main", info[1]);
@@ -229,11 +242,14 @@ public class Toolbar extends HorizontalPanel {
         Style paletteStyle = paletteContainer.getElement().getStyle();
         paletteStyle.setPosition(Style.Position.ABSOLUTE);
         paletteStyle.setZIndex(1000); // High z-index to appear on top
-        paletteStyle.setBackgroundColor(CirSim.COLOR_WHITE);
+        boolean isWhiteBg = sim.isWhiteBackground();
+        paletteStyle.setBackgroundColor(isWhiteBg ? "rgb(16, 117, 222)" : "rgb(48, 48, 48)");
         paletteStyle.setBorderWidth(1, Style.Unit.PX);
-        paletteStyle.setBorderColor("#ccc");
+        paletteStyle.setBorderColor(isWhiteBg ? "rgb(95 147 236)" : "rgb(85 85 85)");
         paletteStyle.setBorderStyle(Style.BorderStyle.SOLID);
-        paletteStyle.setPadding(5, Style.Unit.PX);
+        paletteStyle.setPadding(6, Style.Unit.PX);
+        paletteStyle.setProperty("width", "180px");
+        paletteStyle.setProperty("boxShadow", "0 2px 8px rgba(0,0,0,0.15)");
 
         int i;
         for (i = 0; i < info.length; i += 2) {
@@ -246,8 +262,13 @@ public class Toolbar extends HorizontalPanel {
             // Style the variant button
             Style variantStyle = variantButton.getElement().getStyle();
             variantStyle.setColor("#333");
-            // variantStyle.setPadding(5, Style.Unit.PX);
             variantStyle.setCursor(Style.Cursor.POINTER);
+            variantStyle.setDisplay(Style.Display.BLOCK);
+            variantStyle.setPaddingTop(6, Style.Unit.PX);
+            variantStyle.setPaddingBottom(6, Style.Unit.PX);
+            variantStyle.setPaddingLeft(8, Style.Unit.PX);
+            variantStyle.setPaddingRight(8, Style.Unit.PX);
+            variantStyle.setProperty("width", "100%");
 
             final MyCommand command = new MyCommand("main", info[i + 1]);
             final String smallSvg = makeSvg(info[i], 24);
@@ -361,5 +382,147 @@ public class Toolbar extends HorizontalPanel {
     final String acSrcIcon = "<svg><g transform='translate(-104.09,-66.93) scale(0.266667)'><path fill='none' stroke='currentColor' d=' M 432 336 L 432 313' stroke-linecap='round' stroke-width='3' /><path fill='none' stroke='currentColor' d=' M 432 279 L 432 256' stroke-linecap='round' stroke-width='3' /><path fill='none' stroke='currentColor' d=' M 448.66 296 A 16.66 16.66 0 1 1 448.6599916700007 295.98334000277663' stroke-linecap='round' stroke-width='3' /><path fill='none' stroke='currentColor' d=' M 422 296 L 423 294 L 424 292 L 425 290 L 426 289 L 427 289 L 428 289 L 429 290 L 430 292 L 431 294 L 432 296 L 433 298 L 434 300 L 435 302 L 436 303 L 437 303 L 438 303 L 439 302 L 440 300 L 441 298 L 442 296' stroke-linecap='round' stroke-width='3' /></g></svg>";
     final String opAmpTopIcon = "<svg><g transform='translate(-169.33,-86.13) scale(0.266667)'><path fill='none' stroke='currentColor' d=' M 640 384 L 654 384' stroke-linecap='round' stroke-width='3' /><path fill='none' stroke='currentColor' d=' M 640 352 L 654 352' stroke-linecap='round' stroke-width='3' /><path fill='none' stroke='currentColor' d=' M 706 368 L 720 368' stroke-linecap='round' stroke-width='3' /><path fill='none' stroke='currentColor' d=' M 654 400 L 654 336 L 706 368 Z' stroke-linecap='round' stroke-width='3' /><g><text fill='currentColor' stroke='currentColor' font-family='sans-serif' font-size='14px' font-style='normal' font-weight='normal' text-decoration='normal' x='664' y='382' text-anchor='middle' dominant-baseline='central'>-</text></g><g><text fill='currentColor' stroke='currentColor' font-family='sans-serif' font-size='14px' font-style='normal' font-weight='normal' text-decoration='normal' x='664' y='352' text-anchor='middle' dominant-baseline='central'>+</text></g></g></svg>";
     final String opAmpBotIcon = "<svg><g transform='translate(-169.33,-86.13) scale(0.266667)'><path fill='none' stroke='currentColor' d=' M 640 352 L 654 352' stroke-linecap='round' stroke-width='3' /><path fill='none' stroke='currentColor' d=' M 640 384 L 654 384' stroke-linecap='round' stroke-width='3' /><path fill='none' stroke='currentColor' d=' M 706 368 L 720 368' stroke-linecap='round' stroke-width='3' /><path fill='none' stroke='currentColor' d=' M 654 336 L 654 400 L 706 368 Z' stroke-linecap='round' stroke-width='3' /><g><text fill='currentColor' stroke='currentColor' font-family='sans-serif' font-size='14px' font-style='normal' font-weight='normal' text-decoration='normal' x='664' y='350' text-anchor='middle' dominant-baseline='central'>-</text></g><g><text fill='currentColor' stroke='currentColor' font-family='sans-serif' font-size='14px' font-style='normal' font-weight='normal' text-decoration='normal' x='664' y='384' text-anchor='middle' dominant-baseline='central'>+</text></g></g></svg>";
+
+    private Label createLogicGateDropdown() {
+        CirSim sim = CirSim.theSim;
+        // 默认 AND
+        String[][] items = new String[][] {
+            { IconResources.INSTANCE.andGate().getText(), "AndGateElm" },
+            { IconResources.INSTANCE.orGate().getText(), "OrGateElm" },
+            { IconResources.INSTANCE.notGate().getText(), "InverterElm" },
+            { IconResources.INSTANCE.xorGate().getText(), "XorGateElm" }
+        };
+
+        // 主命令（默认 AND）
+        MyCommand mainCommand = new MyCommand("main", items[0][1]);
+
+        // 主按钮
+        Label iconLabel = new Label();
+        iconLabel.addStyleName("toolbar-icon-label");
+        iconLabel.setTitle(sim.getLabelTextForClass(items[0][1]));
+
+        // 主图标（去掉三角，统一与其他图标尺寸）
+        String smallSvg = setSvgInlineSize(makeSvg(items[0][0], 24), 36);
+        iconLabel.getElement().setInnerHTML("<span style='display:inline-flex;align-items:center;gap:0'>" + smallSvg + "</span>");
+
+        // 样式与悬停效果
+        Style style = iconLabel.getElement().getStyle();
+        style.setColor("#333");
+        style.setMarginRight(20, Style.Unit.PX);
+        style.setCursor(Style.Cursor.POINTER);
+        style.setPaddingRight(0, Style.Unit.PX);
+        style.setWidth(44, Style.Unit.PX);
+        iconLabel.addMouseOverHandler(event -> {
+            if (iconLabel != activeButton) {
+                iconLabel.getElement().getStyle().setColor("black");
+                iconLabel.getElement().getStyle().setBackgroundColor("rgba(255,255,255,0.12)");
+            }
+        });
+        iconLabel.addMouseOutHandler(event -> {
+            if (iconLabel != activeButton) {
+                iconLabel.getElement().getStyle().setColor("#333");
+                iconLabel.getElement().getStyle().setBackgroundColor(null);
+            }
+        });
+
+        // 记录到可高亮集合
+        highlightableButtons.put(mainCommand.getItemName(), iconLabel);
+
+        // 下拉容器
+        FlowPanel paletteContainer = new FlowPanel();
+        paletteContainer.setVisible(false);
+        paletteContainer.setStyleName("palette-container");
+        Style paletteStyle = paletteContainer.getElement().getStyle();
+        paletteStyle.setPosition(Style.Position.ABSOLUTE);
+        paletteStyle.setZIndex(1000);
+        boolean isWhiteBg = sim.isWhiteBackground();
+        paletteStyle.setBackgroundColor(isWhiteBg ? "rgb(16, 117, 222)" : "rgb(48, 48, 48)");
+        paletteStyle.setBorderWidth(1, Style.Unit.PX);
+        paletteStyle.setBorderColor(isWhiteBg ? "rgb(95 147 236)" : "rgb(85 85 85)");
+        paletteStyle.setBorderStyle(Style.BorderStyle.SOLID);
+        paletteStyle.setPadding(5, Style.Unit.PX);
+        paletteStyle.setProperty("minWidth", "40px");
+
+        // 选项
+        for (int i = 0; i < items.length; i++) {
+            final String icon = items[i][0];
+            final String className = items[i][1];
+            Label variantButton = new Label();
+            variantButton.setText("");
+            variantButton.getElement().setInnerHTML("<span style='display:inline-flex;align-items:center;width:100%'>" + makeSvg(icon, 24) + "</span>");
+            variantButton.setTitle(sim.getLabelTextForClass(className));
+            Style variantStyle = variantButton.getElement().getStyle();
+            variantStyle.setColor("#fff");
+            variantStyle.setCursor(Style.Cursor.POINTER);
+            // hover effect for dropdown items
+            variantButton.addMouseOverHandler(e -> {
+                variantButton.getElement().getStyle().setBackgroundColor("rgba(255,255,255,0.12)");
+            });
+            variantButton.addMouseOutHandler(e -> {
+                variantButton.getElement().getStyle().setBackgroundColor(null);
+            });
+
+            final MyCommand command = new MyCommand("main", className);
+            final String smallSvgOpt = setSvgInlineSize(makeSvg(icon, 24), 40);
+            variantButton.addClickHandler(event -> {
+                // 更新主按钮图标（无三角）
+                iconLabel.getElement().setInnerHTML("<span style='display:inline-flex;align-items:center;gap:0'>" + smallSvgOpt + "</span>");
+                // 更新高亮键
+                highlightableButtons.remove(mainCommand.getItemName());
+                highlightableButtons.put(command.getItemName(), iconLabel);
+                paletteContainer.setVisible(false);
+                mainCommand.setItemName(command.getItemName());
+                command.execute();
+                // 立即应用按下样式，与其他图标一致
+                highlightButton(command.getItemName());
+            });
+
+            paletteContainer.add(variantButton);
+        }
+
+        // 添加到根节点（用于绝对定位）
+        RootPanel.get().add(paletteContainer);
+
+        // 点击主按钮展开/收起
+        iconLabel.addClickHandler(new ClickHandler() {
+            @Override
+            public void onClick(ClickEvent event) {
+                boolean show = !paletteContainer.isVisible();
+                paletteContainer.setVisible(show);
+                if (show) {
+                    // 打开时根据当前主题动态设置背景
+                    boolean isWhiteBgNow = sim.isWhiteBackground();
+                    paletteContainer.getElement().getStyle().setBackgroundColor(isWhiteBgNow ? "rgb(16, 117, 222)" : "rgb(48, 48, 48)");
+                    paletteContainer.getElement().getStyle().setBorderColor(isWhiteBgNow ? "rgb(95 147 236)" : "rgb(85 85 85)");
+                    int leftOffset = iconLabel.getAbsoluteLeft() - 2;
+                    int topOffset = iconLabel.getAbsoluteTop() + iconLabel.getOffsetHeight();
+                    paletteContainer.getElement().getStyle().setLeft(leftOffset, Style.Unit.PX);
+                    paletteContainer.getElement().getStyle().setTop(topOffset, Style.Unit.PX);
+                }
+            }
+        });
+
+        // 悬停在面板使其保持，移出时隐藏
+        paletteContainer.addDomHandler(event -> paletteContainer.setVisible(true), MouseOverEvent.getType());
+        paletteContainer.addDomHandler(event -> paletteContainer.setVisible(false), MouseOutEvent.getType());
+
+        // 全局点击监控：点击其他区域时关闭下拉
+        RootPanel.get().addDomHandler(new ClickHandler() {
+            @Override
+            public void onClick(ClickEvent event) {
+                com.google.gwt.dom.client.EventTarget et = event.getNativeEvent().getEventTarget();
+                if (com.google.gwt.dom.client.Element.is(et)) {
+                    com.google.gwt.dom.client.Element target = com.google.gwt.dom.client.Element.as(et);
+                    boolean clickInsidePalette = paletteContainer.getElement().isOrHasChild(target);
+                    boolean clickOnIcon = iconLabel.getElement().isOrHasChild(target);
+                    if (paletteContainer.isVisible() && !clickInsidePalette && !clickOnIcon) {
+                        paletteContainer.setVisible(false);
+                    }
+                }
+            }
+        }, ClickEvent.getType());
+ 
+        return iconLabel;
+    }
 
 }

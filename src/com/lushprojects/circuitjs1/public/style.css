@@ -153,6 +153,12 @@ html, body {
     height: 100%;
 }
 
+/* 不影响内联设定尺寸的三角图标 */
+.toolbar-icon-label svg[style*="width:"] {
+    width: auto !important;
+    height: auto !important;
+}
+
 /* 无需隐藏任何元素 */
 
 @media only screen and (max-width: 600px) {
