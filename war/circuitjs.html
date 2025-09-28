@@ -216,6 +216,57 @@
         document.getElementById('userDropdown').classList.toggle('show');
       });
       
+      // 退出登录：拦截点击，调用后端注销并清理本地状态
+      (function() {
+        try {
+          var logoutLink = document.querySelector('#userDropdown a[href="logout.html"]');
+          if (logoutLink) {
+            logoutLink.addEventListener('click', function(e) {
+              e.preventDefault();
+              
+              var doCleanupAndRedirect = function() {
+                try {
+                  // 清理本地认证相关状态
+                  localStorage.removeItem('eda_token');
+                  sessionStorage.removeItem('eda_token');
+                  localStorage.removeItem('eda_user');
+                  localStorage.removeItem('eda_user_info');
+                  localStorage.removeItem('userId');
+                  sessionStorage.removeItem('userId');
+                  localStorage.removeItem('auth_error');
+                  // 不强制清理 saved_username，方便下次登录；但清理 saved_password
+                  localStorage.removeItem('saved_password');
+                  sessionStorage.removeItem('authenticated');
+                  sessionStorage.removeItem('offline_mode');
+                } catch(_) {}
+                // 跳转到登录页
+                window.location.href = 'login.html';
+              };
+              
+              try {
+                // 优先使用统一API模块
+                if (window.API && typeof window.API.logout === 'function') {
+                  API.logout().finally(doCleanupAndRedirect);
+                } else {
+                  // 后备：直接调用后端接口
+                  var token = (localStorage.getItem('eda_token') || '').trim();
+                  var apiBaseUrl = window.API_BASE_URL || (window.API && window.API.API_BASE_URL) || (window.location.protocol + '//' + window.location.hostname + ':8088');
+                  fetch(apiBaseUrl + '/eda/login', {
+                    method: 'DELETE',
+                    headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+                  }).finally(doCleanupAndRedirect);
+                }
+              } catch(err) {
+                // 出现异常也直接清理并跳转
+                doCleanupAndRedirect();
+              }
+            });
+          }
+        } catch (e) {
+          // 忽略绑定异常
+        }
+      })();
+      
       // 项目按钮下拉菜单
       document.getElementById('projectBtn').addEventListener('click', function(e) {
         e.preventDefault();

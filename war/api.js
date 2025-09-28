@@ -11,14 +11,12 @@
 const isProduction = window.location.hostname !== 'localhost' && !window.location.hostname.includes('192.168');
 const API_BASE_URL = isProduction ? 'https://apisim.cycore.com.cn' : 'http://192.168.1.103:8088';
 
-// 获取有效的token，确保格式正确
+// 获取有效的token，确保格式正确（优先会话，其次持久化）
 const getValidToken = () => {
-  let token = localStorage.getItem('eda_token');
-  // 如果token存在，确保没有额外的空格和换行符
+  let token = (sessionStorage.getItem('eda_token') || localStorage.getItem('eda_token'));
   if (token) {
     token = token.trim();
-    console.log("获取到的token长度: " + token.length + ", 前10个字符: " + 
-      (token.length > 10 ? token.substring(0, 10) + "..." : token));
+    console.log("获取到的token长度: " + token.length + ", 前10个字符: " + (token.length > 10 ? token.substring(0, 10) + "..." : token));
   }
   return token;
 };
@@ -136,8 +134,18 @@ const API = {
         .then(response => {
             // 保存用户信息到本地存储
             if (response.code === 200 && response.data) {
+                const remember = !!loginData.rememberMe;
+                const token = response.data.token ? response.data.token.trim() : response.data.token;
+                // 用户信息统一保存在localStorage（用于下次自动填充等）
                 localStorage.setItem('eda_user_info', JSON.stringify(response.data));
-                localStorage.setItem('eda_token', response.data.token);
+                // Token 按 rememberMe 写入：记住我->localStorage；否则->sessionStorage
+                if (remember) {
+                    localStorage.setItem('eda_token', token);
+                    sessionStorage.removeItem('eda_token');
+                } else {
+                    sessionStorage.setItem('eda_token', token);
+                    localStorage.removeItem('eda_token');
+                }
             }
             return response;
         });
