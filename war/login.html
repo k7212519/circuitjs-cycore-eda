@@ -376,8 +376,8 @@
                 rememberMe.checked = true;
             }
             
-            // 启动时基于本地token自动验证登录（不再依赖会话标记）
-            const token = localStorage.getItem('eda_token');
+            // 启动时基于本地token自动验证登录（同时检查sessionStorage和localStorage）
+            const token = sessionStorage.getItem('eda_token') || localStorage.getItem('eda_token');
             if (token) {
                 API.validateToken()
                     .then(data => {
@@ -392,7 +392,14 @@
                                 loginTime: new Date().toISOString()
                             };
                             localStorage.setItem('eda_user', JSON.stringify(userData));
-                            localStorage.setItem('userId', data.data.userId);
+                            
+                            // 根据token来源决定userId存储位置
+                            if (sessionStorage.getItem('eda_token')) {
+                                sessionStorage.setItem('userId', data.data.userId);
+                            } else {
+                                localStorage.setItem('userId', data.data.userId);
+                            }
+                            
                             sessionStorage.setItem('authenticated', 'true');
                             sessionStorage.removeItem('offline_mode');
 
@@ -407,18 +414,22 @@
                                 window.location.href = 'circuitjs.html';
                             }
                         } else {
-                            // token无效，清理
+                            // token无效，清理所有认证信息
                             localStorage.removeItem('eda_token');
+                            sessionStorage.removeItem('eda_token');
                             localStorage.removeItem('eda_user');
                             localStorage.removeItem('userId');
+                            sessionStorage.removeItem('userId');
                             sessionStorage.removeItem('authenticated');
                         }
                     })
                     .catch(error => {
                         console.error('验证token失败:', error);
                         localStorage.removeItem('eda_token');
+                        sessionStorage.removeItem('eda_token');
                         localStorage.removeItem('eda_user');
                         localStorage.removeItem('userId');
+                        sessionStorage.removeItem('userId');
                         sessionStorage.removeItem('authenticated');
                     });
             }
