@@ -151,6 +151,29 @@ task makeSite {
     }
 }
 
+task compileGwtDev {
+    group 'circuitjs1'
+    description 'Compile GWT in development mode (no obfuscation, for debugging)'
+    doFirst {
+        // 临时修改GWT编译器配置以支持调试
+        gwt.compiler.style = "PRETTY"                   // 使用PRETTY风格，代码不混淆
+        gwt.compiler.disableClassMetadata = false       // 保留类元数据
+        gwt.compiler.disableCastChecking = false        // 保留类型检查
+        gwt.compiler.draftCompile = true                // 快速编译模式
+        
+        println "\n========================================="
+        println "GWT Development Mode Compilation"
+        println "========================================="
+        println "Settings:"
+        println "  - Style: PRETTY (no obfuscation)"
+        println "  - Draft Compile: enabled (faster builds)"
+        println "  - Class Metadata: enabled"
+        println "  - Cast Checking: enabled"
+        println "=========================================\n"
+    }
+    finalizedBy 'compileGwt'
+}
+
 task showRepos {
     // ToDo:  skip "build" directory creation when running
     group 'circuitjs1'
@@ -207,7 +230,10 @@ gwt {
     //-------------------------------------------------------------
     compiler {
         //compileReport  = false        // default: false ??
-        disableClassMetadata = true     // default: false
+        // IMPORTANT: Keep class metadata to support getClass().getName() 
+        // which is used by CircuitElm.getClassName() for element identification
+        // Disabling this causes subcircuits to fail in production builds
+        disableClassMetadata = false    // default: false (changed from true to fix subcircuit issues)
         disableCastChecking = true      // default: false
         strict = true                   // default: false
         //style = "PRETTY"              // default: OBFUSCATED  / [OBFUSCATED,PRETTY,DETAILED]
