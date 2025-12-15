@@ -173,6 +173,7 @@
 "Add XOR Gate"="添加异或门"
 "Add Zener Diode"="添加齐纳二极管"
 "Add 74LS11 Triple 3-Input AND Gate"="74HC11三输入与门芯片"
+"Add 74LS148 8-to-3 Priority Encoder"="74LS148优先编码器"
 "74HC11 Triple Input AND Gates Example"="74HC11 三输入与门芯片示例"
 "Add 74HC08 Quad 2-Input AND Gate"="74HC08与门芯片"
 "74HC08 Double Input AND Gates Example"="74HC08 与门芯片示例"
