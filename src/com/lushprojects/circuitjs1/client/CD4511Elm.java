@@ -16,7 +16,7 @@ package com.lushprojects.circuitjs1.client;
  * 13: e    14: f    15: g    16: VCC
  * 
  * 功能说明：
- * - LE (锁存使能): 低电平时锁存数据保持，高电平时数据透过
+ * - LE (锁存使能): 低电平时数据透过，高电平时锁存保持
  * - BI (消隐输入): 低电平时关闭所有显示段
  * - LT (测试输入): 低电平时点亮所有显示段
  */
@@ -181,8 +181,9 @@ class CD4511Elm extends ChipElm {
             return;
         }
         
-        // 锁存功能 - LE为高时数据透过，LE为低时保持锁存值
-        if (le) {
+        // 锁存功能 - LE为低时数据透过，LE上升沿时锁存当前值，LE为高时保持锁存值
+        // 当LE=0或LE上升沿(lastLE=0且le=1)时，读取并更新BCD输入
+        if (!le || !lastLE) {
             // 读取BCD输入
             int a = pins[3].value ? 1 : 0;  // A (引脚1)
             int b = pins[4].value ? 1 : 0;  // B (引脚2)
