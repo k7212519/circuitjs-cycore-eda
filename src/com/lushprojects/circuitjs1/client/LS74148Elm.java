@@ -8,11 +8,9 @@ package com.lushprojects.circuitjs1.client;
 
 /**
  * 74LS148 8-3线优先编码器芯片
- * 引脚配置（16引脚DIP）：
- * 1: I4   2: I5   3: I6   4: I7
- * 5: EI   6: A2   7: A1   8: GND
- * 9: A0   10: I0  11: I1  12: I2
- * 13: I3  14: GS  15: EO  16: VCC
+ * 原理图引脚布局（非物理DIP封装）：
+ * 左侧（从上到下）：VCC, I0, I1, I2, I3, I4, I5, I6, I7, EI, GND
+ * 右侧（从上到下）：A0, A1, A2, GS, EO
  * 
  * 所有输入和输出都是低电平有效
  * 优先级：I7 > I6 > I5 > I4 > I3 > I2 > I1 > I0
@@ -44,7 +42,7 @@ class LS74148Elm extends ChipElm {
         g.setFont(new Font("SansSerif", 0, 7*csize));
         g.context.setTextBaseline("middle");
         g.context.setTextAlign("center");
-        g.drawString("74LS148", x, y + 66*csize);
+        g.drawString("74LS148", x, y + 96*csize);
         g.restore();
     }
     
@@ -67,41 +65,51 @@ class LS74148Elm extends ChipElm {
     String getChipName() { return "74LS148"; }
     
     /**
-     * 设置芯片引脚布局
-     * 引脚功能（低电平有效）：
-     * 左侧：1-I4, 2-I5, 3-I6, 4-I7, 5-EI, 6-A2, 7-A1, 8-GND
-     * 右侧：16-VCC, 15-EO, 14-GS, 13-I3, 12-I2, 11-I1, 10-I0, 9-A0
+     * 设置芯片引脚布局（原理图布局，非物理DIP封装）
+     * 左侧（从上到下）：VCC, I0, I1, I2, I3, I4, I5, I6, I7, EI, GND
+     * 右侧（从上到下）：A0, A1, A2, GS, EO
+     * 
+     * 物理DIP封装引脚对应关系：
+     * 左侧: 1-I4, 2-I5, 3-I6, 4-I7, 5-EI, 6-A2, 7-A1, 8-GND
+     * 右侧: 16-VCC, 15-EO, 14-GS, 13-I3, 12-I2, 11-I1, 10-I0, 9-A0
+     * 
+     * 引脚索引：
+     * pins[0-7]: I0-I7输入
+     * pins[8]: EI使能输入
+     * pins[9]: VCC, pins[10]: GND
+     * pins[11-13]: A0, A1, A2输出
+     * pins[14]: GS输出, pins[15]: EO输出
      */
     @Override
     void setupPins() {
         sizeX = 3;
-        sizeY = 8;
+        sizeY = 11;
         pins = new Pin[getPostCount()];
         
-        // 左侧引脚 (从上到下: 1,2,3,4,5,6,7,8)
-        pins[0] = new Pin(0, SIDE_W, usePinNames() ? "I4" : "1");      // I4 (1) - 输入4
-        pins[1] = new Pin(1, SIDE_W, usePinNames() ? "I5" : "2");      // I5 (2) - 输入5
-        pins[2] = new Pin(2, SIDE_W, usePinNames() ? "I6" : "3");      // I6 (3) - 输入6
-        pins[3] = new Pin(3, SIDE_W, usePinNames() ? "I7" : "4");      // I7 (4) - 输入7
-        pins[4] = new Pin(4, SIDE_W, usePinNames() ? "EI" : "5");      // EI (5) - 使能输入
-        pins[5] = new Pin(5, SIDE_W, usePinNames() ? "A2" : "6");      // A2 (6) - 输出位2
-        pins[5].output = true;
-        pins[6] = new Pin(6, SIDE_W, usePinNames() ? "A1" : "7");      // A1 (7) - 输出位1
-        pins[6].output = true;
-        pins[7] = new Pin(7, SIDE_W, usePinNames() ? "GND" : "8");     // GND (8)
+        // 左侧引脚 (从上到下: VCC, I0-I7, EI, GND)
+        pins[9] = new Pin(0, SIDE_W, usePinNames() ? "VCC" : "16");      // VCC - 电源（最上方）- 物理引脚16
+        pins[0] = new Pin(1, SIDE_W, usePinNames() ? "I0" : "10");       // I0 - 输入0 - 物理引脚10
+        pins[1] = new Pin(2, SIDE_W, usePinNames() ? "I1" : "11");       // I1 - 输入1 - 物理引脚11
+        pins[2] = new Pin(3, SIDE_W, usePinNames() ? "I2" : "12");       // I2 - 输入2 - 物理引脚12
+        pins[3] = new Pin(4, SIDE_W, usePinNames() ? "I3" : "13");       // I3 - 输入3 - 物理引脚13
+        pins[4] = new Pin(5, SIDE_W, usePinNames() ? "I4" : "1");        // I4 - 输入4 - 物理引脚1
+        pins[5] = new Pin(6, SIDE_W, usePinNames() ? "I5" : "2");        // I5 - 输入5 - 物理引脚2
+        pins[6] = new Pin(7, SIDE_W, usePinNames() ? "I6" : "3");        // I6 - 输入6 - 物理引脚3
+        pins[7] = new Pin(8, SIDE_W, usePinNames() ? "I7" : "4");        // I7 - 输入7 - 物理引脚4
+        pins[8] = new Pin(9, SIDE_W, usePinNames() ? "EI" : "5");        // EI - 使能输入 - 物理引脚5
+        pins[10] = new Pin(10, SIDE_W, usePinNames() ? "GND" : "8");     // GND - 接地（最下方）- 物理引脚8
         
-        // 右侧引脚 (从上到下: 16,15,14,13,12,11,10,9)
-        pins[15] = new Pin(0, SIDE_E, usePinNames() ? "VCC" : "16");   // VCC (16)
-        pins[14] = new Pin(1, SIDE_E, usePinNames() ? "EO" : "15");    // EO (15) - 使能输出
-        pins[14].output = true;
-        pins[13] = new Pin(2, SIDE_E, usePinNames() ? "GS" : "14");    // GS (14) - 组信号输出
+        // 右侧引脚 (从上到下: A0, A1, A2, GS, EO)
+        pins[11] = new Pin(3, SIDE_E, usePinNames() ? "A0" : "9");       // A0 - 输出位0 - 物理引脚9
+        pins[11].output = true;
+        pins[12] = new Pin(4, SIDE_E, usePinNames() ? "A1" : "7");       // A1 - 输出位1 - 物理引脚7
+        pins[12].output = true;
+        pins[13] = new Pin(5, SIDE_E, usePinNames() ? "A2" : "6");       // A2 - 输出位2 - 物理引脚6
         pins[13].output = true;
-        pins[12] = new Pin(3, SIDE_E, usePinNames() ? "I3" : "13");    // I3 (13) - 输入3
-        pins[11] = new Pin(4, SIDE_E, usePinNames() ? "I2" : "12");    // I2 (12) - 输入2
-        pins[10] = new Pin(5, SIDE_E, usePinNames() ? "I1" : "11");    // I1 (11) - 输入1
-        pins[9] = new Pin(6, SIDE_E, usePinNames() ? "I0" : "10");     // I0 (10) - 输入0
-        pins[8] = new Pin(7, SIDE_E, usePinNames() ? "A0" : "9");      // A0 (9) - 输出位0
-        pins[8].output = true;
+        pins[14] = new Pin(6, SIDE_E, usePinNames() ? "GS" : "14");      // GS - 组信号输出 - 物理引脚14
+        pins[14].output = true;
+        pins[15] = new Pin(7, SIDE_E, usePinNames() ? "EO" : "15");      // EO - 使能输出 - 物理引脚15
+        pins[15].output = true;
         
         allocNodes();
     }
@@ -122,47 +130,43 @@ class LS74148Elm extends ChipElm {
     /**
      * 执行芯片逻辑
      * 优先编码器逻辑（所有输入输出低电平有效）
+     * 引脚索引：I0-I7=pins[0-7], EI=pins[8], VCC=pins[9], GND=pins[10]
+     *          A0=pins[11], A1=pins[12], A2=pins[13], GS=pins[14], EO=pins[15]
      */
     @Override
     void execute() {
         // 检查VCC是否有足够电压供电
-        boolean powered = pins[15].value; // 引脚16 (VCC)
+        boolean powered = pins[9].value; // VCC
         
         if (!powered) {
             // 无电源时，所有输出为低
-            writeOutput(5, false);  // A2
-            writeOutput(6, false);  // A1
-            writeOutput(8, false);  // A0
-            writeOutput(13, false); // GS
-            writeOutput(14, false); // EO
+            writeOutput(11, false);  // A0
+            writeOutput(12, false);  // A1
+            writeOutput(13, false);  // A2
+            writeOutput(14, false);  // GS
+            writeOutput(15, false);  // EO
             return;
         }
         
         // 获取使能输入（低电平有效）
-        boolean ei = pins[4].value; // EI (引脚5)
+        boolean ei = pins[8].value; // EI
         
         // 当EI为高时（禁用），所有输出为高
         if (ei) {
-            writeOutput(5, true);   // A2 = 1
-            writeOutput(6, true);   // A1 = 1
-            writeOutput(8, true);   // A0 = 1
-            writeOutput(13, true);  // GS = 1
-            writeOutput(14, true);  // EO = 1
+            writeOutput(11, true);   // A0 = 1
+            writeOutput(12, true);   // A1 = 1
+            writeOutput(13, true);   // A2 = 1
+            writeOutput(14, true);   // GS = 1
+            writeOutput(15, true);   // EO = 1
             return;
         }
         
         // 获取输入值（低电平有效，所以取反来判断是否激活）
-        // 输入引脚映射: I0-pins[9], I1-pins[10], I2-pins[11], I3-pins[12], 
-        //              I4-pins[0], I5-pins[1], I6-pins[2], I7-pins[3]
+        // 输入引脚映射: I0-I7 = pins[0-7]
         boolean[] inputs = new boolean[8];
-        inputs[0] = !pins[9].value;   // I0 (引脚10) - 低电平有效
-        inputs[1] = !pins[10].value;  // I1 (引脚11)
-        inputs[2] = !pins[11].value;  // I2 (引脚12)
-        inputs[3] = !pins[12].value;  // I3 (引脚13)
-        inputs[4] = !pins[0].value;   // I4 (引脚1)
-        inputs[5] = !pins[1].value;   // I5 (引脚2)
-        inputs[6] = !pins[2].value;   // I6 (引脚3)
-        inputs[7] = !pins[3].value;   // I7 (引脚4)
+        for (int i = 0; i < 8; i++) {
+            inputs[i] = !pins[i].value; // 低电平有效
+        }
         
         // 查找最高优先级的有效输入
         int highestPriority = -1;
@@ -178,21 +182,20 @@ class LS74148Elm extends ChipElm {
             // 有输入激活
             // 输出编码（低电平有效）
             // I7激活→输出000, I6激活→输出001, I0激活→输出111
-            // 输出是优先级数值的反码
             int code = highestPriority;
             // 如果该位为1，输出低电平(false)；如果该位为0，输出高电平(true)
-            writeOutput(5, (code & 4) == 0);  // A2
-            writeOutput(6, (code & 2) == 0);  // A1
-            writeOutput(8, (code & 1) == 0);  // A0
-            writeOutput(13, false);           // GS = 0 (有输入激活)
-            writeOutput(14, true);            // EO = 1 (不传递使能)
+            writeOutput(11, (code & 1) == 0);  // A0
+            writeOutput(12, (code & 2) == 0);  // A1
+            writeOutput(13, (code & 4) == 0);  // A2
+            writeOutput(14, false);            // GS = 0 (有输入激活)
+            writeOutput(15, true);             // EO = 1 (不传递使能)
         } else {
             // 无输入激活
-            writeOutput(5, true);   // A2 = 1
-            writeOutput(6, true);   // A1 = 1
-            writeOutput(8, true);   // A0 = 1
-            writeOutput(13, true);  // GS = 1 (无输入激活)
-            writeOutput(14, false); // EO = 0 (传递使能到下一级)
+            writeOutput(11, true);   // A0 = 1
+            writeOutput(12, true);   // A1 = 1
+            writeOutput(13, true);   // A2 = 1
+            writeOutput(14, true);   // GS = 1 (无输入激活)
+            writeOutput(15, false);  // EO = 0 (传递使能到下一级)
         }
     }
     
@@ -205,15 +208,10 @@ class LS74148Elm extends ChipElm {
         super.reset();
         // 设置所有输入引脚默认为高电平（未激活）
         // 模拟TTL芯片输入悬空=高电平的特性
-        pins[0].value = true;   // I4
-        pins[1].value = true;   // I5
-        pins[2].value = true;   // I6
-        pins[3].value = true;   // I7
-        pins[4].value = true;   // EI (默认禁用)
-        pins[9].value = true;   // I0
-        pins[10].value = true;  // I1
-        pins[11].value = true;  // I2
-        pins[12].value = true;  // I3
+        for (int i = 0; i < 8; i++) {
+            pins[i].value = true;   // I0-I7
+        }
+        pins[8].value = true;   // EI (默认禁用)
     }
     
     /**
@@ -224,15 +222,15 @@ class LS74148Elm extends ChipElm {
         arr[0] = "74LS148 优先编码器";
         
         // 显示使能状态
-        boolean ei = pins[4].value;
+        boolean ei = pins[8].value;
         arr[1] = "EI: " + (ei ? "禁用(1)" : "使能(0)");
         
         // 显示输出
-        arr[2] = "输出: A2=" + (pins[5].value ? "1" : "0") +
-                 " A1=" + (pins[6].value ? "1" : "0") +
-                 " A0=" + (pins[8].value ? "1" : "0");
-        arr[3] = "GS=" + (pins[13].value ? "1" : "0") +
-                 " EO=" + (pins[14].value ? "1" : "0");
+        arr[2] = "输出: A2=" + (pins[13].value ? "1" : "0") +
+                 " A1=" + (pins[12].value ? "1" : "0") +
+                 " A0=" + (pins[11].value ? "1" : "0");
+        arr[3] = "GS=" + (pins[14].value ? "1" : "0") +
+                 " EO=" + (pins[15].value ? "1" : "0");
     }
     
     /**

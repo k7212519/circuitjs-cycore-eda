@@ -1120,6 +1120,7 @@
 "Add Line"="添加线条"
 "Add CD4026 Counter"="CD4026译码器"
 "Add CD4017 Decade Counter"="CD4017十进制计数器"
+"Add CD4511 BCD Decoder"="CD4511 BCD译码器"
 "cycore"="少年芯"
 "CD4026 Decoder Example"="CD4026 译码器示例"
 "CD4017 Decade Counter Example"="CD4017 十进制计数器示例"
