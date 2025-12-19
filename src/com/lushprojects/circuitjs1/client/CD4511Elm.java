@@ -10,14 +10,14 @@ package com.lushprojects.circuitjs1.client;
 /**
  * CD4511 BCD到七段锁存/译码/驱动器芯片
  * 引脚配置（16引脚DIP）：
- * 1: A     2: B     3: LE    4: BI
- * 5: LT    6: C     7: D     8: GND
- * 9: a     10: b    11: c    12: d
- * 13: e    14: f    15: g    16: VCC
+ * 1: B     2: C     3: LT    4: BL
+ * 5: LE    6: D     7: A     8: GND
+ * 9: e     10: d    11: c    12: b
+ * 13: a    14: g    15: f    16: VCC
  * 
  * 功能说明：
  * - LE (锁存使能): 低电平时数据透过，高电平时锁存保持
- * - BI (消隐输入): 低电平时关闭所有显示段
+ * - BL (消隐输入): 低电平时关闭所有显示段
  * - LT (测试输入): 低电平时点亮所有显示段
  */
 class CD4511Elm extends ChipElm {
@@ -106,29 +106,29 @@ class CD4511Elm extends ChipElm {
         
         // 左侧引脚 (从上到下)
         pins[0] = new Pin(0, SIDE_W, usePinNames() ? "VCC" : "16");   // VCC (16)
-        pins[1] = new Pin(1, SIDE_W, usePinNames() ? "BI" : "4");     // BI (4) - 消隐输入
-        pins[2] = new Pin(2, SIDE_W, usePinNames() ? "LT" : "5");     // LT (5) - 测试输入
-        pins[3] = new Pin(3, SIDE_W, usePinNames() ? "A" : "1");      // A (1) - BCD输入 LSB
-        pins[4] = new Pin(4, SIDE_W, usePinNames() ? "B" : "2");      // B (2) - BCD输入
-        pins[5] = new Pin(5, SIDE_W, usePinNames() ? "C" : "6");      // C (6) - BCD输入
-        pins[6] = new Pin(6, SIDE_W, usePinNames() ? "D" : "7");      // D (7) - BCD输入 MSB
-        pins[7] = new Pin(7, SIDE_W, usePinNames() ? "LE" : "3");     // LE (3) - 锁存使能
+        pins[1] = new Pin(1, SIDE_W, usePinNames() ? "BL" : "4");     // BL (4) - 消隐输入
+        pins[2] = new Pin(2, SIDE_W, usePinNames() ? "LT" : "3");     // LT (3) - 测试输入
+        pins[3] = new Pin(3, SIDE_W, usePinNames() ? "A" : "7");      // A (7) - BCD输入 LSB
+        pins[4] = new Pin(4, SIDE_W, usePinNames() ? "B" : "1");      // B (1) - BCD输入
+        pins[5] = new Pin(5, SIDE_W, usePinNames() ? "C" : "2");      // C (2) - BCD输入
+        pins[6] = new Pin(6, SIDE_W, usePinNames() ? "D" : "6");      // D (6) - BCD输入 MSB
+        pins[7] = new Pin(7, SIDE_W, usePinNames() ? "LE" : "5");     // LE (5) - 锁存使能
         pins[8] = new Pin(8, SIDE_W, usePinNames() ? "GND" : "8");    // GND (8)
         
         // 右侧引脚 (从上到下: a, b, c, d, e, f, g)
-        pins[9] = new Pin(0, SIDE_E, usePinNames() ? "a" : "9");      // a段输出 (9)
+        pins[9] = new Pin(0, SIDE_E, usePinNames() ? "a" : "13");     // a段输出 (13)
         pins[9].output = true;
-        pins[10] = new Pin(1, SIDE_E, usePinNames() ? "b" : "10");    // b段输出 (10)
+        pins[10] = new Pin(1, SIDE_E, usePinNames() ? "b" : "12");    // b段输出 (12)
         pins[10].output = true;
         pins[11] = new Pin(2, SIDE_E, usePinNames() ? "c" : "11");    // c段输出 (11)
         pins[11].output = true;
-        pins[12] = new Pin(3, SIDE_E, usePinNames() ? "d" : "12");    // d段输出 (12)
+        pins[12] = new Pin(3, SIDE_E, usePinNames() ? "d" : "10");    // d段输出 (10)
         pins[12].output = true;
-        pins[13] = new Pin(4, SIDE_E, usePinNames() ? "e" : "13");    // e段输出 (13)
+        pins[13] = new Pin(4, SIDE_E, usePinNames() ? "e" : "9");     // e段输出 (9)
         pins[13].output = true;
-        pins[14] = new Pin(5, SIDE_E, usePinNames() ? "f" : "14");    // f段输出 (14)
+        pins[14] = new Pin(5, SIDE_E, usePinNames() ? "f" : "15");    // f段输出 (15)
         pins[14].output = true;
-        pins[15] = new Pin(6, SIDE_E, usePinNames() ? "g" : "15");    // g段输出 (15)
+        pins[15] = new Pin(6, SIDE_E, usePinNames() ? "g" : "14");    // g段输出 (14)
         pins[15].output = true;
         
         allocNodes();
@@ -153,9 +153,9 @@ class CD4511Elm extends ChipElm {
     @Override
     void execute() {
         // 获取控制信号
-        boolean le = pins[7].value;  // LE (引脚3) - 锁存使能
-        boolean bi = pins[1].value;  // BI (引脚4) - 消隐输入 (低电平有效)
-        boolean lt = pins[2].value;  // LT (引脚5) - 测试输入 (低电平有效)
+        boolean le = pins[7].value;  // LE (引脚5) - 锁存使能
+        boolean bi = pins[1].value;  // BL (引脚4) - 消隐输入 (低电平有效)
+        boolean lt = pins[2].value;  // LT (引脚3) - 测试输入 (低电平有效)
         
         // 消隐优先级最高 - BI为低时关闭所有显示
         if (!bi) {
@@ -185,10 +185,10 @@ class CD4511Elm extends ChipElm {
         // 当LE=0或LE上升沿(lastLE=0且le=1)时，读取并更新BCD输入
         if (!le || !lastLE) {
             // 读取BCD输入
-            int a = pins[3].value ? 1 : 0;  // A (引脚1)
-            int b = pins[4].value ? 1 : 0;  // B (引脚2)
-            int c = pins[5].value ? 1 : 0;  // C (引脚6)
-            int d = pins[6].value ? 1 : 0;  // D (引脚7)
+            int a = pins[3].value ? 1 : 0;  // A (引脚7)
+            int b = pins[4].value ? 1 : 0;  // B (引脚1)
+            int c = pins[5].value ? 1 : 0;  // C (引脚2)
+            int d = pins[6].value ? 1 : 0;  // D (引脚6)
             latchedValue = a + (b << 1) + (c << 2) + (d << 3);
         }
         lastLE = le;
@@ -257,7 +257,7 @@ class CD4511Elm extends ChipElm {
         arr[1] = "BCD输入: " + bcdInput + " (D=" + d + " C=" + c + " B=" + b + " A=" + a + ")";
         arr[2] = "锁存值: " + latchedValue;
         arr[3] = "LE=" + (pins[7].value ? "透过" : "锁存") +
-                 " BI=" + (pins[1].value ? "正常" : "消隐") +
+                 " BL=" + (pins[1].value ? "正常" : "消隐") +
                  " LT=" + (pins[2].value ? "正常" : "测试");
     }
     
