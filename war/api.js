@@ -9,7 +9,7 @@
 
 // 如果需要在不同环境中切换，可以取消注释下面的代码
 const isProduction = window.location.hostname !== 'localhost' && !window.location.hostname.includes('192.168');
-const API_BASE_URL = isProduction ? 'https://apisim.cycore.com.cn' : 'http://192.168.1.103:8088';
+const API_BASE_URL = isProduction ? 'https://api-eda.cycore.com.cn' : 'http://192.168.1.103:8088';
 
 // 获取有效的token，确保格式正确（优先会话，其次持久化）
 const getValidToken = () => {
