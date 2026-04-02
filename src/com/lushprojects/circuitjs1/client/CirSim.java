@@ -1372,6 +1372,7 @@ MouseOutHandler, MouseWheelHandler {
     logicChipMenuBar.addItem(getClassCheckItem(Locale.LS("Add 74HC86 Quad 2-Input XOR Gate"), "HC7486Elm"));
     	logicChipMenuBar.addItem(getClassCheckItem(Locale.LS("Add 74LS11 Triple 3-Input AND Gate"), "LS7411Elm"));
     	logicChipMenuBar.addItem(getClassCheckItem(Locale.LS("Add 74LS148 8-to-3 Priority Encoder"), "LS74148Elm"));
+    	logicChipMenuBar.addItem(getClassCheckItem(Locale.LS("Add 74HC193 4-Bit Up/Down Counter"), "HC74193Elm"));
     	mainMenuBar.addItem(SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml+Locale.LS("&nbsp;</div>Logic Gate Chips")), logicChipMenuBar);
     	
     	MenuBar chipMenuBar = new MenuBar(true);
@@ -6036,6 +6037,7 @@ MouseOutHandler, MouseWheelHandler {
     	case 4511: return new CD4511Elm(x1, y1, x2, y2, f, st);
 	case 7432: return new HC7432Elm(x1, y1, x2, y2, f, st);
 	case 7486: return new HC7486Elm(x1, y1, x2, y2, f, st);
+	case 74193: return new HC74193Elm(x1, y1, x2, y2, f, st);
         }
     	return null;
     }
@@ -6328,6 +6330,8 @@ MouseOutHandler, MouseWheelHandler {
 		return (CircuitElm) new HC7432Elm(x1, y1);
 	if (n=="HC7486Elm")
 		return (CircuitElm) new HC7486Elm(x1, y1);
+	if (n=="HC74193Elm")
+		return (CircuitElm) new HC74193Elm(x1, y1);
     	
     	// handle CustomCompositeElm:modelname
     	if (n.startsWith("CustomCompositeElm:")) {
