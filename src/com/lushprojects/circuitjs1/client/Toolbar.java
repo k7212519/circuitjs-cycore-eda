@@ -214,8 +214,8 @@ public class Toolbar extends HorizontalPanel {
         String modifiedSvgOpenTag = svgOpenTag.replaceAll("width=\"[^\"]*\"", "")
                                             .replaceAll("height=\"[^\"]*\"", "");
 
-        // Add the new attributes
-        String finalSvgOpenTag = modifiedSvgOpenTag + " viewBox='" + viewBox + "' preserveAspectRatio='xMidYMid meet'";
+        // Add explicit dimensions so popup-menu icons render consistently across browsers.
+        String finalSvgOpenTag = modifiedSvgOpenTag + " width=\"" + size + "px\" height=\"" + size + "px\" viewBox='" + viewBox + "' preserveAspectRatio='xMidYMid meet'";
 
         // Reconstruct the full SVG
         return finalSvgOpenTag + s.substring(tagEnd);
@@ -440,20 +440,35 @@ public class Toolbar extends HorizontalPanel {
         paletteStyle.setBorderWidth(1, Style.Unit.PX);
         paletteStyle.setBorderColor(isWhiteBg ? "rgb(95 147 236)" : "rgb(85 85 85)");
         paletteStyle.setBorderStyle(Style.BorderStyle.SOLID);
-        paletteStyle.setPadding(5, Style.Unit.PX);
-        paletteStyle.setProperty("minWidth", "40px");
+        // Safari 对 content-box + 固定宽度裁剪更敏感，确保容器可完整容纳 44x44 图标项
+        paletteStyle.setPadding(4, Style.Unit.PX);
+        paletteStyle.setProperty("boxSizing", "border-box");
+        paletteStyle.setWidth(54, Style.Unit.PX);
+        paletteStyle.setProperty("overflow", "visible");
 
         // 选项
         for (int i = 0; i < items.length; i++) {
             final String icon = items[i][0];
             final String className = items[i][1];
             Label variantButton = new Label();
+            variantButton.addStyleName("toolbar-dropdown-item");
             variantButton.setText("");
-            variantButton.getElement().setInnerHTML("<span style='display:inline-flex;align-items:center;width:100%'>" + makeSvg(icon, 24) + "</span>");
+            variantButton.getElement().setInnerHTML(
+                    "<span style='display:flex;align-items:center;justify-content:center;width:100%;height:100%'>"
+                            + setSvgInlineSize(makeSvg(icon, 28), 28)
+                            + "</span>");
             variantButton.setTitle(sim.getLabelTextForClass(className));
             Style variantStyle = variantButton.getElement().getStyle();
             variantStyle.setColor("#fff");
             variantStyle.setCursor(Style.Cursor.POINTER);
+            variantStyle.setDisplay(Style.Display.FLEX);
+            variantStyle.setProperty("alignItems", "center");
+            variantStyle.setProperty("justifyContent", "center");
+            variantStyle.setWidth(44, Style.Unit.PX);
+            variantStyle.setHeight(44, Style.Unit.PX);
+            variantStyle.setPadding(0, Style.Unit.PX);
+            variantStyle.setProperty("lineHeight", "0");
+            variantStyle.setProperty("boxSizing", "border-box");
             // hover effect for dropdown items
             variantButton.addMouseOverHandler(e -> {
                 variantButton.getElement().getStyle().setBackgroundColor("rgba(255,255,255,0.12)");

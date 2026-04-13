@@ -159,6 +159,23 @@ html, body {
     height: auto !important;
 }
 
+.palette-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.toolbar-dropdown-item {
+    border-radius: 10px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.toolbar-dropdown-item svg {
+    display: block;
+    flex: 0 0 auto;
+}
+
 /* 无需隐藏任何元素 */
 
 @media only screen and (max-width: 600px) {
