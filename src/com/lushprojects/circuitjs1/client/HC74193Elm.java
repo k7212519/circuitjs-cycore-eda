@@ -30,6 +30,7 @@ public class HC74193Elm extends ChipElm {
     // 两个时钟独立的上一帧状态（用于上升沿检测）
     boolean lastCpuClock = false;
     boolean lastCpdClock = false;
+    boolean edgeStateValid = false;
 
     boolean usePinNumbers() { return (flags & FLAG_NUMBERS) != 0; }
     boolean usePinNames()   { return (flags & FLAG_NUMBERS) == 0; }
@@ -135,8 +136,7 @@ public class HC74193Elm extends ChipElm {
             // 无电源：全部输出低
             for (int i = 10; i <= 15; i++)
                 writeOutput(i, false);
-            lastCpuClock = pins[0].value;
-            lastCpdClock = pins[1].value;
+            edgeStateValid = false;
             return;
         }
 
@@ -144,6 +144,14 @@ public class HC74193Elm extends ChipElm {
         boolean pl  = pins[3].value;  // /PL 低电平有效（pins读到实际电平，false=激活）
         boolean cpu = pins[0].value;  // CPU 时钟
         boolean cpd = pins[1].value;  // CPD 时钟
+        boolean suppressEdgeCounts = !edgeStateValid;
+
+        // 初始化、仿真复位或重新上电后，先对齐边沿状态，避免把稳定高电平误判成新的上升沿。
+        if (suppressEdgeCounts) {
+            lastCpuClock = cpu;
+            lastCpdClock = cpd;
+            edgeStateValid = true;
+        }
 
         // 从Q输出引脚重建当前计数值（支持save/load自动恢复）
         int count = (pins[10].value ? 1 : 0)
@@ -165,11 +173,11 @@ public class HC74193Elm extends ChipElm {
         // ── 优先级3：同步计数（均不激活时） ──
         else {
             // 加计数：CPU 上升沿（L→H），且CPD保持HIGH
-            if (cpu && !lastCpuClock && cpd) {
+            if (!suppressEdgeCounts && cpu && !lastCpuClock && cpd) {
                 count = (count + 1) & 0xF;  // +1，溢出回绕 15→0
             }
             // 减计数：CPD 上升沿（L→H），且CPU保持HIGH
-            if (cpd && !lastCpdClock && cpu) {
+            if (!suppressEdgeCounts && cpd && !lastCpdClock && cpu) {
                 count = (count - 1) & 0xF;  // -1，借位回绕 0→15
             }
         }
@@ -197,6 +205,7 @@ public class HC74193Elm extends ChipElm {
         super.reset();
         lastCpuClock = false;
         lastCpdClock = false;
+        edgeStateValid = false;
         // TCU/TCD 复位后为高电平（空闲状态）
         if (pins != null && pins[14] != null) {
             pins[14].value = true;
@@ -223,10 +232,12 @@ public class HC74193Elm extends ChipElm {
             arr[3] = "状态: 主复位 (MR=H)";
         else if (!pins[3].value)
             arr[3] = "状态: 并行加载 (/PL=L)";
-        else if (!pins[1].value)
-            arr[3] = "状态: 加计数 (CPD=H)";
-        else if (!pins[0].value)
-            arr[3] = "状态: 减计数 (CPU=H)";
+        else if (pins[1].value && !pins[0].value)
+            arr[3] = "状态: 等待加计数沿 (CPD=H, CPU=L)";
+        else if (pins[0].value && !pins[1].value)
+            arr[3] = "状态: 等待减计数沿 (CPU=H, CPD=L)";
+        else if (!pins[0].value && !pins[1].value)
+            arr[3] = "状态: 两个时钟同时为低";
         else
             arr[3] = "状态: 保持 (CPU=H, CPD=H)";
     }
