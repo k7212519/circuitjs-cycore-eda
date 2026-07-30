@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>激活 L1 产品权限 - CYCORE EDA</title>
+  <style>
+    * { box-sizing: border-box; font-family: Arial, "Microsoft YaHei", sans-serif; }
+    body {
+      min-height: 100vh; margin: 0; padding: 24px; display: grid; place-items: center;
+      background: url("img/background.svg") center / cover fixed no-repeat;
+    }
+    .card {
+      width: min(440px, 100%); padding: 48px; border-radius: 20px; background: #fff;
+      box-shadow: 0 20px 50px rgba(0,0,0,.25); text-align: center;
+    }
+    img { max-width: 260px; max-height: 64px; }
+    h1 { margin: 28px 0 12px; color: #3b226e; font-size: 24px; }
+    p { color: #666; line-height: 1.6; }
+    input, button {
+      width: 100%; margin-top: 16px; padding: 12px 15px; border-radius: 5px; font-size: 16px;
+    }
+    input { border: 1px solid #ddd; }
+    button { border: 1px solid #3b226e; cursor: pointer; font-weight: 600; }
+    .primary { color: #fff; background: #3b226e; }
+    .secondary { color: #3b226e; background: #fff; }
+    #message { min-height: 24px; margin-top: 14px; color: #dc3545; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <img src="img/cycore-horizen.png" alt="CYCORE EDA">
+    <h1>激活 L1 产品权限</h1>
+    <p>账号已登录，但尚未获得 CircuitJS 电路仿真产品权限。</p>
+    <form id="activate-form">
+      <input id="activation-code" required autocomplete="off" placeholder="请输入 L1 激活码">
+      <button id="activate-button" class="primary" type="submit">激活并进入</button>
+      <button id="switch-account" class="secondary" type="button">切换账号</button>
+      <div id="message" role="alert"></div>
+    </form>
+  </main>
+  <script src="api.js"></script>
+  <script>
+    const token = sessionStorage.getItem('eda_token') || localStorage.getItem('eda_token');
+    if (!token) {
+      window.location.href = 'login.html';
+    }
+
+    document.getElementById('activate-form').addEventListener('submit', function(event) {
+      event.preventDefault();
+      const code = document.getElementById('activation-code').value.trim();
+      const button = document.getElementById('activate-button');
+      const message = document.getElementById('message');
+      if (!code) return;
+      button.disabled = true;
+      button.textContent = '激活中...';
+      message.textContent = '';
+      API.activateProduct(code).then(function(response) {
+        if (response.code !== 200) throw new Error(response.message || '激活失败');
+        const user = JSON.parse(localStorage.getItem('eda_user') || '{}');
+        user.productCode = 'L1';
+        user.productAccess = response.data;
+        localStorage.setItem('eda_user', JSON.stringify(user));
+        window.location.href = 'circuitjs.html';
+      }).catch(function(error) {
+        message.textContent = error.message || '激活失败';
+        button.disabled = false;
+        button.textContent = '激活并进入';
+      });
+    });
+
+    document.getElementById('switch-account').addEventListener('click', function() {
+      Promise.resolve(API.logout()).catch(function() {}).finally(function() {
+        localStorage.removeItem('eda_token');
+        sessionStorage.removeItem('eda_token');
+        localStorage.removeItem('eda_user');
+        localStorage.removeItem('userId');
+        sessionStorage.removeItem('userId');
+        sessionStorage.removeItem('authenticated');
+        window.location.href = 'login.html';
+      });
+    });
+  </script>
+</body>
+</html>

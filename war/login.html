@@ -403,6 +403,16 @@
                             sessionStorage.setItem('authenticated', 'true');
                             sessionStorage.removeItem('offline_mode');
 
+                            if (!data.data.productAccess || data.data.productAccess.status !== 'ACTIVE') {
+                                localStorage.setItem('eda_user', JSON.stringify({
+                                    ...userData,
+                                    productCode: 'L1',
+                                    productAccess: data.data.productAccess
+                                }));
+                                window.location.href = 'activate.html';
+                                return;
+                            }
+
                             const pendingSaveCircuit = sessionStorage.getItem('pending_save_circuit');
                             const returnUrl = sessionStorage.getItem('return_url');
                             if (pendingSaveCircuit && returnUrl) {
@@ -534,6 +544,16 @@
                         sessionStorage.setItem('authenticated', 'true');
                         // 清理离线模式标志
                         sessionStorage.removeItem('offline_mode');
+
+                        if (!data.data.productAccess || data.data.productAccess.status !== 'ACTIVE') {
+                            localStorage.setItem('eda_user', JSON.stringify({
+                                ...userData,
+                                productCode: 'L1',
+                                productAccess: data.data.productAccess
+                            }));
+                            window.location.href = 'activate.html';
+                            return;
+                        }
                         
                         // 检查是否有来自保存功能的重定向
                         const pendingSaveCircuit = sessionStorage.getItem('pending_save_circuit');
@@ -588,4 +608,4 @@
         });
     </script>
 </body>
-</html> 
+</html>

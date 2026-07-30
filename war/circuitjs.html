@@ -6,6 +6,7 @@
   <link rel="manifest" href="/circuit/manifest.json">
   
     <!-- 登录验证脚本 -->
+    <script src="api.js"></script>
     <script>
       // 检查用户是否已登录；离线模式下跳过
       const isOfflineMode = sessionStorage.getItem('offline_mode') === 'true';
@@ -14,6 +15,19 @@
         sessionStorage.setItem('redirect_after_login', window.location.href);
         // 未登录，重定向到登录页
         window.location.href = 'login.html';
+      } else if (!isOfflineMode) {
+        API.validateToken().then(function(response) {
+          if (response.code !== 200) {
+            window.location.href = 'login.html';
+          } else if (!response.data.productAccess ||
+                     response.data.productAccess.status !== 'ACTIVE') {
+            window.location.href = 'activate.html';
+          }
+        }).catch(function(error) {
+          if (!error.errorCode) {
+            window.location.href = 'login.html';
+          }
+        });
       }
     </script>
   
@@ -732,32 +746,10 @@ showCustomNotification('正在保存项目...', 'info');
             
             // 检查是否为JWT认证错误
             if (error.message && (error.message.includes('JWT') || error.message.includes('认证失败'))) {
-              showCustomNotification('令牌已过期，正在尝试自动重新登录...', 'warning');
-              
-              // 尝试自动刷新令牌
-              API.refreshToken()
-                .then(refreshResponse => {
-                  if (refreshResponse.code === 200) {
-                    // 令牌已刷新，重新尝试保存
-                    showCustomNotification('认证已刷新，重新尝试保存', 'info');
-                    setTimeout(() => {
-                      saveCircuit(circuitSaveData);
-                    }, 1000);
-                  } else {
-                    // 刷新失败，需要手动登录
-                    showCustomNotification('自动登录失败，请重新登录', 'error');
-                    setTimeout(() => {
-                      showLoginRequiredDialog();
-                    }, 2000);
-                  }
-                })
-                .catch(refreshError => {
-                  console.error('刷新令牌失败:', refreshError);
-                  showCustomNotification('需要重新登录', 'error');
-                  setTimeout(() => {
-                    showLoginRequiredDialog();
-                  }, 2000);
-                });
+              showCustomNotification('登录已失效，请重新登录', 'warning');
+              setTimeout(() => {
+                showLoginRequiredDialog();
+              }, 1500);
             } else {
               showCustomNotification('保存失败: ' + error.message, 'error');
             }
@@ -2751,6 +2743,3 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     }
     </script>
-
-<!-- 引入API.js -->
-<script src="api.js"></script>

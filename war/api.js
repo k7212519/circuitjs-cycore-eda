@@ -21,6 +21,16 @@ const getValidToken = () => {
   return token;
 };
 
+const clearAuthentication = () => {
+  localStorage.removeItem('eda_token');
+  sessionStorage.removeItem('eda_token');
+  localStorage.removeItem('eda_user');
+  localStorage.removeItem('eda_user_info');
+  localStorage.removeItem('userId');
+  sessionStorage.removeItem('userId');
+  sessionStorage.removeItem('authenticated');
+};
+
 // 统一处理请求头
 const getHeaders = (needAuth = false) => {
     const headers = {
@@ -44,6 +54,9 @@ const getHeaders = (needAuth = false) => {
 // 统一处理请求
 const request = async (url, options = {}) => {
     try {
+        if (sessionStorage.getItem('offline_mode') === 'true' && needsAuth(url)) {
+            throw new Error('访客模式仅支持本地仿真，不能访问云端接口');
+        }
         // 添加跨域支持
         options.mode = 'cors';
         // 在跨域请求中，只有在确实需要发送凭据时才设置为'include'
@@ -60,6 +73,9 @@ const request = async (url, options = {}) => {
         
         // 处理HTTP 401 Unauthorized - JWT认证错误
         if (response.status === 401) {
+            if (needsAuth(url)) {
+                clearAuthentication();
+            }
             // 尝试获取详细错误信息
             let errorDetail;
             try {
@@ -82,6 +98,24 @@ const request = async (url, options = {}) => {
             }
         }
         
+        if (response.status === 403) {
+            let errorResponse = {};
+            try {
+                errorResponse = await response.json();
+            } catch (e) {
+                // 使用下面的默认错误信息
+            }
+            if (errorResponse.errorCode === 'PRODUCT_ACCESS_REQUIRED' ||
+                errorResponse.errorCode === 'PRODUCT_ACCESS_REVOKED') {
+                if (!window.location.pathname.endsWith('/activate.html')) {
+                    window.location.href = 'activate.html';
+                }
+            }
+            const accessError = new Error(errorResponse.message || '当前账号无 L1 产品访问权限');
+            accessError.errorCode = errorResponse.errorCode;
+            throw accessError;
+        }
+
         // 处理其他非2xx响应
         if (!response.ok) {
             let errorText;
@@ -129,7 +163,7 @@ const API = {
         return request('/eda/login', {
             method: 'POST',
             headers: getHeaders(),
-            body: JSON.stringify(loginData)
+            body: JSON.stringify({ ...loginData, productCode: 'L1' })
         })
         .then(response => {
             // 保存用户信息到本地存储
@@ -189,7 +223,7 @@ const API = {
         return request('/eda/register', {
             method: 'POST',
             headers: getHeaders(),
-            body: JSON.stringify(registerData)
+            body: JSON.stringify({ ...registerData, productCode: 'L1' })
         });
     },
     
@@ -199,9 +233,25 @@ const API = {
      * @returns {Promise} - 验证结果
      */
     validateActivationCode: (code) => {
-        return request(`/eda/register/validate-code/${code}`, {
+        return request('/eda/product-access/validate-code', {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({ productCode: 'L1', activationCode: code })
+        });
+    },
+
+    activateProduct: (activationCode) => {
+        return request('/eda/product-access/activate', {
+            method: 'POST',
+            headers: getHeaders(true),
+            body: JSON.stringify({ productCode: 'L1', activationCode })
+        });
+    },
+
+    getCurrentProductAccess: () => {
+        return request('/eda/product-access/current', {
             method: 'GET',
-            headers: getHeaders()
+            headers: getHeaders(true)
         });
     },
     
@@ -391,26 +441,7 @@ const API = {
                 
                 // 如果是401错误，尝试刷新token后重试
                 if (error.message && (error.message.includes('401') || error.message.includes('JWT'))) {
-                    console.log("尝试刷新token后重试请求");
-                    
-                    API.refreshToken()
-                        .then(refreshResult => {
-                            console.log("token刷新结果:", refreshResult);
-                            
-                            // 使用新token重试请求
-                            return request(url, {
-                                method: 'GET',
-                                headers: getHeaders(true)
-                            });
-                        })
-                        .then(retryResponse => {
-                            console.log("重试请求响应:", retryResponse);
-                            resolve(retryResponse);
-                        })
-                        .catch(retryError => {
-                            console.error("重试失败:", retryError);
-                            reject(new Error("认证失败，请重新登录"));
-                        });
+                    reject(new Error("认证失败，请重新登录"));
                 } else {
                     reject(error);
                 }
@@ -516,6 +547,10 @@ API.request = function(url, options = {}, timeout = 10000) {
                     url !== '/eda/register' && 
                     url !== '/eda/recover' && 
                     !url.startsWith('/captcha');
+
+  if (sessionStorage.getItem('offline_mode') === 'true' && needsAuth) {
+    return Promise.reject(new Error('访客模式仅支持本地仿真，不能访问云端接口'));
+  }
   
   // 如果需要认证，添加token到请求头
   if (needsAuth) {
@@ -541,50 +576,30 @@ API.request = function(url, options = {}, timeout = 10000) {
       if (!response.ok) {
         console.warn(`API请求失败: ${response.status} ${response.statusText}, URL=${url}`);
         
+        if (response.status === 403) {
+          return response.json().catch(() => ({})).then(errorData => {
+            if (errorData.errorCode === 'PRODUCT_ACCESS_REQUIRED' ||
+                errorData.errorCode === 'PRODUCT_ACCESS_REVOKED') {
+              if (!window.location.pathname.endsWith('/activate.html')) {
+                window.location.href = 'activate.html';
+              }
+            }
+            const accessError = new Error(errorData.message || '当前账号无 L1 产品访问权限');
+            accessError.errorCode = errorData.errorCode;
+            throw accessError;
+          });
+        }
+
         // 特殊处理401错误（认证失败）
         if (response.status === 401) {
           console.warn("认证失败，HTTP状态码：401");
+          clearAuthentication();
           
           // 尝试获取详细错误信息
           return response.json().then(errorData => {
             const errorDetail = errorData.msg || errorData.message || "认证失败";
             console.warn("认证错误详情:", errorDetail);
-            
-            // 如果是JWT错误，记录并抛出特定错误
-            if (errorDetail.includes("JWT") || errorDetail.includes("token")) {
-              localStorage.setItem('auth_error', errorDetail);
-              
-              // 自动尝试刷新令牌
-              if (needsAuth) {
-                console.log("检测到JWT错误，尝试自动刷新令牌");
-                // 返回刷新令牌并重试请求的承诺
-                return API.refreshToken().then(refreshResponse => {
-                  // 令牌已刷新，使用新令牌重试原始请求
-                  if (!options.headers) options.headers = {};
-                  const token = localStorage.getItem('eda_token');
-                  // 确保token格式一致，不含额外字符
-                  const cleanToken = token ? token.trim() : token;
-                  options.headers['Authorization'] = 'Bearer ' + cleanToken;
-                  console.log("使用新令牌重试请求:", url);
-                  return fetch(API_BASE_URL + url, options)
-                    .then(retryResponse => {
-                      if (!retryResponse.ok) {
-                        throw new Error("重试请求失败: " + retryResponse.status);
-                      }
-                      return retryResponse.json();
-                    });
-                }).catch(refreshError => {
-                  // 刷新令牌失败，抛出认证错误
-                  throw new Error("认证失败 (JWT): " + errorDetail);
-                });
-              } else {
-                // 非认证请求，直接抛出错误
-                throw new Error("认证失败 (JWT): " + errorDetail);
-              }
-            } else {
-              // 其他401错误
-              throw new Error("认证失败: " + errorDetail);
-            }
+            throw new Error("认证失败: " + errorDetail);
           }).catch(e => {
             if (e.message && e.message.includes("JSON")) {
               // JSON解析失败，可能是非JSON响应
