@@ -7,9 +7,17 @@
 // 使用明确的后端API服务器地址，而不是前端静态服务器
 // const API_BASE_URL = window.location.protocol + '//' + window.location.hostname + ':8088'; // 默认使用本地开发服务器
 
-// 如果需要在不同环境中切换，可以取消注释下面的代码
-const isProduction = window.location.hostname !== 'localhost' && !window.location.hostname.includes('192.168');
-const API_BASE_URL = isProduction ? 'https://api-eda.cycore.com.cn' : 'http://192.168.1.103:8088';
+// 面包板开发登录页通过 Vite 的 /circuit-engine 代理加载，API 也必须走同一个
+// /api 代理，确保登录与面包板校验使用完全相同的后端。127.0.0.1 也属于本地环境。
+const isLoopback = window.location.hostname === 'localhost'
+  || window.location.hostname === '127.0.0.1'
+  || window.location.hostname === '::1';
+const isBreadboardDevProxy = window.location.port === '5174'
+  && window.location.pathname.startsWith('/circuit-engine/');
+const isProduction = !isLoopback && !window.location.hostname.includes('192.168');
+const API_BASE_URL = isBreadboardDevProxy
+  ? '/api'
+  : (isProduction ? 'https://api-eda.cycore.com.cn' : 'http://192.168.1.103:8088');
 
 // 获取有效的token，确保格式正确（优先会话，其次持久化）
 const getValidToken = () => {

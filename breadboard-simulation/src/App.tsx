@@ -1,0 +1,165 @@
+import { useEffect, useState } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { AlertCircle, CheckCircle2, LoaderCircle } from 'lucide-react'
+import { BreadboardCanvas } from '@/components/BreadboardCanvas'
+import { Inspector } from '@/components/Inspector'
+import { Palette } from '@/components/Palette'
+import { ProjectDialog } from '@/components/ProjectDialog'
+import { Toolbar } from '@/components/Toolbar'
+import { parseDocument, serializeDocument } from '@/domain/document'
+import { projectApi } from '@/services/api'
+import { ensureAuthenticated, type AccessMode } from '@/services/auth'
+import { CircuitJsEngine } from '@/services/CircuitJsEngine'
+import { useWorkbenchStore } from '@/store/useWorkbenchStore'
+
+const DRAFT_KEY = 'cycore_breadboard_draft_v1'
+
+export default function App() {
+  const [authReady, setAuthReady] = useState(false)
+  const [accessMode, setAccessMode] = useState<AccessMode>('guest')
+  const [dialog, setDialog] = useState<'open' | 'saveAs' | null>(null)
+  const [toast, setToast] = useState<{ kind: 'ok' | 'error'; message: string } | null>(null)
+  const queryClient = useQueryClient()
+
+  const document = useWorkbenchStore((state) => state.document)
+  const projectId = useWorkbenchStore((state) => state.projectId)
+  const running = useWorkbenchStore((state) => state.running)
+  const newProject = useWorkbenchStore((state) => state.newProject)
+  const loadProject = useWorkbenchStore((state) => state.loadProject)
+  const setProjectIdentity = useWorkbenchStore((state) => state.setProjectIdentity)
+  const markSaved = useWorkbenchStore((state) => state.markSaved)
+  const setReadings = useWorkbenchStore((state) => state.setReadings)
+  const setSimulationStatus = useWorkbenchStore((state) => state.setSimulationStatus)
+  const deleteSelected = useWorkbenchStore((state) => state.deleteSelected)
+  const undo = useWorkbenchStore((state) => state.undo)
+  const redo = useWorkbenchStore((state) => state.redo)
+  const setActiveTool = useWorkbenchStore((state) => state.setActiveTool)
+
+  const saveMutation = useMutation({
+    mutationFn: async ({ saveAsName }: { saveAsName?: string }) => {
+      if (saveAsName || !projectId) {
+        const name = saveAsName || document.projectName
+        const response = await projectApi.create(name, { ...document, projectName: name })
+        setProjectIdentity(response.projectId, response.projectName)
+        return response
+      }
+      return projectApi.update(projectId, document.projectName, document)
+    },
+    onSuccess: () => {
+      markSaved()
+      localStorage.removeItem(DRAFT_KEY)
+      queryClient.invalidateQueries({ queryKey: ['breadboard-projects'] })
+      setToast({ kind: 'ok', message: '项目已安全保存到云端' })
+    },
+    onError: (cause) => setToast({ kind: 'error', message: cause instanceof Error ? cause.message : '保存失败' }),
+  })
+
+  useEffect(() => {
+    ensureAuthenticated().then((mode) => {
+      setAccessMode(mode)
+      setAuthReady(true)
+    }).catch((cause) => {
+      if (!String(cause).includes('REDIRECT')) {
+        setAccessMode('guest')
+        setAuthReady(true)
+      }
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!authReady) return
+    const draft = localStorage.getItem(DRAFT_KEY)
+    if (!draft) return
+    try {
+      const parsed = JSON.parse(draft) as { projectId: number | null; document: unknown }
+      loadProject(parsed.projectId ?? 0, parseDocument(parsed.document))
+      if (!parsed.projectId) useWorkbenchStore.setState({ projectId: null })
+      useWorkbenchStore.setState({ dirty: true })
+      queueMicrotask(() => setToast({ kind: 'ok', message: '已恢复上次未保存的本地草稿' }))
+    } catch {
+      localStorage.removeItem(DRAFT_KEY)
+    }
+  }, [authReady, loadProject])
+
+  useEffect(() => {
+    if (!authReady) return
+    const timer = window.setTimeout(() => {
+      const state = useWorkbenchStore.getState()
+      if (state.dirty) localStorage.setItem(DRAFT_KEY, JSON.stringify({ projectId: state.projectId, document: JSON.parse(serializeDocument(state.document)) }))
+    }, 350)
+    return () => window.clearTimeout(timer)
+  }, [authReady, document])
+
+  useEffect(() => {
+    if (!toast) return
+    const timer = window.setTimeout(() => setToast(null), 3200)
+    return () => window.clearTimeout(timer)
+  }, [toast])
+
+  useEffect(() => {
+    const handleKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement
+      if (target.matches('input, textarea')) return
+      if (event.key === 'Delete' || event.key === 'Backspace') deleteSelected()
+      if (event.key === 'Escape') setActiveTool('select')
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+        event.preventDefault()
+        if (event.shiftKey) redo()
+        else undo()
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault()
+        if (accessMode === 'guest') setToast({ kind: 'error', message: '访客模式不能保存云项目，本地恢复草稿会自动保留' })
+        else if (projectId) saveMutation.mutate({})
+        else setDialog('saveAs')
+      }
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [accessMode, deleteSelected, projectId, redo, saveMutation, setActiveTool, undo])
+
+  if (!authReady) {
+    return <div className="boot-screen"><span className="brand-mark large"><span>+</span><span>−</span></span><LoaderCircle className="spin" /><strong>正在准备面包板实验台…</strong></div>
+  }
+
+  const requestNew = () => {
+    if (!useWorkbenchStore.getState().dirty || window.confirm('新建项目会清空当前画布，未保存更改仍可从本地草稿恢复。继续吗？')) newProject()
+  }
+
+  return (
+    <div className="app-shell">
+      <Toolbar
+        onNew={requestNew}
+        onOpen={() => setDialog('open')}
+        onSave={() => projectId ? saveMutation.mutate({}) : setDialog('saveAs')}
+        onSaveAs={() => setDialog('saveAs')}
+        saving={saveMutation.isPending}
+        cloudEnabled={accessMode === 'authenticated'}
+      />
+      <div className="workspace-grid">
+        <Palette />
+        <BreadboardCanvas />
+        <Inspector />
+      </div>
+      <footer className="status-bar">
+        <span><i className="status-led" /> BOARD POWER <strong>5.000 V</strong></span>
+        <span>1460 HOLES / 256 NODES</span>
+        <span>SCHEMA V1</span>
+        <span className="status-right">CYCORE EDA · L1</span>
+      </footer>
+
+      <CircuitJsEngine document={document} running={running} onReadings={setReadings} onStatus={setSimulationStatus} />
+
+      {dialog ? (
+        <ProjectDialog
+          mode={dialog}
+          currentName={document.projectName}
+          onClose={() => setDialog(null)}
+          onOpen={loadProject}
+          onSaveAs={(name) => saveMutation.mutateAsync({ saveAsName: name }).then(() => undefined)}
+        />
+      ) : null}
+      {toast ? <div className={`toast toast-${toast.kind}`}>{toast.kind === 'ok' ? <CheckCircle2 size={17} /> : <AlertCircle size={17} />}{toast.message}</div> : null}
+    </div>
+  )
+}

@@ -368,6 +368,25 @@
             const loginBtn = document.getElementById('login-btn');
             const rememberMe = document.getElementById('remember');
             const offlineLink = document.getElementById('offline-link');
+
+            // 面包板等独立页面登录后可安全返回来源页面；仅允许当前源，避免开放重定向。
+            function redirectToRequestedPageOrCircuit() {
+                const requestedUrl = sessionStorage.getItem('redirect_after_login');
+                if (requestedUrl) {
+                    try {
+                        const target = new URL(requestedUrl, window.location.href);
+                        if (target.origin === window.location.origin) {
+                            sessionStorage.removeItem('redirect_after_login');
+                            window.location.href = target.href;
+                            return;
+                        }
+                    } catch (error) {
+                        console.warn('忽略无效的登录回跳地址', error);
+                    }
+                    sessionStorage.removeItem('redirect_after_login');
+                }
+                window.location.href = 'circuitjs.html';
+            }
             
             // 从localStorage获取保存的用户名（如果有）
             const savedUsername = localStorage.getItem('saved_username');
@@ -421,7 +440,7 @@
                                 sessionStorage.setItem('circuit_to_save', pendingSaveCircuit);
                                 window.location.href = returnUrl;
                             } else {
-                                window.location.href = 'circuitjs.html';
+                                redirectToRequestedPageOrCircuit();
                             }
                         } else {
                             // token无效，清理所有认证信息
@@ -569,7 +588,7 @@
                             window.location.href = returnUrl;
                         } else {
                             // 正常登录流程，跳转到首页
-                            window.location.href = 'circuitjs.html';
+                            redirectToRequestedPageOrCircuit();
                         }
                     } else {
                         // 登录失败

@@ -131,6 +131,7 @@ task cleanUp {
 task makeSite {
     group 'circuitjs1'
     description 'Copy circuitjs resources from ./war ./build/gwt/out to ./site'
+    dependsOn 'breadboardBuild'
     //dependsOn compileGwt
     //@SkipWhenEmpty
     doLast {
@@ -138,7 +139,11 @@ task makeSite {
         copy {
             println "\nCopying contents of ./war AND ./build/gwt/out into ./site ..."
             from 'war'
-            include('**/*.html')
+            include('**/*.html', 'api.js', 'css/menu.css')
+            from('war/breadboard') {
+                include('**/*')
+                into 'breadboard'
+            }
             from 'build/gwt/out'
             include('**/*')                 // to ensure recursion!
             exclude('gwt/', 'WEB-INF/')
@@ -149,6 +154,33 @@ task makeSite {
             println "Done\n"
         }
     }
+}
+
+// React/TypeScript breadboard simulator embedded in the CircuitJS product.
+task breadboardInstall(type: Exec) {
+    group 'breadboard'
+    description 'Install the breadboard frontend dependencies with pnpm.'
+    workingDir 'breadboard-simulation'
+    commandLine 'pnpm', 'install', '--frozen-lockfile'
+    inputs.files 'breadboard-simulation/package.json', 'breadboard-simulation/pnpm-lock.yaml'
+    outputs.dir 'breadboard-simulation/node_modules'
+}
+
+task breadboardBuild(type: Exec) {
+    group 'breadboard'
+    description 'Build the breadboard frontend into ./war/breadboard.'
+    dependsOn 'breadboardInstall'
+    workingDir 'breadboard-simulation'
+    commandLine 'pnpm', 'build'
+    inputs.dir 'breadboard-simulation/src'
+    inputs.files 'breadboard-simulation/index.html', 'breadboard-simulation/vite.config.ts'
+    outputs.dir 'war/breadboard'
+}
+
+task breadboardClean(type: Delete) {
+    group 'breadboard'
+    description 'Delete generated breadboard frontend artifacts.'
+    delete 'war/breadboard', 'breadboard-simulation/playwright-report', 'breadboard-simulation/test-results'
 }
 
 task compileGwtDev {

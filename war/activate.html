@@ -41,6 +41,24 @@
   </main>
   <script src="api.js"></script>
   <script>
+    function redirectToRequestedPageOrCircuit() {
+      const requestedUrl = sessionStorage.getItem('redirect_after_login');
+      if (requestedUrl) {
+        try {
+          const target = new URL(requestedUrl, window.location.href);
+          if (target.origin === window.location.origin) {
+            sessionStorage.removeItem('redirect_after_login');
+            window.location.href = target.href;
+            return;
+          }
+        } catch (error) {
+          console.warn('忽略无效的激活回跳地址', error);
+        }
+        sessionStorage.removeItem('redirect_after_login');
+      }
+      window.location.href = 'circuitjs.html';
+    }
+
     const token = sessionStorage.getItem('eda_token') || localStorage.getItem('eda_token');
     if (!token) {
       window.location.href = 'login.html';
@@ -61,7 +79,7 @@
         user.productCode = 'L1';
         user.productAccess = response.data;
         localStorage.setItem('eda_user', JSON.stringify(user));
-        window.location.href = 'circuitjs.html';
+        redirectToRequestedPageOrCircuit();
       }).catch(function(error) {
         message.textContent = error.message || '激活失败';
         button.disabled = false;

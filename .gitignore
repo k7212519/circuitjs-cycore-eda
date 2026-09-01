@@ -4,6 +4,7 @@ war/circuitjs1/
 war/circuitjs1/circuits/
 war/e-*.html
 war/WEB-INF/
+war/breadboard/
 
 
 .gradle/
@@ -13,6 +14,9 @@ build/
 site/
 electron/dist/
 electron/node_modules/
+breadboard-simulation/node_modules/
+breadboard-simulation/playwright-report/
+breadboard-simulation/test-results/
 
 # GWT command line tools
 codeserver.log

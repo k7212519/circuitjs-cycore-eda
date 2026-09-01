@@ -58,6 +58,11 @@
         <img src="img/svg/mode-light-filled.svg" alt="切换主题" class="btn-icon theme-icon" id="themeIcon">
       </button>
     </div>
+    <!-- 实物面包板仿真入口：使用独立页面，不在 CircuitJS 内弹窗 -->
+    <a id="breadboardBtn" class="dropbtn" href="/circuit/breadboard/" target="_blank" rel="noopener noreferrer" title="在新标签页打开实物面包板仿真">
+      <img src="img/svg/circuit.svg" alt="" class="btn-icon" aria-hidden="true">
+      <span>实物仿真</span>
+    </a>
     <!-- 项目按钮 -->
     <div class="dropdown">
       <button id="projectBtn" class="dropbtn">
@@ -134,6 +139,44 @@
       // 主题切换按钮逻辑
       const themeToggleBtn = document.getElementById('themeToggleBtn');
       const themeIcon = document.getElementById('themeIcon');
+      const breadboardBtn = document.getElementById('breadboardBtn');
+
+      // 面包板编辑器是独立产品页面。CircuitJS 本地调试服务运行在 8000，
+      // 此时跳到 Vite 的 5174；正式部署后保持 /circuit 下的同源路径。
+      const isCircuitJsDevelopment = window.location.port === '8000'
+        && !window.location.pathname.startsWith('/circuit/');
+      breadboardBtn.href = isCircuitJsDevelopment
+        ? window.location.protocol + '//' + window.location.hostname + ':5174/circuit/breadboard/'
+        : '/circuit/breadboard/';
+
+      // 本地调试时 8000 与 5174 不同源，通过一次受限的 postMessage 握手复用
+      // CircuitJS 已有 token。生产部署同源，不需要也不会进入此分支。
+      if (isCircuitJsDevelopment) {
+        breadboardBtn.addEventListener('click', function(event) {
+          event.preventDefault();
+          const targetOrigin = new URL(breadboardBtn.href).origin;
+          const breadboardWindow = window.open(breadboardBtn.href, '_blank');
+          if (!breadboardWindow) return;
+
+          const handleAuthRequest = function(messageEvent) {
+            if (messageEvent.origin !== targetOrigin
+                || messageEvent.source !== breadboardWindow
+                || !messageEvent.data
+                || messageEvent.data.type !== 'cycore-breadboard-auth-request') return;
+            const token = sessionStorage.getItem('eda_token') || localStorage.getItem('eda_token');
+            breadboardWindow.postMessage({
+              type: 'cycore-breadboard-auth-response',
+              token: token || null
+            }, targetOrigin);
+            window.removeEventListener('message', handleAuthRequest);
+          };
+
+          window.addEventListener('message', handleAuthRequest);
+          window.setTimeout(function() {
+            window.removeEventListener('message', handleAuthRequest);
+          }, 3000);
+        });
+      }
       
       // 检查当前主题状态（默认为浅色模式）
       let isDarkMode = localStorage.getItem('darkMode') === 'true';
