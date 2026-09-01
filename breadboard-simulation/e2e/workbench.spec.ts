@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test('renders the 5V breadboard laboratory and places a resistor', async ({ page }) => {
+test('renders the 5V breadboard laboratory and drag-places a resistor', async ({ page }) => {
   await page.goto('')
   await page.waitForLoadState('networkidle')
   await expect(page.getByText('元器件库')).toBeVisible()
@@ -16,8 +16,15 @@ test('renders the 5V breadboard laboratory and places a resistor', async ({ page
   expect(box).not.toBeNull()
   if (!box) return
 
-  // The first terminal bank is at this stable relative location after fit-to-view.
-  await page.mouse.click(box.x + box.width * 0.36, box.y + box.height * 0.34)
+  const transform = (await page.getByTestId('breadboard-canvas').getAttribute('data-board-transform'))!
+  const [offsetX, offsetY, scale] = transform.split(',').map(Number)
+  const toScreen = (x: number, y: number) => ({ x: box.x + offsetX! + x * scale!, y: box.y + offsetY! + y * scale! })
+  const start = toScreen(216, 103)
+  const end = toScreen(396, 103)
+  await page.mouse.move(start.x, start.y)
+  await page.mouse.down()
+  await page.mouse.move(end.x, end.y, { steps: 8 })
+  await page.mouse.up()
   await expect(page.getByLabel('属性与测量').getByText('1 kΩ')).toBeVisible()
   await expect(page.getByText('旋转 90°')).toBeVisible()
 })

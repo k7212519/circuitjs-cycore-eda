@@ -3,9 +3,9 @@ import { Circle, Group, Layer, Line, Rect, Stage, Text } from 'react-konva'
 import type Konva from 'konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import {
-  BOARD_HEIGHT, BOARD_WIDTH, HOLE_PITCH, HOLE_RADIUS, holeById, holes,
+  BOARD_HEIGHT, BOARD_WIDTH, HOLE_PITCH, HOLE_RADIUS, holeById, holes, isTwoPinComponent,
 } from '@/domain/board'
-import type { BreadboardComponent, ComponentKind, Point } from '@/domain/types'
+import type { BreadboardComponent, ComponentKind, Point, TwoPinComponentKind } from '@/domain/types'
 import { useWorkbenchStore } from '@/store/useWorkbenchStore'
 
 const terminalHoles = holes.filter((hole) => hole.region === 'terminal')
@@ -48,32 +48,62 @@ function componentName(kind: ComponentKind): string {
   return ({ resistor: 'R', capacitor: 'C', led: 'LED', diode: 'D', npn: 'NPN', pnp: 'PNP' })[kind]
 }
 
-function ResistorBody({ points, selected }: { points: Point[]; selected: boolean }) {
+const twoPinCoreWidth: Record<TwoPinComponentKind, number> = {
+  resistor: 46,
+  capacitor: 12,
+  led: 20,
+  diode: 34,
+}
+
+interface TwoPinFrame {
+  angle: number
+  length: number
+  mid: Point
+  leadEdge: number
+}
+
+function twoPinFrame(points: Point[], kind: TwoPinComponentKind): TwoPinFrame | null {
   const [a, b] = points
   if (!a || !b) return null
-  const angle = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI
   const length = Math.hypot(b.x - a.x, b.y - a.y)
+  return {
+    angle: Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI,
+    length,
+    mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
+    leadEdge: Math.min(length / 2, twoPinCoreWidth[kind] / 2),
+  }
+}
+
+function PinLeads({ length, leadEdge }: Pick<TwoPinFrame, 'length' | 'leadEdge'>) {
+  const half = length / 2
   return (
-    <Group x={a.x} y={a.y} rotation={angle}>
-      <Line points={[0, 0, length, 0]} stroke="#b8aba0" strokeWidth={2.5} />
-      <Rect x={length / 2 - 23} y={-8} width={46} height={16} cornerRadius={7} fill="#e1c49d" stroke={selected ? '#f5b83b' : '#8a6d4d'} strokeWidth={selected ? 2 : 1} shadowColor="#000" shadowBlur={5} shadowOpacity={0.3} shadowOffsetY={2} />
+    <>
+      <Line points={[-half, 0, -leadEdge, 0]} stroke="#a99f96" strokeWidth={2.5} lineCap="round" />
+      <Line points={[leadEdge, 0, half, 0]} stroke="#a99f96" strokeWidth={2.5} lineCap="round" />
+    </>
+  )
+}
+
+function ResistorBody({ points, selected }: { points: Point[]; selected: boolean }) {
+  const frame = twoPinFrame(points, 'resistor')
+  if (!frame) return null
+  return (
+    <Group x={frame.mid.x} y={frame.mid.y} rotation={frame.angle}>
+      <PinLeads length={frame.length} leadEdge={frame.leadEdge} />
+      <Rect x={-twoPinCoreWidth.resistor / 2} y={-8} width={twoPinCoreWidth.resistor} height={16} cornerRadius={7} fill="#e1c49d" stroke={selected ? '#f5b83b' : '#8a6d4d'} strokeWidth={selected ? 2 : 1} shadowColor="#000" shadowBlur={5} shadowOpacity={0.3} shadowOffsetY={2} />
       {[[-13, '#7e4e25'], [-5, '#111b18'], [4, '#d33d32'], [14, '#d2a72e']].map(([x, color]) => (
-        <Rect key={String(x)} x={Number(x) + length / 2} y={-7} width={3} height={14} fill={String(color)} />
+        <Rect key={String(x)} x={Number(x)} y={-7} width={3} height={14} fill={String(color)} />
       ))}
     </Group>
   )
 }
 
 function CapacitorBody({ points, selected }: { points: Point[]; selected: boolean }) {
-  const [a, b] = points
-  if (!a || !b) return null
-  const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
-  const angle = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI
-  const length = Math.hypot(b.x - a.x, b.y - a.y)
+  const frame = twoPinFrame(points, 'capacitor')
+  if (!frame) return null
   return (
-    <Group x={mid.x} y={mid.y} rotation={angle}>
-      <Line points={[-length / 2, 0, -5, 0]} stroke="#b8aba0" strokeWidth={2.5} />
-      <Line points={[5, 0, length / 2, 0]} stroke="#b8aba0" strokeWidth={2.5} />
+    <Group x={frame.mid.x} y={frame.mid.y} rotation={frame.angle}>
+      <PinLeads length={frame.length} leadEdge={frame.leadEdge} />
       <Line points={[-5, -11, -5, 11]} stroke={selected ? '#f5b83b' : '#d9e2dd'} strokeWidth={3.2} />
       <Line points={[5, -11, 5, 11]} stroke={selected ? '#f5b83b' : '#d9e2dd'} strokeWidth={3.2} />
     </Group>
@@ -81,15 +111,13 @@ function CapacitorBody({ points, selected }: { points: Point[]; selected: boolea
 }
 
 function DiodeBody({ points, selected, led, color, current }: { points: Point[]; selected: boolean; led: boolean; color?: string; current: number }) {
-  const [a, b] = points
-  if (!a || !b) return null
-  const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
-  const angle = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI
-  const length = Math.hypot(b.x - a.x, b.y - a.y)
+  const kind = led ? 'led' : 'diode'
+  const frame = twoPinFrame(points, kind)
+  if (!frame) return null
   const glow = led ? Math.min(18, Math.max(0, Math.abs(current) * 4500)) : 0
   return (
-    <Group x={mid.x} y={mid.y} rotation={angle}>
-      <Line points={[-length / 2, 0, length / 2, 0]} stroke="#b8aba0" strokeWidth={2.5} />
+    <Group x={frame.mid.x} y={frame.mid.y} rotation={frame.angle}>
+      <PinLeads length={frame.length} leadEdge={frame.leadEdge} />
       {led ? (
         <Circle radius={10} fill={color ?? '#ef3d32'} opacity={current > 0.0002 ? 1 : 0.45} stroke={selected ? '#f5b83b' : '#72251f'} strokeWidth={selected ? 2 : 1} shadowColor={color ?? '#ef3d32'} shadowBlur={glow} shadowOpacity={glow ? 0.95 : 0} />
       ) : (
@@ -99,6 +127,13 @@ function DiodeBody({ points, selected, led, color, current }: { points: Point[];
       <Rect x={led ? 7 : 8} y={led ? -8 : -6} width={3} height={led ? 16 : 12} fill="#d9dedb" />
     </Group>
   )
+}
+
+function TwoPinBody({ kind, points, selected }: { kind: TwoPinComponentKind; points: Point[]; selected: boolean }) {
+  if (kind === 'resistor') return <ResistorBody points={points} selected={selected} />
+  if (kind === 'capacitor') return <CapacitorBody points={points} selected={selected} />
+  if (kind === 'diode') return <DiodeBody points={points} selected={selected} led={false} current={0} />
+  return <DiodeBody points={points} selected={selected} led color="#ef3d32" current={0} />
 }
 
 function TransistorBody({ points, selected, kind }: { points: Point[]; selected: boolean; kind: 'npn' | 'pnp' }) {
@@ -174,21 +209,25 @@ export function BreadboardCanvas() {
   const [pointer, setPointer] = useState<Point | null>(null)
   const [panning, setPanning] = useState(false)
   const panRef = useRef<Point | null>(null)
+  const placementDragRef = useRef<{ tool: ComponentKind | 'wire'; screen: Point } | null>(null)
   const pinchRef = useRef<{ distance: number; center: Point } | null>(null)
 
   const document = useWorkbenchStore((state) => state.document)
   const activeTool = useWorkbenchStore((state) => state.activeTool)
   const wireStart = useWorkbenchStore((state) => state.wireStart)
+  const componentStart = useWorkbenchStore((state) => state.componentStart)
   const selectedId = useWorkbenchStore((state) => state.selectedId)
   const setViewport = useWorkbenchStore((state) => state.setViewport)
   const setActiveTool = useWorkbenchStore((state) => state.setActiveTool)
   const placeAt = useWorkbenchStore((state) => state.placeAt)
+  const componentAt = useWorkbenchStore((state) => state.componentAt)
   const wireAt = useWorkbenchStore((state) => state.wireAt)
   const select = useWorkbenchStore((state) => state.select)
   const moveWireEndTo = useWorkbenchStore((state) => state.moveWireEndTo)
 
   const viewport = document.viewport
-  const pendingStart = wireStart ? holeById.get(wireStart) : undefined
+  const pendingHoleId = activeTool === 'wire' ? wireStart : componentStart
+  const pendingStart = pendingHoleId ? holeById.get(pendingHoleId) : undefined
 
   useEffect(() => {
     const container = containerRef.current
@@ -231,10 +270,16 @@ export function BreadboardCanvas() {
       return
     }
     if (event.evt.button !== 0) return
+    const screen = stageRef.current?.getPointerPosition()
     const world = pointerWorld()
-    if (!world) return
-    if (activeTool === 'wire') wireAt(world)
-    else if (activeTool !== 'select') placeAt(activeTool, world)
+    if (!world || !screen) return
+    if (activeTool === 'wire') {
+      const beginsGesture = !wireStart
+      if (wireAt(world) && beginsGesture) placementDragRef.current = { tool: 'wire', screen }
+    } else if (activeTool !== 'select' && isTwoPinComponent(activeTool)) {
+      const beginsGesture = !componentStart
+      if (componentAt(activeTool, world) && beginsGesture) placementDragRef.current = { tool: activeTool, screen }
+    } else if (activeTool !== 'select') placeAt(activeTool, world)
     else select(null)
   }
 
@@ -251,7 +296,21 @@ export function BreadboardCanvas() {
     }
   }
 
-  const stopPanning = () => {
+  const finishPointerAction = () => {
+    const gesture = placementDragRef.current
+    placementDragRef.current = null
+    const screen = stageRef.current?.getPointerPosition()
+    if (gesture && screen && Math.hypot(screen.x - gesture.screen.x, screen.y - gesture.screen.y) >= 6) {
+      const world = toWorld(screen)
+      if (gesture.tool === 'wire') wireAt(world)
+      else componentAt(gesture.tool, world)
+    }
+    panRef.current = null
+    setPanning(false)
+  }
+
+  const cancelPointerAction = () => {
+    placementDragRef.current = null
     panRef.current = null
     setPanning(false)
   }
@@ -290,7 +349,9 @@ export function BreadboardCanvas() {
     const kind = event.dataTransfer.getData('application/x-breadboard-component') as ComponentKind
     if (!kind || !containerRef.current) return
     const rect = containerRef.current.getBoundingClientRect()
-    placeAt(kind, toWorld({ x: event.clientX - rect.left, y: event.clientY - rect.top }))
+    const point = toWorld({ x: event.clientX - rect.left, y: event.clientY - rect.top })
+    if (isTwoPinComponent(kind)) componentAt(kind, point)
+    else placeAt(kind, point)
   }
 
   const columnLabels = useMemo(() => Array.from({ length: 63 }, (_, index) => index).filter((index) => index === 0 || (index + 1) % 5 === 0), [])
@@ -314,8 +375,8 @@ export function BreadboardCanvas() {
           height={size.height}
           onPointerDown={handleCanvasAction}
           onPointerMove={handlePointerMove}
-          onPointerUp={stopPanning}
-          onPointerLeave={stopPanning}
+          onPointerUp={finishPointerAction}
+          onPointerLeave={cancelPointerAction}
           onWheel={handleWheel}
           onTouchMove={handleTouchMove}
           onTouchEnd={() => { pinchRef.current = null }}
@@ -453,7 +514,14 @@ export function BreadboardCanvas() {
             {document.components.map((component) => <ComponentShape key={component.id} component={component} />)}
 
             {pendingStart && pointer ? (
-              <Line points={[pendingStart.x, pendingStart.y, pointer.x, pointer.y]} stroke="#f5b83b" strokeWidth={2} dash={[7, 5]} lineCap="round" listening={false} />
+              activeTool !== 'wire' && activeTool !== 'select' && isTwoPinComponent(activeTool) ? (
+                <Group opacity={0.78} listening={false}>
+                  <TwoPinBody kind={activeTool} points={[pendingStart, pointer]} selected />
+                  <Circle x={pendingStart.x} y={pendingStart.y} radius={7} fill="#f5b83b" stroke="#171a18" strokeWidth={2} />
+                </Group>
+              ) : (
+                <Line points={[pendingStart.x, pendingStart.y, pointer.x, pointer.y]} stroke="#f5b83b" strokeWidth={2} dash={[7, 5]} lineCap="round" listening={false} />
+              )
             ) : null}
           </Group>
         </Layer>
@@ -461,7 +529,11 @@ export function BreadboardCanvas() {
       ) : null}
       {activeTool !== 'select' ? (
         <div className="active-tool-toast">
-          <strong>{activeTool === 'wire' ? (wireStart ? '选择导线终点' : '选择导线起点') : `放置 ${componentName(activeTool)}`}</strong>
+          <strong>{activeTool === 'wire'
+            ? (wireStart ? '拖到导线终点孔' : '选择导线起点孔')
+            : isTwoPinComponent(activeTool)
+              ? (componentStart ? `拖到 ${componentName(activeTool)} 终点孔` : `选择 ${componentName(activeTool)} 起点孔`)
+              : `放置 ${componentName(activeTool)}`}</strong>
           <span>ESC 退出工具</span>
           <button type="button" onClick={() => setActiveTool('select')}>退出</button>
         </div>

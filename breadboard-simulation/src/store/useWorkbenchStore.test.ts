@@ -7,7 +7,7 @@ describe('workbench history and placement', () => {
   beforeEach(() => {
     useWorkbenchStore.setState({
       document: createEmptyDocument(), projectId: null, dirty: false, selectedId: null,
-      activeTool: 'select', wireStart: null, past: [], future: [], issues: [], readings: {},
+      activeTool: 'select', wireStart: null, componentStart: null, past: [], future: [], issues: [], readings: {},
     })
   })
 
@@ -36,5 +36,33 @@ describe('workbench history and placement', () => {
     const moved = holeById.get('t-0-0-12')!
     expect(useWorkbenchStore.getState().moveWireEndTo(useWorkbenchStore.getState().document.wires[0]!.id, 'to', moved)).toBe(true)
     expect(useWorkbenchStore.getState().document.wires[0]?.to).toBe(moved.id)
+  })
+
+  it('places a two-pin component at the exact dragged endpoints', () => {
+    const start = holeById.get('t-1-0-4')!
+    const end = holeById.get('t-2-3-17')!
+
+    expect(useWorkbenchStore.getState().componentAt('resistor', start)).toBe(true)
+    expect(useWorkbenchStore.getState().componentStart).toBe(start.id)
+    expect(useWorkbenchStore.getState().document.components).toHaveLength(0)
+
+    expect(useWorkbenchStore.getState().componentAt('resistor', end)).toBe(true)
+    expect(useWorkbenchStore.getState().componentStart).toBeNull()
+    expect(useWorkbenchStore.getState().document.components[0]?.pins).toEqual([start.id, end.id])
+  })
+
+  it('keeps a custom two-pin span when moving the whole component', () => {
+    const start = holeById.get('t-0-0-5')!
+    const end = holeById.get('t-0-0-14')!
+    useWorkbenchStore.getState().componentAt('capacitor', start)
+    useWorkbenchStore.getState().componentAt('capacitor', end)
+    const component = useWorkbenchStore.getState().document.components[0]!
+
+    const movedStart = holeById.get('t-1-2-7')!
+    expect(useWorkbenchStore.getState().moveComponentTo(component.id, movedStart)).toBe(true)
+    expect(useWorkbenchStore.getState().document.components[0]?.pins).toEqual([
+      't-1-2-7',
+      't-1-2-16',
+    ])
   })
 })

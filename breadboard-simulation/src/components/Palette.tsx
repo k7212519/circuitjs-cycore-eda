@@ -30,7 +30,7 @@ export function Palette() {
       <div className="panel-heading">
         <span className="eyebrow">PARTS / 01</span>
         <h2>元器件库</h2>
-        <p>拖到面包板，或点选后在孔位放置。</p>
+        <p>两脚元件：按住起点孔，拖到终点孔完成放置。</p>
       </div>
 
       <div className="parts-list">
@@ -73,7 +73,7 @@ export function Palette() {
 
       <div className="palette-note">
         <span className="note-index">TIP</span>
-        <p>同列五孔内部连通；红轨固定 +5V，蓝轨固定 GND。</p>
+        <p>两脚元件也可依次点选两个孔；核心尺寸固定，引脚随跨距伸缩。</p>
       </div>
     </aside>
   )

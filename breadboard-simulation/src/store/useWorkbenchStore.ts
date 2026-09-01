@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { defaultPlacement, holeById, nearestHole } from '@/domain/board'
+import { defaultPlacement, holeById, isTwoPinComponent, nearestHole } from '@/domain/board'
 import { createEmptyDocument, parseDocument } from '@/domain/document'
 import { occupiedHoles, validateDocument } from '@/domain/validation'
 import type {
@@ -33,6 +33,7 @@ interface WorkbenchState {
   selectedId: string | null
   activeTool: ToolKind
   wireStart: string | null
+  componentStart: string | null
   wireColor: string
   past: BreadboardDocument[]
   future: BreadboardDocument[]
@@ -42,6 +43,7 @@ interface WorkbenchState {
   running: boolean
   setActiveTool: (tool: ToolKind) => void
   placeAt: (kind: ComponentKind, point: Point) => boolean
+  componentAt: (kind: ComponentKind, point: Point) => boolean
   wireAt: (point: Point) => boolean
   moveComponentTo: (componentId: string, point: Point) => boolean
   movePinTo: (componentId: string, pinIndex: number, point: Point) => boolean
@@ -85,6 +87,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
   selectedId: null,
   activeTool: 'select',
   wireStart: null,
+  componentStart: null,
   wireColor: '#e4523d',
   past: [],
   future: [],
@@ -93,7 +96,13 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
   simulationStatus: 'connecting',
   running: true,
 
-  setActiveTool: (activeTool) => set({ activeTool, wireStart: activeTool === 'wire' ? get().wireStart : null }),
+  setActiveTool: (activeTool) => set((state) => ({
+    activeTool,
+    wireStart: activeTool === 'wire' ? state.wireStart : null,
+    componentStart: activeTool === state.activeTool && activeTool !== 'select'
+      ? state.componentStart
+      : null,
+  })),
 
   placeAt: (kind, point) => {
     const state = get()
@@ -113,6 +122,40 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
       ...withDocument(state, (document) => document.components.push(component)),
       selectedId: component.id,
       activeTool: 'select',
+      wireStart: null,
+      componentStart: null,
+    })
+    return true
+  },
+
+  componentAt: (kind, point) => {
+    if (!isTwoPinComponent(kind)) return false
+    const state = get()
+    const occupied = occupiedHoles(state.document)
+    const hole = nearestHole(point, 20, occupied)
+    if (!hole) return false
+    if (!state.componentStart || state.activeTool !== kind) {
+      set({ activeTool: kind, componentStart: hole.id, wireStart: null })
+      return true
+    }
+    const fromHole = holeById.get(state.componentStart)
+    if (!fromHole || fromHole.nodeId === hole.nodeId) {
+      set({ componentStart: null })
+      return false
+    }
+    const component: BreadboardComponent = {
+      id: id(kind),
+      kind,
+      pins: [state.componentStart, hole.id],
+      rotation: 0,
+      ...defaults[kind],
+    }
+    set({
+      ...withDocument(state, (document) => document.components.push(component)),
+      componentStart: null,
+      wireStart: null,
+      selectedId: component.id,
+      activeTool: 'select',
     })
     return true
   },
@@ -123,7 +166,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
     const hole = nearestHole(point, 20, occupied)
     if (!hole) return false
     if (!state.wireStart) {
-      set({ wireStart: hole.id })
+      set({ activeTool: 'wire', wireStart: hole.id, componentStart: null })
       return true
     }
     const fromHole = holeById.get(state.wireStart)
@@ -147,8 +190,21 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
     const occupied = occupiedHoles(state.document, componentId)
     const anchor = nearestHole(point, 24, occupied)
     if (!anchor) return false
-    const pins = defaultPlacement(component.kind, anchor, occupied)
-    if (!pins) return false
+    const sourcePoints = component.pins
+      .map((pin) => holeById.get(pin))
+      .filter((hole): hole is NonNullable<typeof hole> => Boolean(hole))
+    if (sourcePoints.length !== component.pins.length || !sourcePoints[0]) return false
+    const offset = { x: anchor.x - sourcePoints[0].x, y: anchor.y - sourcePoints[0].y }
+    const reserved = new Set(occupied)
+    const pins: string[] = []
+    const nodes = new Set<string>()
+    for (const source of sourcePoints) {
+      const target = nearestHole({ x: source.x + offset.x, y: source.y + offset.y }, 24, reserved)
+      if (!target || nodes.has(target.nodeId)) return false
+      reserved.add(target.id)
+      nodes.add(target.nodeId)
+      pins.push(target.id)
+    }
     set(withDocument(state, (document) => {
       const target = document.components.find((item) => item.id === componentId)
       if (target) target.pins = pins
@@ -271,6 +327,8 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
       future: [clone(state.document), ...state.future].slice(0, 50),
       dirty: true,
       selectedId: null,
+      wireStart: null,
+      componentStart: null,
       issues: validateDocument(previous),
     })
   },
@@ -285,20 +343,22 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
       future: state.future.slice(1),
       dirty: true,
       selectedId: null,
+      wireStart: null,
+      componentStart: null,
       issues: validateDocument(next),
     })
   },
 
   newProject: () => set({
     document: createEmptyDocument(), projectId: null, dirty: false, selectedId: null,
-    past: [], future: [], issues: [], readings: {}, wireStart: null,
+    past: [], future: [], issues: [], readings: {}, wireStart: null, componentStart: null,
   }),
 
   loadProject: (projectId, value) => {
     const document = parseDocument(value)
     set({
       document, projectId, dirty: false, selectedId: null, past: [], future: [],
-      issues: validateDocument(document), readings: {}, wireStart: null,
+      issues: validateDocument(document), readings: {}, wireStart: null, componentStart: null,
     })
   },
 

@@ -144,6 +144,10 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--amber); out
 .canvas-shell canvas { cursor: default; }
 .canvas-shell.is-panning canvas { cursor: grabbing; }
 .canvas-shell.tool-wire canvas, .canvas-shell:not(.tool-select) canvas { cursor: crosshair; }
+.canvas-shell.tool-resistor canvas,
+.canvas-shell.tool-capacitor canvas,
+.canvas-shell.tool-led canvas,
+.canvas-shell.tool-diode canvas { cursor: crosshair; }
 .canvas-coordinate, .canvas-tag { position: absolute; z-index: 2; color: #7f8b83; font: 8px monospace; letter-spacing: .12em; pointer-events: none; }
 .canvas-coordinate { left: 14px; bottom: 12px; }
 .canvas-tag { right: 15px; top: 13px; padding: 6px 8px; border: 1px solid #465149; background: rgba(17,21,18,.7); }

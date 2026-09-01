@@ -1,4 +1,4 @@
-import type { ComponentKind, Hole, Point } from './types'
+import type { ComponentKind, Hole, Point, TwoPinComponentKind } from './types'
 
 export const BOARD_ID = 'dual-830-trimmed-v1' as const
 export const BOARD_WIDTH = 1188
@@ -77,6 +77,10 @@ export function nearestHole(point: Point, maxDistance = 16, excluded = new Set<s
 
 export function defaultPinCount(kind: ComponentKind): number {
   return kind === 'npn' || kind === 'pnp' ? 3 : 2
+}
+
+export function isTwoPinComponent(kind: ComponentKind): kind is TwoPinComponentKind {
+  return defaultPinCount(kind) === 2
 }
 
 export function defaultPlacement(kind: ComponentKind, anchor: Hole, occupied: Set<string>): string[] | null {
