@@ -46,6 +46,7 @@ const railRows = {
   bottomNegative: railRowY('bottom', 'negative'),
 }
 const componentLeadWidth = 4
+const uprightLeadShorten = 5
 const wireWidth = 5
 const selectedWireWidth = 6.5
 
@@ -59,16 +60,23 @@ function componentMountDepth(component: BreadboardComponent): number {
   return Math.max(...component.pins.map((pin) => holeById.get(pin)?.y ?? Number.NEGATIVE_INFINITY))
 }
 
+function componentMountX(component: BreadboardComponent): number {
+  const positions = component.pins.map((pin) => holeById.get(pin)?.x).filter((x): x is number => x !== undefined)
+  return positions.length ? positions.reduce((sum, x) => sum + x, 0) / positions.length : Number.POSITIVE_INFINITY
+}
+
 function orderComponentsForRendering(components: BreadboardComponent[]): BreadboardComponent[] {
   return components
     .map((component, index) => ({ component, index }))
     .sort((left, right) => {
+      const depth = componentMountDepth(left.component) - componentMountDepth(right.component)
+      if (depth !== 0) return depth
       const leftUpright = uprightComponentKinds.has(left.component.kind)
       const rightUpright = uprightComponentKinds.has(right.component.kind)
-      if (leftUpright !== rightUpright) return leftUpright ? 1 : -1
+      if (leftUpright !== rightUpright) return leftUpright ? -1 : 1
       if (leftUpright) {
-        const depth = componentMountDepth(left.component) - componentMountDepth(right.component)
-        if (depth !== 0) return depth
+        const horizontal = componentMountX(right.component) - componentMountX(left.component)
+        if (horizontal !== 0) return horizontal
       }
       return left.index - right.index
     })
@@ -184,10 +192,11 @@ function CapacitorBody({ points, selected, variant = 'ceramic' }: { points: Poin
       <UprightPinLeads
         length={frame.length}
         slots={variant === 'ceramic' ? [-12, 12] : [-9, 9]}
-        attachY={variant === 'ceramic' ? -15 : -16}
+        attachY={(variant === 'ceramic' ? -15 : -16) + uprightLeadShorten}
       />
-      {variant === 'electrolytic' ? (
-        <>
+      <Group y={uprightLeadShorten}>
+        {variant === 'electrolytic' ? (
+          <>
           <Rect
             x={-21} y={-66} width={42} height={50} cornerRadius={4}
             fillLinearGradientStartPoint={{ x: -21, y: 0 }}
@@ -206,9 +215,9 @@ function CapacitorBody({ points, selected, variant = 'ceramic' }: { points: Poin
           <Path data="M -15 -63 C -10 -68 10 -68 15 -63 C 9 -59 -9 -59 -15 -63 Z" fill="#91a4b1" opacity={0.52} />
           <Text x={-18} y={-50} width={27} align="center" text="10µF" fontSize={8.5} fontStyle="bold" fontFamily="monospace" fill="#e8eef0" opacity={0.9} />
           <Text x={-17} y={-35} width={15} align="center" text="+" fontSize={10} fontStyle="bold" fontFamily="monospace" fill="#f3f5f3" />
-        </>
-      ) : (
-        <>
+          </>
+        ) : (
+          <>
           <Circle
             x={0} y={-29} radius={18}
             fillRadialGradientStartPoint={{ x: -6, y: -7 }}
@@ -221,8 +230,9 @@ function CapacitorBody({ points, selected, variant = 'ceramic' }: { points: Poin
           />
           <Path data="M -11 -35 Q -6 -42 1 -44" stroke="#fff0af" strokeWidth={1.6} opacity={0.7} lineCap="round" />
           <Text x={-15} y={-33} width={30} align="center" text="104" fontSize={8} fontStyle="bold" fontFamily="monospace" fill="#513413" />
-        </>
-      )}
+          </>
+        )}
+      </Group>
     </Group>
   )
 }
@@ -246,21 +256,23 @@ function LedBody({ points, selected, color, current }: { points: Point[]; select
   const bodyColor = isLit ? lampColor : mutedLedColor(lampColor)
   return (
     <Group x={frame.mid.x} y={frame.mid.y} rotation={frame.angle}>
-      <UprightPinLeads length={frame.length} slots={[-HOLE_PITCH / 2, HOLE_PITCH / 2]} attachY={-16} />
-      <Rect x={-18} y={-21} width={36} height={6} cornerRadius={2} fill="#b8c0bc" stroke={selected ? '#f5b83b' : '#555f5a'} strokeWidth={selected ? 2 : 1} shadowColor="#000" shadowBlur={5} shadowOpacity={0.38} shadowOffsetY={3} />
-      <Path
-        data="M -15 -20 L -15 -42 C -15 -51 -8 -57 0 -57 C 8 -57 15 -51 15 -42 L 15 -20 Z"
-        fill={bodyColor} opacity={0.94}
-        stroke={selected ? '#f5b83b' : '#38413d'} strokeWidth={selected ? 2 : 1}
-        shadowColor={lampColor} shadowBlur={glow} shadowOpacity={isLit ? 0.95 : 0}
-      />
-      <Path data="M -10 -44 C -10 -50 -7 -54 -3 -55" stroke="#fff" strokeWidth={2.2} opacity={0.52} lineCap="round" />
-      <Line points={[-10, -18, 10, -18]} stroke="#edf2ef" strokeWidth={1} opacity={0.55} />
-      <Text
-        x={-HOLE_PITCH / 2 - 7} y={-35} width={14} align="center" text="+"
-        fontSize={14} fontStyle="bold" fontFamily="monospace"
-        fill="#c8cfca" opacity={0.68} listening={false}
-      />
+      <UprightPinLeads length={frame.length} slots={[-HOLE_PITCH / 2, HOLE_PITCH / 2]} attachY={-16 + uprightLeadShorten} />
+      <Group y={uprightLeadShorten}>
+        <Rect x={-18} y={-21} width={36} height={6} cornerRadius={2} fill="#b8c0bc" stroke={selected ? '#f5b83b' : '#555f5a'} strokeWidth={selected ? 2 : 1} shadowColor="#000" shadowBlur={5} shadowOpacity={0.38} shadowOffsetY={3} />
+        <Path
+          data="M -15 -20 L -15 -42 C -15 -51 -8 -57 0 -57 C 8 -57 15 -51 15 -42 L 15 -20 Z"
+          fill={bodyColor} opacity={0.94}
+          stroke={selected ? '#f5b83b' : '#38413d'} strokeWidth={selected ? 2 : 1}
+          shadowColor={lampColor} shadowBlur={glow} shadowOpacity={isLit ? 0.95 : 0}
+        />
+        <Path data="M -10 -44 C -10 -50 -7 -54 -3 -55" stroke="#fff" strokeWidth={2.2} opacity={0.52} lineCap="round" />
+        <Line points={[-10, -18, 10, -18]} stroke="#edf2ef" strokeWidth={1} opacity={0.55} />
+        <Text
+          x={-HOLE_PITCH / 2 - 7} y={-35} width={14} align="center" text="+"
+          fontSize={14} fontStyle="bold" fontFamily="monospace"
+          fill="#c8cfca" opacity={0.68} listening={false}
+        />
+      </Group>
     </Group>
   )
 }
@@ -409,7 +421,7 @@ function TransistorBody({ points, selected, kind }: { points: Point[]; selected:
       {localPoints.map((point, index) => (
         <Group key={index}>
           <Line
-            points={[point.x, point.y, leadSlots[index] ?? 0, -20]}
+            points={[point.x, point.y, leadSlots[index] ?? 0, -20 + uprightLeadShorten]}
             stroke="#525b56"
             strokeWidth={5}
             lineCap="round"
@@ -419,7 +431,7 @@ function TransistorBody({ points, selected, kind }: { points: Point[]; selected:
             shadowOffsetY={2}
           />
           <Line
-            points={[point.x, point.y, leadSlots[index] ?? 0, -20]}
+            points={[point.x, point.y, leadSlots[index] ?? 0, -20 + uprightLeadShorten]}
             stroke="#c2cac4"
             strokeWidth={2.4}
             lineCap="round"
@@ -427,24 +439,26 @@ function TransistorBody({ points, selected, kind }: { points: Point[]; selected:
         </Group>
       ))}
 
-      <Path
-        data="M -17 -45 L -17 -49 C -16 -56 -9 -60 0 -60 C 9 -60 16 -56 17 -49 L 17 -45 Z"
-        fill="#45514b"
-        stroke={edge}
-        strokeWidth={selected ? 2 : 1}
-        shadowColor="#000"
-        shadowBlur={7}
-        shadowOpacity={0.4}
-        shadowOffsetY={4}
-      />
-      <Path
-        data="M -17 -45 L 17 -45 L 17 -23 Q 17 -19 13 -19 L -13 -19 Q -17 -19 -17 -23 Z"
-        fill="#202723"
-        stroke={edge}
-        strokeWidth={selected ? 2 : 1}
-      />
-      <Line points={[-13, -22, 13, -22]} stroke="#101512" strokeWidth={1} opacity={0.7} />
-      <Text x={-14} y={-34} width={28} align="center" text={kind.toUpperCase()} fontSize={7} fontStyle="bold" fontFamily="monospace" fill="#d8e0dc" />
+      <Group y={uprightLeadShorten}>
+        <Path
+          data="M -17 -45 L -17 -49 C -16 -56 -9 -60 0 -60 C 9 -60 16 -56 17 -49 L 17 -45 Z"
+          fill="#45514b"
+          stroke={edge}
+          strokeWidth={selected ? 2 : 1}
+          shadowColor="#000"
+          shadowBlur={7}
+          shadowOpacity={0.4}
+          shadowOffsetY={4}
+        />
+        <Path
+          data="M -17 -45 L 17 -45 L 17 -23 Q 17 -19 13 -19 L -13 -19 Q -17 -19 -17 -23 Z"
+          fill="#202723"
+          stroke={edge}
+          strokeWidth={selected ? 2 : 1}
+        />
+        <Line points={[-13, -22, 13, -22]} stroke="#101512" strokeWidth={1} opacity={0.7} />
+        <Text x={-14} y={-34} width={28} align="center" text={kind.toUpperCase()} fontSize={7} fontStyle="bold" fontFamily="monospace" fill="#d8e0dc" />
+      </Group>
     </Group>
   )
 }
@@ -789,6 +803,9 @@ export function BreadboardCanvas() {
   }
 
   const columnLabels = useMemo(() => Array.from({ length: 63 }, (_, index) => index).filter((index) => index === 0 || (index + 1) % 5 === 0), [])
+  const columnLabelFontSize = 10
+  const columnLabelTopY = (terminalZoneMinYs[0] ?? 0) - 26
+  const columnLabelBottomY = BOARD_HEIGHT - columnLabelTopY - columnLabelFontSize
 
   return (
     <main
@@ -881,8 +898,12 @@ export function BreadboardCanvas() {
               </Group>
             ))}
 
-            {columnLabels.map((column) => (
-              <Text key={column} x={terminalMinX - 7 + column * HOLE_PITCH} y={(terminalZoneMinYs[0] ?? 0) - 18} width={16} align="center" text={String(column + 1)} fontFamily="monospace" fontSize={7} fill="#7e8881" />
+            {[columnLabelTopY, columnLabelBottomY].map((labelY, rowIndex) => (
+              <Group key={rowIndex === 0 ? 'column-labels-top' : 'column-labels-bottom'} listening={false}>
+                {columnLabels.map((column) => (
+                  <Text key={column} x={terminalMinX - 10 + column * HOLE_PITCH} y={labelY} width={20} align="center" text={String(column + 1)} fontFamily="monospace" fontSize={columnLabelFontSize} fill="#7e8881" />
+                ))}
+              </Group>
             ))}
             {['A', 'B', 'C', 'D'].map((zone, index) => (
               <Text key={zone} x={8} y={(terminalZoneMinYs[index] ?? 0) + 28} width={12} align="center" text={zone} fontFamily="monospace" fontStyle="bold" fontSize={12} fill="#657069" />
