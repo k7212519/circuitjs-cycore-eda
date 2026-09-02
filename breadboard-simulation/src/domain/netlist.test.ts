@@ -26,6 +26,27 @@ describe('connectivity validation and CircuitJS adapter', () => {
     expect(result.circuit).toMatch(/\nr \d+ \d+ \d+ \d+ 0 1000/)
   })
 
+  it('emits a normally-open switch that closes only while its button is pressed', () => {
+    const document = createEmptyDocument()
+    document.components.push({
+      id: 'button1', kind: 'button', pins: ['t-0-0-2', 't-0-0-7'], rotation: 0, value: 1,
+    })
+
+    expect(buildCircuitJsNetlist(document).circuit).toMatch(/\ns \d+ \d+ \d+ \d+ 0 1 false/)
+    expect(buildCircuitJsNetlist(document, { button1: true }).circuit).toMatch(/\ns \d+ \d+ \d+ \d+ 0 0 false/)
+    expect(buildCircuitJsNetlist(document).componentOrder).toEqual(['button1'])
+  })
+
+  it('maps a retaining switch to the same runtime-controlled CircuitJS contact', () => {
+    const document = createEmptyDocument()
+    document.components.push({
+      id: 'switch1', kind: 'switch', pins: ['t-1-0-2', 't-1-0-7'], rotation: 0, value: 1,
+    })
+
+    expect(buildCircuitJsNetlist(document).circuit).toMatch(/\ns \d+ \d+ \d+ \d+ 0 1 false/)
+    expect(buildCircuitJsNetlist(document, { switch1: true }).circuit).toMatch(/\ns \d+ \d+ \d+ \d+ 0 0 false/)
+  })
+
   it('detects a two-terminal component placed on one intrinsic node', () => {
     const document = createEmptyDocument()
     document.components.push({

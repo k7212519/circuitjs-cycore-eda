@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import {
-  BOARD_HEIGHT, BOARD_WIDTH, defaultPlacement, holeById, holes, intrinsicNodeCount, nearestHole,
+  BOARD_HEIGHT, BOARD_WIDTH, HOLE_RADIUS, HOLE_SLEEVE_RADIUS, defaultPlacement, holeById, holes, intrinsicNodeCount, nearestHole,
 } from './board'
 
 describe('dual 830 trimmed breadboard', () => {
   it('contains 1460 physical holes and 256 intrinsic nodes', () => {
     expect(holes).toHaveLength(1460)
     expect(intrinsicNodeCount).toBe(256)
+  })
+
+  it('uses the compact visual radii without changing the board pitch', () => {
+    expect(HOLE_RADIUS).toBe(3.8)
+    expect(HOLE_SLEEVE_RADIUS).toBe(6.4)
   })
 
   it('connects five terminal holes per column and fifty holes per rail', () => {
@@ -97,6 +102,7 @@ describe('dual 830 trimmed breadboard', () => {
     const anchor = holeById.get('t-1-2-20')!
     expect(nearestHole({ x: anchor.x + 3, y: anchor.y - 2 }, 10)?.id).toBe(anchor.id)
     expect(defaultPlacement('resistor', anchor, new Set())).toEqual(['t-1-2-20', 't-1-2-25'])
+    expect(defaultPlacement('button', anchor, new Set())).toEqual(['t-1-2-20', 't-1-2-22'])
     expect(defaultPlacement('npn', anchor, new Set())).toEqual(['t-1-2-20', 't-1-2-21', 't-1-2-22'])
   })
 })

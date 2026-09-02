@@ -12,6 +12,14 @@ describe('breadboard document schema', () => {
       id: 'c-1', kind: 'capacitor', pins: ['t-1-0-1', 't-1-0-4'], rotation: 0,
       value: 10e-6, label: '10 µF', variant: 'electrolytic',
     })
+    document.components.push({
+      id: 'button-1', kind: 'button', pins: ['t-2-0-1', 't-2-0-6'], rotation: 0,
+      value: 1, label: '瞬时按键',
+    })
+    document.components.push({
+      id: 'switch-1', kind: 'switch', pins: ['t-3-0-1', 't-3-0-6'], rotation: 0,
+      value: 1, label: '保持型开关',
+    })
     expect(parseDocument(JSON.parse(serializeDocument(document)))).toEqual(document)
   })
 

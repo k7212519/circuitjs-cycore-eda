@@ -3,7 +3,7 @@ import { ChevronDown } from 'lucide-react'
 import type { ComponentKind, ComponentPlacementOptions, ToolKind } from '@/domain/types'
 import { useWorkbenchStore } from '@/store/useWorkbenchStore'
 
-type GlyphKind = 'wire' | 'resistor' | 'capacitor' | 'ceramic' | 'electrolytic' | 'led' | 'diode' | 'transistor' | 'npn' | 'pnp'
+type GlyphKind = 'wire' | 'resistor' | 'capacitor' | 'ceramic' | 'electrolytic' | 'led' | 'diode' | 'switch' | 'transistor' | 'npn' | 'pnp'
 
 interface DirectItem {
   kind: 'wire' | 'resistor'
@@ -33,6 +33,13 @@ const directItems: DirectItem[] = [
 ]
 
 const menus: PartsMenu[] = [
+  {
+    id: 'switch', label: '开关', glyph: 'switch',
+    children: [
+      { id: 'toggle', tool: 'switch', label: '开关', glyph: 'switch', options: { value: 1, label: '保持型开关' } },
+      { id: 'button', tool: 'button', label: '按键', glyph: 'switch', options: { value: 1, label: '瞬时按键' } },
+    ],
+  },
   {
     id: 'capacitor', label: '电容', glyph: 'capacitor',
     children: [
@@ -81,6 +88,8 @@ function CircuitGlyph({ kind }: { kind: GlyphKind }) {
     shape = <><path d="M8 21v-4M16 21v-4M6 14h12v3H6Z" /><path d="M7 14V9a5 5 0 0 1 10 0v5Z" fill="currentColor" fillOpacity=".22" /><path d="M9.5 9c.2-1.8 1-2.8 2.5-3.2" opacity=".65" /></>
   } else if (kind === 'diode') {
     shape = <path d="M3 12h4M7 7l7 5-7 5ZM15 6v12M15 12h6" />
+  } else if (kind === 'switch') {
+    shape = <><path d="M2 15h4M18 15h4" /><circle cx="7" cy="15" r="1.8" /><circle cx="17" cy="15" r="1.8" /><path d="M8.5 13.8 16 7" /></>
   } else {
     shape = <path d="M5 12h5M10 5v14M10 9l7-4M10 15l7 4" />
   }

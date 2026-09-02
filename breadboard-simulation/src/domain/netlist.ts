@@ -16,6 +16,8 @@ function elementType(kind: ComponentKind): string {
     case 'capacitor': return 'CapacitorElm'
     case 'led': return 'LEDElm'
     case 'diode': return 'DiodeElm'
+    case 'switch': return 'SwitchElm'
+    case 'button': return 'SwitchElm'
     case 'npn':
     case 'pnp': return 'TransistorElm'
   }
@@ -25,7 +27,10 @@ export function circuitElementType(kind: ComponentKind): string {
   return elementType(kind)
 }
 
-export function buildCircuitJsNetlist(document: BreadboardDocument): NetlistBuildResult {
+export function buildCircuitJsNetlist(
+  document: BreadboardDocument,
+  closedContacts: Readonly<Record<string, boolean>> = {},
+): NetlistBuildResult {
   const issues = validateDocument(document)
   if (issues.some((issue) => issue.level === 'error')) {
     return { circuit: '', componentOrder: [], blocked: true }
@@ -92,6 +97,12 @@ export function buildCircuitJsNetlist(document: BreadboardDocument): NetlistBuil
           break
         case 'diode':
           lines.push(`d ${origin.x} ${origin.y} ${end.x} ${end.y} 3 default`)
+          break
+        case 'switch':
+        case 'button':
+          // CircuitJS switch position: 0 = closed, 1 = open. The workbench owns
+          // the momentary interaction, so the imported switch itself is not toggled.
+          lines.push(`s ${origin.x} ${origin.y} ${end.x} ${end.y} 0 ${closedContacts[component.id] ? 0 : 1} false`)
           break
       }
     }

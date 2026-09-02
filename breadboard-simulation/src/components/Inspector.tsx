@@ -4,7 +4,7 @@ import type { ComponentKind, ComponentPlacementOptions, ResistorBandCount, ToolK
 import { useWorkbenchStore } from '@/store/useWorkbenchStore'
 
 const names = {
-  resistor: '电阻', capacitor: '电容', led: '发光二极管', diode: '二极管', npn: 'NPN 三极管', pnp: 'PNP 三极管',
+  resistor: '电阻', capacitor: '电容', led: '发光二极管', diode: '二极管', switch: '开关', button: '按键', npn: 'NPN 三极管', pnp: 'PNP 三极管',
 }
 const toolNames: Record<Exclude<ToolKind, 'select'>, string> = { wire: '导线', ...names }
 const wireColors = ['#e4523d', '#232a28', '#e8b83f', '#277fbc', '#4a9b65']
@@ -40,6 +40,8 @@ function PlacementInspector({ tool }: { tool: Exclude<ToolKind, 'select'> }) {
       ? options?.label ?? 'LED'
       : tool === 'diode'
         ? `${options?.label ?? ''} 二极管`.trim()
+        : tool === 'switch' || tool === 'button'
+          ? options?.label ?? toolNames[tool]
         : tool === 'npn' || tool === 'pnp'
           ? `${tool.toUpperCase()} · ${options?.label ?? ''}`.trim()
           : toolNames[tool]
@@ -133,7 +135,7 @@ function PlacementInspector({ tool }: { tool: Exclude<ToolKind, 'select'> }) {
 
         <div className="placement-guide">
           <Settings2 size={16} />
-          <div><strong>参数已就绪</strong><span>{tool === 'wire' || tool === 'resistor' || tool === 'capacitor' || tool === 'led' || tool === 'diode' ? '从起点孔拖到终点孔完成放置' : '在目标孔位单击完成放置'}</span></div>
+          <div><strong>参数已就绪</strong><span>{tool === 'wire' || tool === 'resistor' || tool === 'capacitor' || tool === 'led' || tool === 'diode' || tool === 'switch' || tool === 'button' ? '从起点孔拖到终点孔完成放置' : '在目标孔位单击完成放置'}</span></div>
         </div>
       </div>
     </aside>
@@ -153,19 +155,43 @@ function formatEngineering(value: number, unit: string): string {
 
 export function Inspector() {
   const activeTool = useWorkbenchStore((state) => state.activeTool)
-  const selectedId = useWorkbenchStore((state) => state.selectedId)
+  const selectedIds = useWorkbenchStore((state) => state.selectedIds)
   const document = useWorkbenchStore((state) => state.document)
-  const reading = useWorkbenchStore((state) => selectedId ? state.readings[selectedId] : undefined)
+  const singleSelectedId = selectedIds.length === 1 ? selectedIds[0] : undefined
+  const reading = useWorkbenchStore((state) => singleSelectedId ? state.readings[singleSelectedId] : undefined)
   const issues = useWorkbenchStore((state) => state.issues)
   const updateSelected = useWorkbenchStore((state) => state.updateSelected)
   const deleteSelected = useWorkbenchStore((state) => state.deleteSelected)
   const rotateSelected = useWorkbenchStore((state) => state.rotateSelected)
+  const contactClosed = useWorkbenchStore((state) => singleSelectedId ? Boolean(state.closedContacts[singleSelectedId]) : false)
 
-  const component = document.components.find((item) => item.id === selectedId)
-  const wire = document.wires.find((item) => item.id === selectedId)
-  const selectedIssues = issues.filter((issue) => !issue.targetId || issue.targetId === selectedId)
+  const component = document.components.find((item) => item.id === singleSelectedId)
+  const wire = document.wires.find((item) => item.id === singleSelectedId)
+  const selectedIssues = issues.filter((issue) => !issue.targetId || issue.targetId === singleSelectedId)
 
   if (activeTool !== 'select') return <PlacementInspector tool={activeTool} />
+
+  if (selectedIds.length > 1) {
+    const selected = new Set(selectedIds)
+    const componentCount = document.components.filter((item) => selected.has(item.id)).length
+    const wireCount = document.wires.filter((item) => selected.has(item.id)).length
+    return (
+      <aside className="inspector panel" aria-label="属性与测量">
+        <div className="panel-heading">
+          <span className="eyebrow">MULTI / 03</span>
+          <h2>已选择 {selectedIds.length} 个对象</h2>
+          <p>拖动任一已选对象可整体移动。</p>
+        </div>
+        <div className="property-stack">
+          <div className="selected-summary">
+            <span className="component-badge badge-wire">{selectedIds.length}</span>
+            <div><strong>批量选择</strong><small>{componentCount} 个元器件 · {wireCount} 根导线</small></div>
+          </div>
+          <button type="button" className="danger full-button" onClick={deleteSelected}><Trash2 size={15} />删除所选对象</button>
+        </div>
+      </aside>
+    )
+  }
 
   return (
     <aside className="inspector panel" aria-label="属性与测量">
@@ -190,7 +216,7 @@ export function Inspector() {
             <div><strong>{component.kind === 'capacitor' ? component.variant === 'electrolytic' ? '电解电容' : '瓷片电容' : names[component.kind]}</strong><small>{component.label}</small></div>
           </div>
 
-          <label className="field-label">
+          {component.kind !== 'button' && component.kind !== 'switch' ? <label className="field-label">
             <span>{component.kind === 'capacitor' ? '容量 (F)' : component.kind === 'npn' || component.kind === 'pnp' ? '放大倍数 β' : '数值'}</span>
             <input
               type="number"
@@ -199,7 +225,17 @@ export function Inspector() {
               value={component.value}
               onChange={(event) => updateSelected({ value: Math.max(Number(event.target.value), 1e-12) })}
             />
-          </label>
+          </label> : (
+            <div className={`contact-state ${contactClosed ? 'is-closed' : ''}`}>
+              <span className="contact-state-light" />
+              <div>
+                <strong>{component.kind === 'switch'
+                  ? contactClosed ? '开关已接通' : '开关已断开'
+                  : contactClosed ? '按键已闭合' : '触点常开'}</strong>
+                <small>{component.kind === 'switch' ? '单击画布上的闸刀切换通断' : '按住圆形按钮闭合电路'}</small>
+              </div>
+            </div>
+          )}
 
           {component.kind === 'led' ? (
             <label className="field-label color-field">
@@ -223,8 +259,8 @@ export function Inspector() {
             <div className="meter-card wide"><span>POWER</span><strong>{formatEngineering(reading?.power ?? 0, 'W')}</strong></div>
           </div>
 
-          <div className="object-actions">
-            <button type="button" onClick={rotateSelected}><RotateCw size={15} />旋转 90°</button>
+          <div className={`object-actions ${component.kind === 'button' ? 'is-single' : ''}`}>
+            {component.kind !== 'button' ? <button type="button" onClick={rotateSelected}><RotateCw size={15} />旋转 90°</button> : null}
             <button type="button" className="danger" onClick={deleteSelected}><Trash2 size={15} />删除</button>
           </div>
         </div>

@@ -29,6 +29,7 @@ export default function App() {
   const document = useWorkbenchStore((state) => state.document)
   const projectId = useWorkbenchStore((state) => state.projectId)
   const running = useWorkbenchStore((state) => state.running)
+  const closedContacts = useWorkbenchStore((state) => state.closedContacts)
   const newProject = useWorkbenchStore((state) => state.newProject)
   const loadProject = useWorkbenchStore((state) => state.loadProject)
   const setProjectIdentity = useWorkbenchStore((state) => state.setProjectIdentity)
@@ -175,7 +176,7 @@ export default function App() {
         </button>
       </div>
 
-      <CircuitJsEngine document={document} running={running} onReadings={setReadings} onStatus={setSimulationStatus} />
+      <CircuitJsEngine document={document} closedContacts={closedContacts} running={running} onReadings={setReadings} onStatus={setSimulationStatus} />
 
       {dialog ? (
         <ProjectDialog

@@ -230,7 +230,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--amber); out
 .property-stack { display: grid; gap: 13px; }
 .selected-summary { display: flex; gap: 10px; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
 .component-badge { min-width: 50px; padding: 8px 5px; text-align: center; border-radius: 5px; color: #101411; background: var(--amber); font: 800 8px monospace; }
-.badge-led { background: #e95848; color: white; }.badge-capacitor { background: #6f9dcc; }.badge-npn,.badge-pnp { background: #8d9a92; }.badge-wire { background: #d6dcd8; }
+.badge-led { background: #e95848; color: white; }.badge-capacitor { background: #6f9dcc; }.badge-switch,.badge-button { background: #9da6a1; }.badge-npn,.badge-pnp { background: #8d9a92; }.badge-wire { background: #d6dcd8; }
 .selected-summary div strong, .selected-summary div small { display: block; }
 .selected-summary div strong { font-size: 12px; }
 .selected-summary div small { color: var(--muted); font: 8px monospace; margin-top: 4px; }
@@ -243,6 +243,13 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--amber); out
 .color-field { grid-template-columns: 1fr auto; align-items: center; }
 .color-field input { width: 40px; height: 28px; padding: 2px; border: 1px solid #465148; border-radius: 5px; background: #111512; }
 .pin-table { padding: 11px; background: #151a17; border: 1px solid #303831; border-radius: 7px; }
+.contact-state { display: flex; align-items: center; gap: 10px; padding: 10px 11px; border: 1px solid #3a403c; border-radius: 7px; background: #151a17; }
+.contact-state-light { width: 9px; height: 9px; flex: 0 0 auto; border-radius: 50%; background: #646e68; box-shadow: 0 0 0 3px rgba(100,110,104,.12); }
+.contact-state.is-closed { border-color: #496b52; background: #17251b; }
+.contact-state.is-closed .contact-state-light { background: #69d48b; box-shadow: 0 0 9px rgba(105,212,139,.68); }
+.contact-state div strong, .contact-state div small { display: block; }
+.contact-state div strong { font-size: 10px; }
+.contact-state div small { margin-top: 4px; color: var(--muted); font-size: 8px; line-height: 1.45; }
 .pin-row { display: flex; justify-content: space-between; margin-top: 9px; font: 9px monospace; }
 .pin-row span { color: var(--amber); }.pin-row strong { color: #bdc6c0; font-weight: 500; }
 .meter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
@@ -251,6 +258,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--amber); out
 .meter-card span { display: block; color: #637068; font: 7px monospace; letter-spacing: .12em; }
 .meter-card strong { display: block; margin-top: 6px; color: #80e49e; font: 650 13px "SFMono-Regular", monospace; }
 .object-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.object-actions.is-single { grid-template-columns: 1fr; }
 .object-actions button, .full-button { min-height: 33px; border: 1px solid #3b453e; border-radius: 6px; background: #242a26; font-size: 9px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
 button.danger { color: #ef7566; }.object-actions button.danger { border-color: #55342f; background: #2b1d1a; }
 .wire-preview { height: 23px; position: relative; }
@@ -394,6 +402,8 @@ button.danger { color: #ef7566; }.object-actions button.danger { border-color: #
 :root[data-theme="light"] .field-label select { color-scheme: light; }
 :root[data-theme="light"] .color-field input { background: #fffef9; border-color: #c7c8be; }
 :root[data-theme="light"] .pin-table { background: #ebeae2; border-color: #d0d0c7; }
+:root[data-theme="light"] .contact-state { background: #ebeae2; border-color: #d0d0c7; }
+:root[data-theme="light"] .contact-state.is-closed { background: #e5f3e7; border-color: #90bc98; }
 :root[data-theme="light"] .pin-row strong { color: #4d554f; }
 :root[data-theme="light"] .meter-card { background: #e4eee5; border-color: #c5d4c7; box-shadow: inset 0 0 15px rgba(31,126,62,.035); }
 :root[data-theme="light"] .meter-card span { color: #64756a; }

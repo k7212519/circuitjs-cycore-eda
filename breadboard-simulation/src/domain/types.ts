@@ -1,4 +1,4 @@
-export type ComponentKind = 'resistor' | 'capacitor' | 'led' | 'diode' | 'npn' | 'pnp'
+export type ComponentKind = 'resistor' | 'capacitor' | 'led' | 'diode' | 'switch' | 'button' | 'npn' | 'pnp'
 export type TwoPinComponentKind = Exclude<ComponentKind, 'npn' | 'pnp'>
 export type ToolKind = ComponentKind | 'wire' | 'select'
 export type ResistorBandCount = 4 | 5

@@ -28,18 +28,20 @@ declare global {
 
 interface Props {
   document: BreadboardDocument
+  closedContacts: Readonly<Record<string, boolean>>
   running: boolean
   onReadings: (readings: Record<string, SimulationReading>) => void
   onStatus: (status: SimulationStatus) => void
 }
 
-export function CircuitJsEngine({ document, running, onReadings, onStatus }: Props) {
+export function CircuitJsEngine({ document, closedContacts, running, onReadings, onStatus }: Props) {
   const frameRef = useRef<HTMLIFrameElement>(null)
   const [connected, setConnected] = useState(false)
   const simulatorRef = useRef<CircuitJsProxy | null>(null)
   const orderRef = useRef<string[]>([])
   const typeRef = useRef<string[]>([])
-  const netlist = useMemo(() => buildCircuitJsNetlist(document), [document])
+  const documentRef = useRef(document)
+  const netlist = useMemo(() => buildCircuitJsNetlist(document, closedContacts), [closedContacts, document])
   const disabled = import.meta.env.VITE_DISABLE_ENGINE === 'true'
   const src = import.meta.env.VITE_CIRCUITJS_URL
     || (import.meta.env.DEV
@@ -103,6 +105,8 @@ export function CircuitJsEngine({ document, running, onReadings, onStatus }: Pro
       onStatus('error')
       return
     }
+    const documentChanged = documentRef.current !== document
+    documentRef.current = document
     const timer = window.setTimeout(() => {
       orderRef.current = netlist.componentOrder
       typeRef.current = document.components.map((component) => circuitElementType(component.kind))
@@ -113,9 +117,9 @@ export function CircuitJsEngine({ document, running, onReadings, onStatus }: Pro
       } catch {
         onStatus('error')
       }
-    }, 140)
+    }, documentChanged ? 140 : 0)
     return () => window.clearTimeout(timer)
-  }, [connected, document.components, netlist, onStatus, running])
+  }, [connected, document, netlist, onStatus, running])
 
   if (disabled) return null
   return <iframe ref={frameRef} onLoad={connect} className="circuit-engine-frame" title="CircuitJS 求解引擎" src={src} />

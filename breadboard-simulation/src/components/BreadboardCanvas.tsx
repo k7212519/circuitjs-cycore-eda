@@ -3,7 +3,7 @@ import { Circle, Group, Layer, Line, Path, Rect, Stage, Text } from 'react-konva
 import type Konva from 'konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import {
-  BOARD_HEIGHT, BOARD_WIDTH, HOLE_PITCH, HOLE_RADIUS, holeById, holes, isTwoPinComponent,
+  BOARD_HEIGHT, BOARD_WIDTH, HOLE_PITCH, HOLE_RADIUS, HOLE_SLEEVE_RADIUS, holeById, holes, isTwoPinComponent,
 } from '@/domain/board'
 import type {
   BreadboardComponent, ComponentKind, ComponentPlacementOptions, ComponentVariant, DiodeVariant, Point, ResistorBandCount, TwoPinComponentKind,
@@ -50,7 +50,29 @@ const wireWidth = 5
 const selectedWireWidth = 6.5
 
 function componentName(kind: ComponentKind): string {
-  return ({ resistor: 'R', capacitor: 'C', led: 'LED', diode: 'D', npn: 'NPN', pnp: 'PNP' })[kind]
+  return ({ resistor: 'R', capacitor: 'C', led: 'LED', diode: 'D', switch: '开关', button: '按键', npn: 'NPN', pnp: 'PNP' })[kind]
+}
+
+const uprightComponentKinds = new Set<ComponentKind>(['capacitor', 'led', 'npn', 'pnp'])
+
+function componentMountDepth(component: BreadboardComponent): number {
+  return Math.max(...component.pins.map((pin) => holeById.get(pin)?.y ?? Number.NEGATIVE_INFINITY))
+}
+
+function orderComponentsForRendering(components: BreadboardComponent[]): BreadboardComponent[] {
+  return components
+    .map((component, index) => ({ component, index }))
+    .sort((left, right) => {
+      const leftUpright = uprightComponentKinds.has(left.component.kind)
+      const rightUpright = uprightComponentKinds.has(right.component.kind)
+      if (leftUpright !== rightUpright) return leftUpright ? 1 : -1
+      if (leftUpright) {
+        const depth = componentMountDepth(left.component) - componentMountDepth(right.component)
+        if (depth !== 0) return depth
+      }
+      return left.index - right.index
+    })
+    .map(({ component }) => component)
 }
 
 const twoPinCoreWidth: Record<TwoPinComponentKind, number> = {
@@ -58,6 +80,8 @@ const twoPinCoreWidth: Record<TwoPinComponentKind, number> = {
   capacitor: 12,
   led: 20,
   diode: 34,
+  switch: 36,
+  button: 32,
 }
 const resistorDigitColors = ['#111b18', '#7e4e25', '#d33d32', '#e17b2d', '#d2a72e', '#4a9b65', '#277fbc', '#71508e', '#8b918d', '#f1eee0']
 
@@ -203,20 +227,32 @@ function CapacitorBody({ points, selected, variant = 'ceramic' }: { points: Poin
   )
 }
 
+function mutedLedColor(color: string): string {
+  const source = color.replace('#', '')
+  const hex = source.length === 3 ? source.split('').map((digit) => digit.repeat(2)).join('') : source
+  if (!/^[0-9a-f]{6}$/i.test(hex)) return '#747b77'
+  const value = Number.parseInt(hex, 16)
+  const channels = [(value >> 16) & 255, (value >> 8) & 255, value & 255]
+  const gray = channels[0]! * 0.299 + channels[1]! * 0.587 + channels[2]! * 0.114
+  return `#${channels.map((channel) => Math.round(channel * 0.22 + gray * 0.78).toString(16).padStart(2, '0')).join('')}`
+}
+
 function LedBody({ points, selected, color, current }: { points: Point[]; selected: boolean; color?: string; current: number }) {
   const frame = twoPinFrame(points, 'led')
   if (!frame) return null
   const lampColor = color ?? '#ef3d32'
-  const glow = Math.min(20, Math.max(0, Math.abs(current) * 4500))
+  const isLit = current > 0.0002
+  const glow = isLit ? Math.min(24, Math.max(14, Math.abs(current) * 5000)) : 0
+  const bodyColor = isLit ? lampColor : mutedLedColor(lampColor)
   return (
     <Group x={frame.mid.x} y={frame.mid.y} rotation={frame.angle}>
       <UprightPinLeads length={frame.length} slots={[-HOLE_PITCH / 2, HOLE_PITCH / 2]} attachY={-16} />
       <Rect x={-18} y={-21} width={36} height={6} cornerRadius={2} fill="#b8c0bc" stroke={selected ? '#f5b83b' : '#555f5a'} strokeWidth={selected ? 2 : 1} shadowColor="#000" shadowBlur={5} shadowOpacity={0.38} shadowOffsetY={3} />
       <Path
         data="M -15 -20 L -15 -42 C -15 -51 -8 -57 0 -57 C 8 -57 15 -51 15 -42 L 15 -20 Z"
-        fill={lampColor} opacity={current > 0.0002 ? 0.94 : 0.7}
+        fill={bodyColor} opacity={0.94}
         stroke={selected ? '#f5b83b' : '#38413d'} strokeWidth={selected ? 2 : 1}
-        shadowColor={lampColor} shadowBlur={glow} shadowOpacity={glow ? 0.95 : 0.18}
+        shadowColor={lampColor} shadowBlur={glow} shadowOpacity={isLit ? 0.95 : 0}
       />
       <Path data="M -10 -44 C -10 -50 -7 -54 -3 -55" stroke="#fff" strokeWidth={2.2} opacity={0.52} lineCap="round" />
       <Line points={[-10, -18, 10, -18]} stroke="#edf2ef" strokeWidth={1} opacity={0.55} />
@@ -264,10 +300,87 @@ function DiodeBody({ points, selected, variant, label }: { points: Point[]; sele
   )
 }
 
+function PushButtonBody({
+  points,
+  selected,
+  pressed = false,
+  onKnobPress,
+  onKnobRelease,
+}: {
+  points: Point[]
+  selected: boolean
+  pressed?: boolean
+  onKnobPress?: () => void
+  onKnobRelease?: () => void
+}) {
+  const frame = twoPinFrame(points, 'button')
+  if (!frame) return null
+  const bodySize = 32
+  const edge = selected ? '#f5b83b' : '#353b3b'
+  return (
+    <Group x={frame.mid.x} y={frame.mid.y} rotation={frame.angle}>
+      <PinLeads length={frame.length} leadEdge={bodySize / 2} />
+      <Rect
+        x={-bodySize / 2} y={-bodySize / 2} width={bodySize} height={bodySize} cornerRadius={2.5}
+        fillLinearGradientStartPoint={{ x: -16, y: -16 }}
+        fillLinearGradientEndPoint={{ x: 16, y: 16 }}
+        fillLinearGradientColorStops={[0, '#fbfcfb', 0.2, '#e1e5e3', 0.52, '#aab1ad', 0.78, '#edf0ee', 1, '#969e9a']}
+        stroke={edge} strokeWidth={selected ? 2 : 1}
+        shadowColor="#000" shadowBlur={5} shadowOpacity={0.36} shadowOffsetY={2}
+      />
+      {[[-11, -11], [11, -11], [-11, 11], [11, 11]].map(([x, y]) => (
+        <Circle key={`${x}-${y}`} x={x} y={y} radius={1.5} fill="#4b5250" shadowColor="#fff" shadowBlur={1} shadowOpacity={0.28} />
+      ))}
+      <Circle
+        name="button-knob"
+        x={0} y={pressed ? 1 : 0} radius={8}
+        draggable={false}
+        fillRadialGradientStartPoint={{ x: -2.5, y: -3 }}
+        fillRadialGradientStartRadius={1}
+        fillRadialGradientEndPoint={{ x: 1.5, y: 1.5 }}
+        fillRadialGradientEndRadius={9}
+        fillRadialGradientColorStops={pressed
+          ? [0, '#444b4b', 0.42, '#353b3b', 1, '#1c2121']
+          : [0, '#596161', 0.34, '#444b4b', 0.78, '#353b3b', 1, '#202525']}
+        stroke={selected ? '#f5b83b' : '#171b1b'} strokeWidth={selected ? 1.7 : 1}
+        shadowColor="#000" shadowBlur={pressed ? 1 : 3} shadowOpacity={0.4} shadowOffsetY={pressed ? 0.5 : 1.5}
+        onPointerDown={onKnobPress ? (event) => { event.cancelBubble = true; onKnobPress() } : undefined}
+        onPointerUp={onKnobRelease ? (event) => {
+          if (!pressed) return
+          event.cancelBubble = true
+          onKnobRelease()
+        } : undefined}
+        onPointerCancel={onKnobRelease ? (event) => { event.cancelBubble = true; onKnobRelease() } : undefined}
+        onClick={onKnobPress ? (event) => { event.cancelBubble = true } : undefined}
+        onTap={onKnobPress ? (event) => { event.cancelBubble = true } : undefined}
+      />
+      {!pressed ? <Path data="M -3.8 -3.6 C -2 -5.5 1.2 -5.8 3.5 -4" stroke="#899090" strokeWidth={1.1} opacity={0.55} lineCap="round" listening={false} /> : null}
+    </Group>
+  )
+}
+
+function SwitchBody({ points, selected, closed = false }: { points: Point[]; selected: boolean; closed?: boolean }) {
+  const frame = twoPinFrame(points, 'switch')
+  if (!frame) return null
+  const contactColor = selected ? '#f5b83b' : '#6f7b75'
+  const bladePoints = closed ? [-15, 0, 15, 0] : [-15, 0, 12, -13]
+  return (
+    <Group x={frame.mid.x} y={frame.mid.y} rotation={frame.angle}>
+      <PinLeads length={frame.length} leadEdge={18} />
+      <Circle x={-15} y={0} radius={3.5} fill="#d9dedb" stroke={contactColor} strokeWidth={selected ? 2 : 1.3} shadowColor="#000" shadowBlur={3} shadowOpacity={0.3} />
+      <Circle x={15} y={0} radius={3.5} fill="#d9dedb" stroke={contactColor} strokeWidth={selected ? 2 : 1.3} shadowColor="#000" shadowBlur={3} shadowOpacity={0.3} />
+      <Line points={bladePoints} stroke="#67716c" strokeWidth={5} lineCap="round" shadowColor="#000" shadowBlur={3} shadowOpacity={0.3} shadowOffsetY={2} />
+      <Line points={bladePoints} stroke="#cbd1ce" strokeWidth={2.2} lineCap="round" />
+    </Group>
+  )
+}
+
 function TwoPinBody({ kind, points, selected, options }: { kind: TwoPinComponentKind; points: Point[]; selected: boolean; options: ComponentPlacementOptions }) {
   if (kind === 'resistor') return <ResistorBody points={points} selected={selected} value={options.value} bandCount={options.bandCount} />
   if (kind === 'capacitor') return <CapacitorBody points={points} selected={selected} variant={options.variant} />
   if (kind === 'diode') return <DiodeBody points={points} selected={selected} variant={options.variant} label={options.label} />
+  if (kind === 'switch') return <SwitchBody points={points} selected={selected} />
+  if (kind === 'button') return <PushButtonBody points={points} selected={selected} />
   return <LedBody points={points} selected={selected} color={options.color} current={0} />
 }
 
@@ -336,43 +449,101 @@ function TransistorBody({ points, selected, kind }: { points: Point[]; selected:
   )
 }
 
-function ComponentShape({ component }: { component: BreadboardComponent }) {
+interface SelectionDragPreview {
+  leaderId: string
+  delta: Point
+}
+
+function ComponentShape({
+  component,
+  selectionDrag,
+  onSelectionDrag,
+}: {
+  component: BreadboardComponent
+  selectionDrag: SelectionDragPreview | null
+  onSelectionDrag: (preview: SelectionDragPreview | null) => void
+}) {
   const [pinPreview, setPinPreview] = useState<{ index: number; point: Point } | null>(null)
-  const selectedId = useWorkbenchStore((state) => state.selectedId)
+  const selectedIds = useWorkbenchStore((state) => state.selectedIds)
   const select = useWorkbenchStore((state) => state.select)
-  const moveComponentTo = useWorkbenchStore((state) => state.moveComponentTo)
+  const moveSelectionTo = useWorkbenchStore((state) => state.moveSelectionTo)
   const movePinTo = useWorkbenchStore((state) => state.movePinTo)
+  const contactClosed = useWorkbenchStore((state) => Boolean(state.closedContacts[component.id]))
+  const setContactClosed = useWorkbenchStore((state) => state.setContactClosed)
+  const toggleSwitch = useWorkbenchStore((state) => state.toggleSwitch)
   const reading = useWorkbenchStore((state) => state.readings[component.id])
   const points = component.pins.map((pin) => holeById.get(pin)).filter((hole): hole is NonNullable<typeof hole> => Boolean(hole))
   const renderedPoints = pinPreview
     ? points.map((point, index) => index === pinPreview.index ? pinPreview.point : point)
     : points
-  const selected = selectedId === component.id
+  const selected = selectedIds.includes(component.id)
+  const showHandles = selected && selectedIds.length === 1
+  const previewOffset = selected && selectionDrag?.leaderId !== component.id ? selectionDrag?.delta : undefined
   const first = points[0]
+  const isButton = component.kind === 'button'
+  const isSwitch = component.kind === 'switch'
+
+  useEffect(() => {
+    if (!isButton || !contactClosed) return
+    const release = () => setContactClosed(component.id, false)
+    window.addEventListener('pointerup', release)
+    window.addEventListener('pointercancel', release)
+    window.addEventListener('blur', release)
+    return () => {
+      window.removeEventListener('pointerup', release)
+      window.removeEventListener('pointercancel', release)
+      window.removeEventListener('blur', release)
+    }
+  }, [component.id, contactClosed, isButton, setContactClosed])
+
   if (!first) return null
 
   const finishMove = (event: KonvaEventObject<DragEvent>) => {
     event.cancelBubble = true
     const delta = event.target.position()
-    moveComponentTo(component.id, { x: first.x + delta.x, y: first.y + delta.y })
+    moveSelectionTo(component.id, { x: first.x + delta.x, y: first.y + delta.y })
     event.target.position({ x: 0, y: 0 })
+    onSelectionDrag(null)
   }
 
   return (
     <Group
+      id={component.id}
+      name="selectable"
+      x={previewOffset?.x ?? 0}
+      y={previewOffset?.y ?? 0}
       draggable
-      onPointerDown={(event) => { event.cancelBubble = true; select(component.id) }}
-      onClick={(event) => { event.cancelBubble = true; select(component.id) }}
-      onTap={(event) => { event.cancelBubble = true; select(component.id) }}
+      onPointerDown={(event) => {
+        event.cancelBubble = true
+        select(component.id, event.evt.shiftKey)
+      }}
+      onClick={(event) => { event.cancelBubble = true; if (isSwitch) toggleSwitch(component.id) }}
+      onTap={(event) => { event.cancelBubble = true; if (isSwitch) toggleSwitch(component.id) }}
+      onDragStart={() => { if (isButton) setContactClosed(component.id, false) }}
+      onDragMove={(event) => {
+        event.cancelBubble = true
+        onSelectionDrag({ leaderId: component.id, delta: event.target.position() })
+      }}
       onDragEnd={finishMove}
-      name={`component-${component.id}`}
     >
-      {component.kind === 'resistor' ? <ResistorBody points={renderedPoints} selected={selected} value={component.value} bandCount={component.bandCount} /> : null}
-      {component.kind === 'capacitor' ? <CapacitorBody points={renderedPoints} selected={selected} variant={component.variant} /> : null}
-      {component.kind === 'diode' ? <DiodeBody points={renderedPoints} selected={selected} variant={component.variant} label={component.label} /> : null}
-      {component.kind === 'led' ? <LedBody points={renderedPoints} selected={selected} color={component.color} current={reading?.current ?? 0} /> : null}
-      {component.kind === 'npn' || component.kind === 'pnp' ? <TransistorBody points={renderedPoints} selected={selected} kind={component.kind} /> : null}
-      {selected ? renderedPoints.map((point, index) => (
+      <Group name="selection-bounds">
+        {component.kind === 'resistor' ? <ResistorBody points={renderedPoints} selected={selected} value={component.value} bandCount={component.bandCount} /> : null}
+        {component.kind === 'capacitor' ? <CapacitorBody points={renderedPoints} selected={selected} variant={component.variant} /> : null}
+        {component.kind === 'diode' ? <DiodeBody points={renderedPoints} selected={selected} variant={component.variant} label={component.label} /> : null}
+        {component.kind === 'led' ? <LedBody points={renderedPoints} selected={selected} color={component.color} current={reading?.current ?? 0} /> : null}
+        {component.kind === 'switch' ? <SwitchBody points={renderedPoints} selected={selected} closed={contactClosed} /> : null}
+        {component.kind === 'button' ? (
+          <PushButtonBody
+            points={renderedPoints}
+            selected={selected}
+            pressed={contactClosed}
+            onKnobPress={() => setContactClosed(component.id, true)}
+            onKnobRelease={() => setContactClosed(component.id, false)}
+          />
+        ) : null}
+        {component.kind === 'npn' || component.kind === 'pnp' ? <TransistorBody points={renderedPoints} selected={selected} kind={component.kind} /> : null}
+      </Group>
+      {showHandles ? renderedPoints.map((point, index) => (
         <Circle
           key={component.pins[index]}
           x={point.x}
@@ -408,32 +579,41 @@ function ComponentShape({ component }: { component: BreadboardComponent }) {
 export function BreadboardCanvas() {
   const containerRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<Konva.Stage>(null)
+  const boardGroupRef = useRef<Konva.Group>(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
   const [pointer, setPointer] = useState<Point | null>(null)
   const [panning, setPanning] = useState(false)
   const [wireEndPreview, setWireEndPreview] = useState<{ wireId: string; end: 'from' | 'to'; point: Point } | null>(null)
+  const [selectionDrag, setSelectionDrag] = useState<SelectionDragPreview | null>(null)
+  const [marquee, setMarquee] = useState<{ start: Point; end: Point } | null>(null)
   const panRef = useRef<Point | null>(null)
   const placementDragRef = useRef<{ tool: ComponentKind | 'wire'; screen: Point } | null>(null)
   const pinchRef = useRef<{ distance: number; center: Point } | null>(null)
+  const marqueeRef = useRef<{ start: Point; startScreen: Point; additive: boolean } | null>(null)
 
   const document = useWorkbenchStore((state) => state.document)
   const activeTool = useWorkbenchStore((state) => state.activeTool)
   const wireStart = useWorkbenchStore((state) => state.wireStart)
   const componentStart = useWorkbenchStore((state) => state.componentStart)
   const placementOptions = useWorkbenchStore((state) => state.placementOptions)
-  const selectedId = useWorkbenchStore((state) => state.selectedId)
+  const selectedIds = useWorkbenchStore((state) => state.selectedIds)
   const setViewport = useWorkbenchStore((state) => state.setViewport)
   const setActiveTool = useWorkbenchStore((state) => state.setActiveTool)
   const placeAt = useWorkbenchStore((state) => state.placeAt)
   const componentAt = useWorkbenchStore((state) => state.componentAt)
   const wireAt = useWorkbenchStore((state) => state.wireAt)
   const select = useWorkbenchStore((state) => state.select)
-  const moveWireTo = useWorkbenchStore((state) => state.moveWireTo)
+  const selectMany = useWorkbenchStore((state) => state.selectMany)
+  const moveSelectionTo = useWorkbenchStore((state) => state.moveSelectionTo)
   const moveWireEndTo = useWorkbenchStore((state) => state.moveWireEndTo)
 
   const viewport = document.viewport
   const pendingHoleId = activeTool === 'wire' ? wireStart : componentStart
   const pendingStart = pendingHoleId ? holeById.get(pendingHoleId) : undefined
+  const pendingEnd = pendingStart && pointer && activeTool === 'button'
+    ? { x: pendingStart.x + (pointer.x < pendingStart.x ? -2 : 2) * HOLE_PITCH, y: pendingStart.y }
+    : pointer
+  const renderedComponents = useMemo(() => orderComponentsForRendering(document.components), [document.components])
 
   useEffect(() => {
     const container = containerRef.current
@@ -444,6 +624,16 @@ export function BreadboardCanvas() {
     })
     observer.observe(container)
     return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    const cancelMarquee = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      marqueeRef.current = null
+      setMarquee(null)
+    }
+    window.addEventListener('keydown', cancelMarquee)
+    return () => window.removeEventListener('keydown', cancelMarquee)
   }, [])
 
   useEffect(() => {
@@ -486,23 +676,58 @@ export function BreadboardCanvas() {
       const beginsGesture = !componentStart
       if (componentAt(activeTool, world) && beginsGesture) placementDragRef.current = { tool: activeTool, screen }
     } else if (activeTool !== 'select') placeAt(activeTool, world)
-    else select(null)
+    else {
+      marqueeRef.current = { start: world, startScreen: screen, additive: event.evt.shiftKey }
+      setMarquee({ start: world, end: world })
+    }
   }
 
   const handlePointerMove = () => {
     const screen = stageRef.current?.getPointerPosition()
     if (!screen) return
-    setPointer(toWorld(screen))
+    const world = toWorld(screen)
+    setPointer(world)
     if (panRef.current) {
       const dx = screen.x - panRef.current.x
       const dy = screen.y - panRef.current.y
       panRef.current = screen
       const current = useWorkbenchStore.getState().document.viewport
       setViewport({ ...current, x: current.x + dx, y: current.y + dy })
+    } else if (marqueeRef.current) {
+      setMarquee({ start: marqueeRef.current.start, end: world })
     }
   }
 
   const finishPointerAction = () => {
+    const marqueeGesture = marqueeRef.current
+    marqueeRef.current = null
+    if (marqueeGesture) {
+      const screen = stageRef.current?.getPointerPosition()
+      const end = screen ? toWorld(screen) : marqueeGesture.start
+      const moved = screen ? Math.hypot(screen.x - marqueeGesture.startScreen.x, screen.y - marqueeGesture.startScreen.y) : 0
+      setMarquee(null)
+      if (moved < 5) {
+        if (!marqueeGesture.additive) select(null)
+      } else {
+        const left = Math.min(marqueeGesture.start.x, end.x)
+        const top = Math.min(marqueeGesture.start.y, end.y)
+        const right = Math.max(marqueeGesture.start.x, end.x)
+        const bottom = Math.max(marqueeGesture.start.y, end.y)
+        const boardGroup = boardGroupRef.current
+        const ids = boardGroup
+          ? boardGroup.find('.selectable').filter((node) => {
+            const selectable = node as Konva.Group
+            const boundsNode = selectable.findOne('.selection-bounds') ?? selectable
+            const bounds = boundsNode.getClientRect({ relativeTo: boardGroup, skipShadow: true })
+            return bounds.x >= left
+              && bounds.y >= top
+              && bounds.x + bounds.width <= right
+              && bounds.y + bounds.height <= bottom
+          }).map((node) => node.id())
+          : []
+        selectMany(ids, marqueeGesture.additive)
+      }
+    }
     const gesture = placementDragRef.current
     placementDragRef.current = null
     const screen = stageRef.current?.getPointerPosition()
@@ -517,6 +742,9 @@ export function BreadboardCanvas() {
 
   const cancelPointerAction = () => {
     placementDragRef.current = null
+    marqueeRef.current = null
+    setMarquee(null)
+    setSelectionDrag(null)
     panRef.current = null
     setPanning(false)
   }
@@ -571,6 +799,7 @@ export function BreadboardCanvas() {
       data-testid="breadboard-canvas"
       data-board-interaction="wheel-zoom,middle-pan"
       data-board-transform={`${viewport.x.toFixed(3)},${viewport.y.toFixed(3)},${viewport.scale.toFixed(5)}`}
+      data-selected-count={selectedIds.length}
     >
       <div className="canvas-coordinate">X {Math.round(pointer?.x ?? 0).toString().padStart(4, '0')} / Y {Math.round(pointer?.y ?? 0).toString().padStart(4, '0')}</div>
       {size.width > 0 && size.height > 0 ? (
@@ -587,7 +816,7 @@ export function BreadboardCanvas() {
           onTouchEnd={() => { pinchRef.current = null }}
         >
         <Layer>
-          <Group x={viewport.x} y={viewport.y} scaleX={viewport.scale} scaleY={viewport.scale}>
+          <Group ref={boardGroupRef} x={viewport.x} y={viewport.y} scaleX={viewport.scale} scaleY={viewport.scale}>
             <Rect x={boardInset} y={boardInset} width={BOARD_WIDTH - boardInset * 2} height={BOARD_HEIGHT - boardInset * 2} cornerRadius={12} fill={boardFill} stroke="#7f8981" strokeWidth={2} shadowColor="#000" shadowBlur={28} shadowOpacity={0.45} shadowOffsetY={12} />
 
             {[0, 1, 2, 3].map((zone) => {
@@ -661,13 +890,13 @@ export function BreadboardCanvas() {
 
             {railHoles.map((hole) => (
               <Group key={hole.id} x={hole.x} y={hole.y} listening={false}>
-                <Circle radius={7} fill="#aeb3ac" />
+                <Circle radius={HOLE_SLEEVE_RADIUS} fill="#aeb3ac" />
                 <Circle radius={HOLE_RADIUS} fill="#3d4641" shadowColor="#000" shadowBlur={2} shadowOpacity={0.34} />
               </Group>
             ))}
             {terminalHoles.map((hole) => (
               <Group key={hole.id} x={hole.x} y={hole.y} listening={false}>
-                <Circle radius={7} fill="#b4b9b2" />
+                <Circle radius={HOLE_SLEEVE_RADIUS} fill="#b4b9b2" />
                 <Circle radius={HOLE_RADIUS} fill="#3b433f" shadowColor="#000" shadowBlur={2} shadowOpacity={0.32} />
               </Group>
             ))}
@@ -679,38 +908,50 @@ export function BreadboardCanvas() {
               const preview = wireEndPreview?.wireId === wire.id ? wireEndPreview : null
               const renderedFrom = preview?.end === 'from' ? preview.point : from
               const renderedTo = preview?.end === 'to' ? preview.point : to
-              const selected = selectedId === wire.id
+              const selected = selectedIds.includes(wire.id)
+              const showHandles = selected && selectedIds.length === 1
+              const previewOffset = selected && selectionDrag?.leaderId !== wire.id ? selectionDrag?.delta : undefined
               const lift = Math.min(35, Math.abs(renderedTo.x - renderedFrom.x) * 0.08 + Math.abs(renderedTo.y - renderedFrom.y) * 0.04)
               const points = [renderedFrom.x, renderedFrom.y, (renderedFrom.x + renderedTo.x) / 2, (renderedFrom.y + renderedTo.y) / 2 - lift, renderedTo.x, renderedTo.y]
               const finishWireMove = (event: KonvaEventObject<DragEvent>) => {
                 event.cancelBubble = true
                 const delta = event.target.position()
-                moveWireTo(wire.id, { x: from.x + delta.x, y: from.y + delta.y })
+                moveSelectionTo(wire.id, { x: from.x + delta.x, y: from.y + delta.y })
                 event.target.position({ x: 0, y: 0 })
+                setSelectionDrag(null)
               }
               return (
                 <Group
                   key={wire.id}
+                  id={wire.id}
+                  name="selectable"
+                  x={previewOffset?.x ?? 0}
+                  y={previewOffset?.y ?? 0}
                   draggable
-                  onPointerDown={(event) => { event.cancelBubble = true; select(wire.id) }}
-                  onClick={(event) => { event.cancelBubble = true; select(wire.id) }}
-                  onTap={(event) => { event.cancelBubble = true; select(wire.id) }}
+                  onPointerDown={(event) => { event.cancelBubble = true; select(wire.id, event.evt.shiftKey) }}
+                  onClick={(event) => { event.cancelBubble = true }}
+                  onTap={(event) => { event.cancelBubble = true }}
+                  onDragMove={(event) => {
+                    event.cancelBubble = true
+                    setSelectionDrag({ leaderId: wire.id, delta: event.target.position() })
+                  }}
                   onDragEnd={finishWireMove}
-                  name={`wire-${wire.id}`}
                 >
-                  <Line points={points} tension={0.45} stroke="#070b09" strokeWidth={selected ? 10 : 8} opacity={0.36} lineCap="round" />
-                  <Line
-                    points={points}
-                    tension={0.45}
-                    stroke={wire.color}
-                    strokeWidth={selected ? selectedWireWidth : wireWidth}
-                    lineCap="round"
-                    shadowColor="#000"
-                    shadowBlur={4}
-                    shadowOpacity={0.35}
-                    hitStrokeWidth={16}
-                  />
-                  {selected ? ([['from', renderedFrom], ['to', renderedTo]] as const).map(([end, point]) => (
+                  <Group name="selection-bounds">
+                    <Line points={points} tension={0.45} stroke="#070b09" strokeWidth={selected ? 10 : 8} opacity={0.36} lineCap="round" />
+                    <Line
+                      points={points}
+                      tension={0.45}
+                      stroke={wire.color}
+                      strokeWidth={selected ? selectedWireWidth : wireWidth}
+                      lineCap="round"
+                      shadowColor="#000"
+                      shadowBlur={4}
+                      shadowOpacity={0.35}
+                      hitStrokeWidth={16}
+                    />
+                  </Group>
+                  {showHandles ? ([['from', renderedFrom], ['to', renderedTo]] as const).map(([end, point]) => (
                     <Circle
                       key={end}
                       x={point.x}
@@ -743,17 +984,38 @@ export function BreadboardCanvas() {
               )
             })}
 
-            {document.components.map((component) => <ComponentShape key={component.id} component={component} />)}
+            {renderedComponents.map((component) => (
+              <ComponentShape
+                key={component.id}
+                component={component}
+                selectionDrag={selectionDrag}
+                onSelectionDrag={setSelectionDrag}
+              />
+            ))}
 
-            {pendingStart && pointer ? (
+            {pendingStart && pendingEnd ? (
               activeTool !== 'wire' && activeTool !== 'select' && isTwoPinComponent(activeTool) ? (
                 <Group opacity={0.78} listening={false}>
-                  <TwoPinBody kind={activeTool} points={[pendingStart, pointer]} selected options={placementOptions[activeTool]} />
+                  <TwoPinBody kind={activeTool} points={[pendingStart, pendingEnd]} selected options={placementOptions[activeTool]} />
                   <Circle x={pendingStart.x} y={pendingStart.y} radius={7} fill="#f5b83b" stroke="#171a18" strokeWidth={2} />
                 </Group>
               ) : (
-                <Line points={[pendingStart.x, pendingStart.y, pointer.x, pointer.y]} stroke="#f5b83b" strokeWidth={3.5} dash={[7, 5]} lineCap="round" listening={false} />
+                <Line points={[pendingStart.x, pendingStart.y, pendingEnd.x, pendingEnd.y]} stroke="#f5b83b" strokeWidth={3.5} dash={[7, 5]} lineCap="round" listening={false} />
               )
+            ) : null}
+
+            {marquee ? (
+              <Rect
+                x={Math.min(marquee.start.x, marquee.end.x)}
+                y={Math.min(marquee.start.y, marquee.end.y)}
+                width={Math.abs(marquee.end.x - marquee.start.x)}
+                height={Math.abs(marquee.end.y - marquee.start.y)}
+                fill="rgba(245, 184, 59, 0.12)"
+                stroke="#f5b83b"
+                strokeWidth={1.5 / viewport.scale}
+                dash={[7 / viewport.scale, 4 / viewport.scale]}
+                listening={false}
+              />
             ) : null}
           </Group>
         </Layer>

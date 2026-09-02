@@ -4,7 +4,8 @@ export const BOARD_ID = 'dual-830-trimmed-v1' as const
 export const BOARD_WIDTH = 1188
 export const BOARD_HEIGHT = 662
 export const HOLE_PITCH = 18
-export const HOLE_RADIUS = 4.4
+export const HOLE_RADIUS = 3.8
+export const HOLE_SLEEVE_RADIUS = 6.4
 export const RAIL_GROUP_SIZE = 5
 export const RAIL_GROUP_GAP = HOLE_PITCH
 
@@ -88,7 +89,7 @@ export function defaultPlacement(kind: ComponentKind, anchor: Hole, occupied: Se
   const candidates: string[][] = []
 
   if (anchor.region === 'terminal' && anchor.zone !== undefined && anchor.row !== undefined) {
-    const spans = count === 3 ? [0, 1, 2] : [0, 5]
+    const spans = count === 3 ? [0, 1, 2] : kind === 'button' ? [0, 2] : [0, 5]
     for (const direction of [1, -1]) {
       const pins = spans.map((span) => `t-${anchor.zone}-${anchor.row}-${anchor.column + direction * span}`)
       candidates.push(pins)
@@ -99,7 +100,7 @@ export function defaultPlacement(kind: ComponentKind, anchor: Hole, occupied: Se
         candidates.push([anchor.id, `t-${targetZone}-${anchor.row}-${anchor.column}`])
       }
     }
-  } else if (anchor.region === 'rail') {
+  } else if (anchor.region === 'rail' && kind !== 'button') {
     const opposite = anchor.polarity === 'positive' ? 'negative' : 'positive'
     candidates.push([anchor.id, `rail-${anchor.side}-${opposite}-${anchor.column}`])
   }
@@ -113,6 +114,15 @@ export function defaultPlacement(kind: ComponentKind, anchor: Hole, occupied: Se
     return pins
   }
   return null
+}
+
+export function isValidButtonPinPair(first: Hole, second: Hole): boolean {
+  return first.region === 'terminal'
+    && second.region === 'terminal'
+    && first.zone === second.zone
+    && first.row === second.row
+    && Math.abs(first.column - second.column) === 2
+    && first.nodeId !== second.nodeId
 }
 
 export function boardPointLabel(holeId: string): string {
