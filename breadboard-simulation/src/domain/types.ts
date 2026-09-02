@@ -1,6 +1,8 @@
 export type ComponentKind = 'resistor' | 'capacitor' | 'led' | 'diode' | 'npn' | 'pnp'
 export type TwoPinComponentKind = Exclude<ComponentKind, 'npn' | 'pnp'>
 export type ToolKind = ComponentKind | 'wire' | 'select'
+export type ResistorBandCount = 4 | 5
+export type ComponentVariant = 'ceramic' | 'electrolytic'
 
 export interface Point {
   x: number
@@ -26,7 +28,11 @@ export interface BreadboardComponent {
   value: number
   color?: string
   label?: string
+  bandCount?: ResistorBandCount
+  variant?: ComponentVariant
 }
+
+export type ComponentPlacementOptions = Pick<BreadboardComponent, 'value' | 'color' | 'label' | 'bandCount' | 'variant'>
 
 export interface BreadboardWire {
   id: string

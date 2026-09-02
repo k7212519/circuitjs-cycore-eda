@@ -13,8 +13,11 @@ import { CircuitJsEngine } from '@/services/CircuitJsEngine'
 import { useWorkbenchStore } from '@/store/useWorkbenchStore'
 
 const DRAFT_KEY = 'cycore_breadboard_draft_v1'
+const THEME_KEY = 'darkMode'
+type Theme = 'dark' | 'light'
 
 export default function App() {
+  const [theme, setTheme] = useState<Theme>(() => localStorage.getItem(THEME_KEY) === 'false' ? 'light' : 'dark')
   const [authReady, setAuthReady] = useState(false)
   const [accessMode, setAccessMode] = useState<AccessMode>('guest')
   const [dialog, setDialog] = useState<'open' | 'saveAs' | null>(null)
@@ -34,6 +37,14 @@ export default function App() {
   const undo = useWorkbenchStore((state) => state.undo)
   const redo = useWorkbenchStore((state) => state.redo)
   const setActiveTool = useWorkbenchStore((state) => state.setActiveTool)
+
+  useEffect(() => {
+    const isDark = theme === 'dark'
+    globalThis.document.documentElement.dataset.theme = theme
+    globalThis.document.body.classList.toggle('dark-mode', isDark)
+    globalThis.document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.setAttribute('content', isDark ? '#171a18' : '#f4f3ea')
+    localStorage.setItem(THEME_KEY, String(isDark))
+  }, [theme])
 
   const saveMutation = useMutation({
     mutationFn: async ({ saveAsName }: { saveAsName?: string }) => {
@@ -135,18 +146,14 @@ export default function App() {
         onSaveAs={() => setDialog('saveAs')}
         saving={saveMutation.isPending}
         cloudEnabled={accessMode === 'authenticated'}
+        theme={theme}
+        onToggleTheme={() => setTheme((current) => current === 'dark' ? 'light' : 'dark')}
       />
       <div className="workspace-grid">
         <Palette />
         <BreadboardCanvas />
         <Inspector />
       </div>
-      <footer className="status-bar">
-        <span><i className="status-led" /> BOARD POWER <strong>5.000 V</strong></span>
-        <span>1460 HOLES / 256 NODES</span>
-        <span>SCHEMA V1</span>
-        <span className="status-right">CYCORE EDA · L1</span>
-      </footer>
 
       <CircuitJsEngine document={document} running={running} onReadings={setReadings} onStatus={setSimulationStatus} />
 

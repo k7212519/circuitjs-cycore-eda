@@ -1,7 +1,8 @@
 import {
-  ChevronDown, Cloud, FilePlus2, FolderOpen, Pause, Play, Redo2,
-  RotateCcw, Save, Undo2,
+  ChevronDown, Cloud, FilePlus2, FolderOpen, Moon, Pause, Play, Redo2,
+  RotateCcw, Save, Sun, Undo2,
 } from 'lucide-react'
+import logoUrl from '../../imgs/logo.svg'
 import { useWorkbenchStore } from '@/store/useWorkbenchStore'
 
 interface Props {
@@ -11,9 +12,11 @@ interface Props {
   onSaveAs: () => void
   saving: boolean
   cloudEnabled: boolean
+  theme: 'dark' | 'light'
+  onToggleTheme: () => void
 }
 
-export function Toolbar({ onNew, onOpen, onSave, onSaveAs, saving, cloudEnabled }: Props) {
+export function Toolbar({ onNew, onOpen, onSave, onSaveAs, saving, cloudEnabled, theme, onToggleTheme }: Props) {
   const document = useWorkbenchStore((state) => state.document)
   const projectId = useWorkbenchStore((state) => state.projectId)
   const dirty = useWorkbenchStore((state) => state.dirty)
@@ -28,10 +31,10 @@ export function Toolbar({ onNew, onOpen, onSave, onSaveAs, saving, cloudEnabled 
   return (
     <header className="toolbar">
       <div className="brand-block">
-        <span className="brand-mark"><span>+</span><span>−</span></span>
+        <img className="brand-logo" src={logoUrl} alt="CyCore logo" />
         <div>
           <div className="brand-name">CYCORE <em>BREADBOARD</em></div>
-          <div className="brand-subtitle">INTERACTIVE CIRCUIT LAB / L1</div>
+          <div className="brand-subtitle">INTERACTIVE CIRCUIT LAB</div>
         </div>
       </div>
 
@@ -56,7 +59,6 @@ export function Toolbar({ onNew, onOpen, onSave, onSaveAs, saving, cloudEnabled 
         <div className="tool-cluster">
           <button type="button" className="icon-button" onClick={undo} disabled={!past.length} title="撤销"><Undo2 size={17} /></button>
           <button type="button" className="icon-button" onClick={redo} disabled={!future.length} title="重做"><Redo2 size={17} /></button>
-          <span className="board-nav-label">WHEEL ZOOM · MMB PAN</span>
         </div>
         <button type="button" className={`run-button ${running ? 'is-running' : ''}`} onClick={toggleRunning}>
           {running ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
@@ -64,9 +66,21 @@ export function Toolbar({ onNew, onOpen, onSave, onSaveAs, saving, cloudEnabled 
         </button>
       </nav>
 
-      <div className={`engine-pill status-${status}`} title="CircuitJS 求解器状态">
-        {status === 'running' || status === 'ready' ? <Cloud size={14} /> : <RotateCcw size={14} />}
-        <span>{status === 'running' ? '实时求解' : status === 'ready' ? '求解器就绪' : status === 'paused' ? '已暂停' : status === 'offline' ? '求解器离线' : status === 'error' ? '电路异常' : '正在连接'}</span>
+      <div className="toolbar-status">
+        <div className={`engine-pill status-${status}`} title="CircuitJS 求解器状态">
+          {status === 'running' || status === 'ready' ? <Cloud size={14} /> : <RotateCcw size={14} />}
+          <span>{status === 'running' ? '实时求解' : status === 'ready' ? '求解器就绪' : status === 'paused' ? '已暂停' : status === 'offline' ? '求解器离线' : status === 'error' ? '电路异常' : '正在连接'}</span>
+        </div>
+        <button
+          type="button"
+          className="theme-button"
+          onClick={onToggleTheme}
+          aria-label={theme === 'dark' ? '切换到浅色模式' : '切换到深色模式'}
+          aria-pressed={theme === 'dark'}
+          title={theme === 'dark' ? '当前为深色模式，点击切换到浅色模式' : '当前为浅色模式，点击切换到深色模式'}
+        >
+          {theme === 'dark' ? <Moon size={22} fill="currentColor" /> : <Sun size={22} fill="currentColor" />}
+        </button>
       </div>
     </header>
   )

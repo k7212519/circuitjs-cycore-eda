@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Circle, Group, Layer, Line, Rect, Stage, Text } from 'react-konva'
+import { Circle, Group, Layer, Line, Path, Rect, Stage, Text } from 'react-konva'
 import type Konva from 'konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import {
   BOARD_HEIGHT, BOARD_WIDTH, HOLE_PITCH, HOLE_RADIUS, holeById, holes, isTwoPinComponent,
 } from '@/domain/board'
-import type { BreadboardComponent, ComponentKind, Point, TwoPinComponentKind } from '@/domain/types'
+import type {
+  BreadboardComponent, ComponentKind, ComponentPlacementOptions, ComponentVariant, Point, ResistorBandCount, TwoPinComponentKind,
+} from '@/domain/types'
 import { useWorkbenchStore } from '@/store/useWorkbenchStore'
 
 const terminalHoles = holes.filter((hole) => hole.region === 'terminal')
@@ -43,6 +45,9 @@ const railRows = {
   bottomPositive: railRowY('bottom', 'positive'),
   bottomNegative: railRowY('bottom', 'negative'),
 }
+const componentLeadWidth = 4
+const wireWidth = 5
+const selectedWireWidth = 6.5
 
 function componentName(kind: ComponentKind): string {
   return ({ resistor: 'R', capacitor: 'C', led: 'LED', diode: 'D', npn: 'NPN', pnp: 'PNP' })[kind]
@@ -53,6 +58,26 @@ const twoPinCoreWidth: Record<TwoPinComponentKind, number> = {
   capacitor: 12,
   led: 20,
   diode: 34,
+}
+const resistorDigitColors = ['#111b18', '#7e4e25', '#d33d32', '#e17b2d', '#d2a72e', '#4a9b65', '#277fbc', '#71508e', '#8b918d', '#f1eee0']
+
+function resistorBandColors(value: number, bandCount: ResistorBandCount): string[] {
+  const digitCount = bandCount === 5 ? 3 : 2
+  const safeValue = Math.max(Math.abs(value), 0.01)
+  let exponent = Math.floor(Math.log10(safeValue)) - digitCount + 1
+  let significant = Math.round(safeValue / 10 ** exponent)
+  if (significant >= 10 ** digitCount) {
+    significant = Math.round(significant / 10)
+    exponent += 1
+  }
+  const digits = String(significant).padStart(digitCount, '0').slice(0, digitCount)
+    .split('').map((digit) => resistorDigitColors[Number(digit)] ?? '#111b18')
+  const multiplier = exponent === -2
+    ? '#c4c8c4'
+    : exponent === -1
+      ? '#d2a72e'
+      : resistorDigitColors[Math.min(9, Math.max(0, exponent))] ?? '#111b18'
+  return [...digits, multiplier, bandCount === 5 ? '#7e4e25' : '#d2a72e']
 }
 
 interface TwoPinFrame {
@@ -78,75 +103,208 @@ function PinLeads({ length, leadEdge }: Pick<TwoPinFrame, 'length' | 'leadEdge'>
   const half = length / 2
   return (
     <>
-      <Line points={[-half, 0, -leadEdge, 0]} stroke="#a99f96" strokeWidth={2.5} lineCap="round" />
-      <Line points={[leadEdge, 0, half, 0]} stroke="#a99f96" strokeWidth={2.5} lineCap="round" />
+      <Line points={[-half, 0, -leadEdge, 0]} stroke="#a99f96" strokeWidth={componentLeadWidth} lineCap="round" />
+      <Line points={[leadEdge, 0, half, 0]} stroke="#a99f96" strokeWidth={componentLeadWidth} lineCap="round" />
     </>
   )
 }
 
-function ResistorBody({ points, selected }: { points: Point[]; selected: boolean }) {
+function UprightPinLeads({ length, slots, attachY }: { length: number; slots: [number, number]; attachY: number }) {
+  const half = length / 2
+  return (
+    <>
+      {[
+        { from: -half, to: slots[0] },
+        { from: half, to: slots[1] },
+      ].map(({ from, to }) => (
+        <Group key={from}>
+          <Line
+            points={[from, 0, to, attachY]}
+            stroke="#59625d"
+            strokeWidth={componentLeadWidth + 1}
+            lineCap="round"
+            shadowColor="#000"
+            shadowBlur={3}
+            shadowOpacity={0.35}
+            shadowOffsetY={2}
+          />
+          <Line points={[from, 0, to, attachY]} stroke="#c8cfca" strokeWidth={2.2} lineCap="round" />
+        </Group>
+      ))}
+    </>
+  )
+}
+
+function ResistorBody({ points, selected, value = 1000, bandCount = 4 }: { points: Point[]; selected: boolean; value?: number; bandCount?: ResistorBandCount }) {
   const frame = twoPinFrame(points, 'resistor')
   if (!frame) return null
+  const bandPositions = bandCount === 5 ? [-15, -9, -3, 5, 14] : [-13, -5, 4, 14]
+  const colors = resistorBandColors(value, bandCount)
   return (
     <Group x={frame.mid.x} y={frame.mid.y} rotation={frame.angle}>
       <PinLeads length={frame.length} leadEdge={frame.leadEdge} />
       <Rect x={-twoPinCoreWidth.resistor / 2} y={-8} width={twoPinCoreWidth.resistor} height={16} cornerRadius={7} fill="#e1c49d" stroke={selected ? '#f5b83b' : '#8a6d4d'} strokeWidth={selected ? 2 : 1} shadowColor="#000" shadowBlur={5} shadowOpacity={0.3} shadowOffsetY={2} />
-      {[[-13, '#7e4e25'], [-5, '#111b18'], [4, '#d33d32'], [14, '#d2a72e']].map(([x, color]) => (
-        <Rect key={String(x)} x={Number(x)} y={-7} width={3} height={14} fill={String(color)} />
+      {bandPositions.map((x, index) => (
+        <Rect key={x} x={x} y={-7} width={3} height={14} fill={colors[index]} />
       ))}
     </Group>
   )
 }
 
-function CapacitorBody({ points, selected }: { points: Point[]; selected: boolean }) {
+function CapacitorBody({ points, selected, variant = 'ceramic' }: { points: Point[]; selected: boolean; variant?: ComponentVariant }) {
   const frame = twoPinFrame(points, 'capacitor')
   if (!frame) return null
+  const edge = selected ? '#f5b83b' : variant === 'electrolytic' ? '#243641' : '#845b20'
   return (
     <Group x={frame.mid.x} y={frame.mid.y} rotation={frame.angle}>
-      <PinLeads length={frame.length} leadEdge={frame.leadEdge} />
-      <Line points={[-5, -11, -5, 11]} stroke={selected ? '#f5b83b' : '#d9e2dd'} strokeWidth={3.2} />
-      <Line points={[5, -11, 5, 11]} stroke={selected ? '#f5b83b' : '#d9e2dd'} strokeWidth={3.2} />
-    </Group>
-  )
-}
-
-function DiodeBody({ points, selected, led, color, current }: { points: Point[]; selected: boolean; led: boolean; color?: string; current: number }) {
-  const kind = led ? 'led' : 'diode'
-  const frame = twoPinFrame(points, kind)
-  if (!frame) return null
-  const glow = led ? Math.min(18, Math.max(0, Math.abs(current) * 4500)) : 0
-  return (
-    <Group x={frame.mid.x} y={frame.mid.y} rotation={frame.angle}>
-      <PinLeads length={frame.length} leadEdge={frame.leadEdge} />
-      {led ? (
-        <Circle radius={10} fill={color ?? '#ef3d32'} opacity={current > 0.0002 ? 1 : 0.45} stroke={selected ? '#f5b83b' : '#72251f'} strokeWidth={selected ? 2 : 1} shadowColor={color ?? '#ef3d32'} shadowBlur={glow} shadowOpacity={glow ? 0.95 : 0} />
+      <UprightPinLeads
+        length={frame.length}
+        slots={variant === 'ceramic' ? [-12, 12] : [-9, 9]}
+        attachY={variant === 'ceramic' ? -15 : -16}
+      />
+      {variant === 'electrolytic' ? (
+        <>
+          <Rect
+            x={-21} y={-66} width={42} height={50} cornerRadius={4}
+            fillLinearGradientStartPoint={{ x: -21, y: 0 }}
+            fillLinearGradientEndPoint={{ x: 21, y: 0 }}
+            fillLinearGradientColorStops={[0, '#293d4a', 0.22, '#56718a', 0.58, '#3f586d', 1, '#243742']}
+            stroke={edge} strokeWidth={selected ? 2 : 1}
+            shadowColor="#000" shadowBlur={8} shadowOpacity={0.42} shadowOffsetY={4}
+          />
+          <Rect x={13} y={-63} width={6} height={46} cornerRadius={1} fill="#d5dcdd" opacity={0.88} />
+          <Line points={[14, -55, 18, -55]} stroke="#56656a" strokeWidth={1.2} />
+          <Line points={[14, -47, 18, -47]} stroke="#56656a" strokeWidth={1.2} />
+          <Line points={[14, -39, 18, -39]} stroke="#56656a" strokeWidth={1.2} />
+          <Line points={[14, -31, 18, -31]} stroke="#56656a" strokeWidth={1.2} />
+          <Line points={[14, -23, 18, -23]} stroke="#56656a" strokeWidth={1.2} />
+          <Path data="M -21 -63 C -20 -72 -10 -77 0 -77 C 10 -77 20 -72 21 -63 C 13 -57 -13 -57 -21 -63 Z" fill="#607b91" stroke={edge} strokeWidth={selected ? 2 : 1} />
+          <Path data="M -15 -63 C -10 -68 10 -68 15 -63 C 9 -59 -9 -59 -15 -63 Z" fill="#91a4b1" opacity={0.52} />
+          <Text x={-18} y={-50} width={27} align="center" text="10µF" fontSize={8.5} fontStyle="bold" fontFamily="monospace" fill="#e8eef0" opacity={0.9} />
+          <Text x={-17} y={-35} width={15} align="center" text="+" fontSize={10} fontStyle="bold" fontFamily="monospace" fill="#f3f5f3" />
+        </>
       ) : (
-        <Rect x={-17} y={-6} width={34} height={12} cornerRadius={5} fill="#d45738" stroke={selected ? '#f5b83b' : '#633126'} strokeWidth={selected ? 2 : 1}>
-        </Rect>
+        <>
+          <Circle
+            x={0} y={-29} radius={18}
+            fillRadialGradientStartPoint={{ x: -6, y: -7 }}
+            fillRadialGradientStartRadius={1}
+            fillRadialGradientEndPoint={{ x: 1, y: 1 }}
+            fillRadialGradientEndRadius={19}
+            fillRadialGradientColorStops={[0, '#ffe384', 0.35, '#efbc3f', 0.78, '#d79a24', 1, '#aa6d16']}
+            stroke={edge} strokeWidth={selected ? 2 : 1}
+            shadowColor="#000" shadowBlur={6} shadowOpacity={0.38} shadowOffsetY={4}
+          />
+          <Path data="M -11 -35 Q -6 -42 1 -44" stroke="#fff0af" strokeWidth={1.6} opacity={0.7} lineCap="round" />
+          <Text x={-15} y={-33} width={30} align="center" text="104" fontSize={8} fontStyle="bold" fontFamily="monospace" fill="#513413" />
+        </>
       )}
-      <Rect x={led ? 7 : 8} y={led ? -8 : -6} width={3} height={led ? 16 : 12} fill="#d9dedb" />
     </Group>
   )
 }
 
-function TwoPinBody({ kind, points, selected }: { kind: TwoPinComponentKind; points: Point[]; selected: boolean }) {
-  if (kind === 'resistor') return <ResistorBody points={points} selected={selected} />
-  if (kind === 'capacitor') return <CapacitorBody points={points} selected={selected} />
-  if (kind === 'diode') return <DiodeBody points={points} selected={selected} led={false} current={0} />
-  return <DiodeBody points={points} selected={selected} led color="#ef3d32" current={0} />
+function LedBody({ points, selected, color, current }: { points: Point[]; selected: boolean; color?: string; current: number }) {
+  const frame = twoPinFrame(points, 'led')
+  if (!frame) return null
+  const lampColor = color ?? '#ef3d32'
+  const glow = Math.min(20, Math.max(0, Math.abs(current) * 4500))
+  return (
+    <Group x={frame.mid.x} y={frame.mid.y} rotation={frame.angle}>
+      <UprightPinLeads length={frame.length} slots={[-5, 6]} attachY={-16} />
+      <Rect x={-14} y={-21} width={28} height={6} cornerRadius={2} fill="#b8c0bc" stroke={selected ? '#f5b83b' : '#555f5a'} strokeWidth={selected ? 2 : 1} shadowColor="#000" shadowBlur={5} shadowOpacity={0.38} shadowOffsetY={3} />
+      <Path
+        data="M -11 -20 L -11 -37 C -11 -47 -6 -53 0 -53 C 6 -53 11 -47 11 -37 L 11 -20 Z"
+        fill={lampColor} opacity={current > 0.0002 ? 0.94 : 0.7}
+        stroke={selected ? '#f5b83b' : '#38413d'} strokeWidth={selected ? 2 : 1}
+        shadowColor={lampColor} shadowBlur={glow} shadowOpacity={glow ? 0.95 : 0.18}
+      />
+      <Path data="M -7 -39 C -7 -46 -4 -49 -1 -50" stroke="#fff" strokeWidth={2.2} opacity={0.52} lineCap="round" />
+      <Line points={[-4, -21, -4, -31, 3, -31, 3, -21]} stroke="#f4f0d7" strokeWidth={1.2} opacity={0.7} />
+      <Line points={[-7, -18, 7, -18]} stroke="#edf2ef" strokeWidth={1} opacity={0.55} />
+    </Group>
+  )
+}
+
+function DiodeBody({ points, selected }: { points: Point[]; selected: boolean }) {
+  const frame = twoPinFrame(points, 'diode')
+  if (!frame) return null
+  return (
+    <Group x={frame.mid.x} y={frame.mid.y} rotation={frame.angle}>
+      <PinLeads length={frame.length} leadEdge={frame.leadEdge} />
+      <Rect x={-17} y={-6} width={34} height={12} cornerRadius={5} fill="#d45738" stroke={selected ? '#f5b83b' : '#633126'} strokeWidth={selected ? 2 : 1} shadowColor="#000" shadowBlur={5} shadowOpacity={0.3} />
+      <Rect x={8} y={-6} width={3} height={12} fill="#d9dedb" />
+    </Group>
+  )
+}
+
+function TwoPinBody({ kind, points, selected, options }: { kind: TwoPinComponentKind; points: Point[]; selected: boolean; options: ComponentPlacementOptions }) {
+  if (kind === 'resistor') return <ResistorBody points={points} selected={selected} value={options.value} bandCount={options.bandCount} />
+  if (kind === 'capacitor') return <CapacitorBody points={points} selected={selected} variant={options.variant} />
+  if (kind === 'diode') return <DiodeBody points={points} selected={selected} />
+  return <LedBody points={points} selected={selected} color={options.color} current={0} />
 }
 
 function TransistorBody({ points, selected, kind }: { points: Point[]; selected: boolean; kind: 'npn' | 'pnp' }) {
   if (points.length < 3) return null
+  const first = points[0]
+  const last = points[points.length - 1]
+  if (!first || !last) return null
   const center = {
     x: points.reduce((sum, point) => sum + point.x, 0) / points.length,
     y: points.reduce((sum, point) => sum + point.y, 0) / points.length,
   }
+  const radians = Math.atan2(last.y - first.y, last.x - first.x)
+  const angle = radians * 180 / Math.PI
+  const cos = Math.cos(radians)
+  const sin = Math.sin(radians)
+  const localPoints = points.map((point) => {
+    const dx = point.x - center.x
+    const dy = point.y - center.y
+    return { x: dx * cos + dy * sin, y: -dx * sin + dy * cos }
+  })
+  const leadSlots = [-13, 0, 13]
+  const edge = selected ? '#f5b83b' : '#59645e'
   return (
-    <Group>
-      {points.map((point, index) => <Line key={index} points={[point.x, point.y, center.x, center.y]} stroke="#b8aba0" strokeWidth={2.2} />)}
-      <Rect x={center.x - 17} y={center.y - 12} width={34} height={24} cornerRadius={[12, 12, 4, 4]} fill="#202723" stroke={selected ? '#f5b83b' : '#66736d'} strokeWidth={selected ? 2 : 1} shadowColor="#000" shadowBlur={6} shadowOpacity={0.35} />
-      <Text x={center.x - 12} y={center.y - 5} width={24} align="center" text={kind.toUpperCase()} fontSize={7} fontFamily="monospace" fill="#d8e0dc" />
+    <Group x={center.x} y={center.y} rotation={angle}>
+      {localPoints.map((point, index) => (
+        <Group key={index}>
+          <Line
+            points={[point.x, point.y, leadSlots[index] ?? 0, -20]}
+            stroke="#525b56"
+            strokeWidth={5}
+            lineCap="round"
+            shadowColor="#000"
+            shadowBlur={3}
+            shadowOpacity={0.38}
+            shadowOffsetY={2}
+          />
+          <Line
+            points={[point.x, point.y, leadSlots[index] ?? 0, -20]}
+            stroke="#c2cac4"
+            strokeWidth={2.4}
+            lineCap="round"
+          />
+        </Group>
+      ))}
+
+      <Path
+        data="M -17 -45 L -17 -49 C -16 -56 -9 -60 0 -60 C 9 -60 16 -56 17 -49 L 17 -45 Z"
+        fill="#45514b"
+        stroke={edge}
+        strokeWidth={selected ? 2 : 1}
+        shadowColor="#000"
+        shadowBlur={7}
+        shadowOpacity={0.4}
+        shadowOffsetY={4}
+      />
+      <Path
+        data="M -17 -45 L 17 -45 L 17 -23 Q 17 -19 13 -19 L -13 -19 Q -17 -19 -17 -23 Z"
+        fill="#202723"
+        stroke={edge}
+        strokeWidth={selected ? 2 : 1}
+      />
+      <Line points={[-13, -22, 13, -22]} stroke="#101512" strokeWidth={1} opacity={0.7} />
+      <Text x={-14} y={-34} width={28} align="center" text={kind.toUpperCase()} fontSize={7} fontStyle="bold" fontFamily="monospace" fill="#d8e0dc" />
     </Group>
   )
 }
@@ -176,10 +334,10 @@ function ComponentShape({ component }: { component: BreadboardComponent }) {
       onDragEnd={finishMove}
       name={`component-${component.id}`}
     >
-      {component.kind === 'resistor' ? <ResistorBody points={points} selected={selected} /> : null}
-      {component.kind === 'capacitor' ? <CapacitorBody points={points} selected={selected} /> : null}
-      {component.kind === 'diode' ? <DiodeBody points={points} selected={selected} led={false} current={reading?.current ?? 0} /> : null}
-      {component.kind === 'led' ? <DiodeBody points={points} selected={selected} led color={component.color} current={reading?.current ?? 0} /> : null}
+      {component.kind === 'resistor' ? <ResistorBody points={points} selected={selected} value={component.value} bandCount={component.bandCount} /> : null}
+      {component.kind === 'capacitor' ? <CapacitorBody points={points} selected={selected} variant={component.variant} /> : null}
+      {component.kind === 'diode' ? <DiodeBody points={points} selected={selected} /> : null}
+      {component.kind === 'led' ? <LedBody points={points} selected={selected} color={component.color} current={reading?.current ?? 0} /> : null}
       {component.kind === 'npn' || component.kind === 'pnp' ? <TransistorBody points={points} selected={selected} kind={component.kind} /> : null}
       {selected ? points.map((point, index) => (
         <Circle
@@ -216,6 +374,7 @@ export function BreadboardCanvas() {
   const activeTool = useWorkbenchStore((state) => state.activeTool)
   const wireStart = useWorkbenchStore((state) => state.wireStart)
   const componentStart = useWorkbenchStore((state) => state.componentStart)
+  const placementOptions = useWorkbenchStore((state) => state.placementOptions)
   const selectedId = useWorkbenchStore((state) => state.selectedId)
   const setViewport = useWorkbenchStore((state) => state.setViewport)
   const setActiveTool = useWorkbenchStore((state) => state.setActiveTool)
@@ -367,7 +526,6 @@ export function BreadboardCanvas() {
       data-board-transform={`${viewport.x.toFixed(3)},${viewport.y.toFixed(3)},${viewport.scale.toFixed(5)}`}
     >
       <div className="canvas-coordinate">X {Math.round(pointer?.x ?? 0).toString().padStart(4, '0')} / Y {Math.round(pointer?.y ?? 0).toString().padStart(4, '0')}</div>
-      <div className="canvas-tag">BOARD / DUAL-830 MOD</div>
       {size.width > 0 && size.height > 0 ? (
         <Stage
           ref={stageRef}
@@ -457,13 +615,13 @@ export function BreadboardCanvas() {
             {railHoles.map((hole) => (
               <Group key={hole.id} x={hole.x} y={hole.y} listening={false}>
                 <Circle radius={7} fill="#aeb3ac" />
-                <Circle radius={HOLE_RADIUS} fill="#252b28" shadowColor="#000" shadowBlur={2} shadowOpacity={0.5} />
+                <Circle radius={HOLE_RADIUS} fill="#3d4641" shadowColor="#000" shadowBlur={2} shadowOpacity={0.34} />
               </Group>
             ))}
             {terminalHoles.map((hole) => (
               <Group key={hole.id} x={hole.x} y={hole.y} listening={false}>
                 <Circle radius={7} fill="#b4b9b2" />
-                <Circle radius={HOLE_RADIUS} fill="#242a27" shadowColor="#000" shadowBlur={2} shadowOpacity={0.45} />
+                <Circle radius={HOLE_RADIUS} fill="#3b433f" shadowColor="#000" shadowBlur={2} shadowOpacity={0.32} />
               </Group>
             ))}
 
@@ -476,12 +634,12 @@ export function BreadboardCanvas() {
               const points = [from.x, from.y, (from.x + to.x) / 2, (from.y + to.y) / 2 - lift, to.x, to.y]
               return (
                 <Group key={wire.id}>
-                  <Line points={points} tension={0.45} stroke="#070b09" strokeWidth={selected ? 8 : 6} opacity={0.36} lineCap="round" />
+                  <Line points={points} tension={0.45} stroke="#070b09" strokeWidth={selected ? 10 : 8} opacity={0.36} lineCap="round" />
                   <Line
                     points={points}
                     tension={0.45}
                     stroke={wire.color}
-                    strokeWidth={selected ? 5 : 3.5}
+                    strokeWidth={selected ? selectedWireWidth : wireWidth}
                     lineCap="round"
                     shadowColor="#000"
                     shadowBlur={4}
@@ -516,11 +674,11 @@ export function BreadboardCanvas() {
             {pendingStart && pointer ? (
               activeTool !== 'wire' && activeTool !== 'select' && isTwoPinComponent(activeTool) ? (
                 <Group opacity={0.78} listening={false}>
-                  <TwoPinBody kind={activeTool} points={[pendingStart, pointer]} selected />
+                  <TwoPinBody kind={activeTool} points={[pendingStart, pointer]} selected options={placementOptions[activeTool]} />
                   <Circle x={pendingStart.x} y={pendingStart.y} radius={7} fill="#f5b83b" stroke="#171a18" strokeWidth={2} />
                 </Group>
               ) : (
-                <Line points={[pendingStart.x, pendingStart.y, pointer.x, pointer.y]} stroke="#f5b83b" strokeWidth={2} dash={[7, 5]} lineCap="round" listening={false} />
+                <Line points={[pendingStart.x, pendingStart.y, pointer.x, pointer.y]} stroke="#f5b83b" strokeWidth={3.5} dash={[7, 5]} lineCap="round" listening={false} />
               )
             ) : null}
           </Group>

@@ -6,6 +6,7 @@ import type {
   BreadboardComponent,
   BreadboardDocument,
   ComponentKind,
+  ComponentPlacementOptions,
   Point,
   SimulationReading,
   SimulationStatus,
@@ -17,9 +18,9 @@ import type {
 const clone = (document: BreadboardDocument): BreadboardDocument => structuredClone(document)
 const id = (prefix: string) => `${prefix}-${crypto.randomUUID()}`
 
-const defaults: Record<ComponentKind, Pick<BreadboardComponent, 'value' | 'color' | 'label'>> = {
-  resistor: { value: 1000, label: '1 kΩ' },
-  capacitor: { value: 100e-9, label: '100 nF' },
+const defaults: Record<ComponentKind, ComponentPlacementOptions> = {
+  resistor: { value: 1000, label: '1 kΩ', bandCount: 4 },
+  capacitor: { value: 100e-9, label: '100 nF', variant: 'ceramic' },
   led: { value: 0.01, color: '#ef3d32', label: '红色 LED' },
   diode: { value: 1, label: '1N4148' },
   npn: { value: 100, label: '2N3904' },
@@ -35,6 +36,7 @@ interface WorkbenchState {
   wireStart: string | null
   componentStart: string | null
   wireColor: string
+  placementOptions: Record<ComponentKind, ComponentPlacementOptions>
   past: BreadboardDocument[]
   future: BreadboardDocument[]
   readings: Record<string, SimulationReading>
@@ -51,7 +53,8 @@ interface WorkbenchState {
   select: (id: string | null) => void
   deleteSelected: () => void
   rotateSelected: () => void
-  updateSelected: (patch: Partial<Pick<BreadboardComponent, 'value' | 'color' | 'label'>>) => void
+  updateSelected: (patch: Partial<Pick<BreadboardComponent, 'value' | 'color' | 'label' | 'bandCount' | 'variant'>>) => void
+  updatePlacementOptions: (kind: ComponentKind, patch: Partial<ComponentPlacementOptions>) => void
   setWireColor: (color: string) => void
   setViewport: (viewport: ViewportState) => void
   undo: () => void
@@ -89,6 +92,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
   wireStart: null,
   componentStart: null,
   wireColor: '#e4523d',
+  placementOptions: structuredClone(defaults),
   past: [],
   future: [],
   readings: {},
@@ -98,6 +102,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
 
   setActiveTool: (activeTool) => set((state) => ({
     activeTool,
+    selectedId: activeTool === 'select' ? state.selectedId : null,
     wireStart: activeTool === 'wire' ? state.wireStart : null,
     componentStart: activeTool === state.activeTool && activeTool !== 'select'
       ? state.componentStart
@@ -116,7 +121,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
       kind,
       pins,
       rotation: 0,
-      ...defaults[kind],
+      ...state.placementOptions[kind],
     }
     set({
       ...withDocument(state, (document) => document.components.push(component)),
@@ -135,7 +140,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
     const hole = nearestHole(point, 20, occupied)
     if (!hole) return false
     if (!state.componentStart || state.activeTool !== kind) {
-      set({ activeTool: kind, componentStart: hole.id, wireStart: null })
+      set({ activeTool: kind, componentStart: hole.id, wireStart: null, selectedId: null })
       return true
     }
     const fromHole = holeById.get(state.componentStart)
@@ -148,7 +153,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
       kind,
       pins: [state.componentStart, hole.id],
       rotation: 0,
-      ...defaults[kind],
+      ...state.placementOptions[kind],
     }
     set({
       ...withDocument(state, (document) => document.components.push(component)),
@@ -166,7 +171,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
     const hole = nearestHole(point, 20, occupied)
     if (!hole) return false
     if (!state.wireStart) {
-      set({ activeTool: 'wire', wireStart: hole.id, componentStart: null })
+      set({ activeTool: 'wire', wireStart: hole.id, componentStart: null, selectedId: null })
       return true
     }
     const fromHole = holeById.get(state.wireStart)
@@ -179,6 +184,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
       ...withDocument(state, (document) => document.wires.push(wire)),
       wireStart: null,
       selectedId: wire.id,
+      activeTool: 'select',
     })
     return true
   },
@@ -247,7 +253,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
     return true
   },
 
-  select: (selectedId) => set({ selectedId }),
+  select: (selectedId) => set({ selectedId, activeTool: 'select', wireStart: null, componentStart: null }),
 
   deleteSelected: () => {
     const state = get()
@@ -313,6 +319,13 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
       if (target) Object.assign(target, patch)
     }))
   },
+
+  updatePlacementOptions: (kind, patch) => set((state) => ({
+    placementOptions: {
+      ...state.placementOptions,
+      [kind]: { ...state.placementOptions[kind], ...patch },
+    },
+  })),
 
   setWireColor: (wireColor) => set({ wireColor }),
   setViewport: (viewport) => set((state) => ({ document: { ...state.document, viewport } })),

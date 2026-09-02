@@ -1,9 +1,143 @@
-import { AlertTriangle, Gauge, RotateCw, Trash2 } from 'lucide-react'
+import { AlertTriangle, Cable, Gauge, RotateCw, Settings2, Trash2 } from 'lucide-react'
 import { boardPointLabel } from '@/domain/board'
+import type { ComponentKind, ComponentPlacementOptions, ResistorBandCount, ToolKind } from '@/domain/types'
 import { useWorkbenchStore } from '@/store/useWorkbenchStore'
 
 const names = {
   resistor: '电阻', capacitor: '电容', led: '发光二极管', diode: '二极管', npn: 'NPN 三极管', pnp: 'PNP 三极管',
+}
+const toolNames: Record<Exclude<ToolKind, 'select'>, string> = { wire: '导线', ...names }
+const wireColors = ['#e4523d', '#232a28', '#e8b83f', '#277fbc', '#4a9b65']
+
+function compactEngineering(value: number, unit: string): string {
+  const scales = [
+    { threshold: 1e6, divisor: 1e6, prefix: 'M' },
+    { threshold: 1e3, divisor: 1e3, prefix: 'k' },
+    { threshold: 1, divisor: 1, prefix: '' },
+    { threshold: 1e-3, divisor: 1e-3, prefix: 'm' },
+    { threshold: 1e-6, divisor: 1e-6, prefix: 'µ' },
+    { threshold: 1e-9, divisor: 1e-9, prefix: 'n' },
+    { threshold: 0, divisor: 1e-12, prefix: 'p' },
+  ]
+  const scale = scales.find((item) => Math.abs(value) >= item.threshold) ?? scales.at(-1)!
+  return `${Number((value / scale.divisor).toPrecision(3))} ${scale.prefix}${unit}`
+}
+
+function numericValue(raw: string): number {
+  const value = Number(raw)
+  return Number.isFinite(value) ? Math.max(value, 1e-12) : 1e-12
+}
+
+function PlacementInspector({ tool }: { tool: Exclude<ToolKind, 'select'> }) {
+  const placementOptions = useWorkbenchStore((state) => state.placementOptions)
+  const updatePlacementOptions = useWorkbenchStore((state) => state.updatePlacementOptions)
+  const wireColor = useWorkbenchStore((state) => state.wireColor)
+  const setWireColor = useWorkbenchStore((state) => state.setWireColor)
+  const options = tool === 'wire' ? null : placementOptions[tool]
+  const placementName = tool === 'capacitor'
+    ? options?.variant === 'electrolytic' ? '电解电容' : '瓷片电容'
+    : tool === 'led'
+      ? options?.label ?? 'LED'
+      : tool === 'diode'
+        ? `${options?.label ?? ''} 二极管`.trim()
+        : tool === 'npn' || tool === 'pnp'
+          ? `${tool.toUpperCase()} · ${options?.label ?? ''}`.trim()
+          : toolNames[tool]
+
+  const update = (kind: ComponentKind, patch: Partial<ComponentPlacementOptions>) => updatePlacementOptions(kind, patch)
+  const setValue = (kind: ComponentKind, raw: string, unit: string) => {
+    const value = numericValue(raw)
+    update(kind, { value, label: compactEngineering(value, unit) })
+  }
+
+  return (
+    <aside className="inspector panel placement-inspector" aria-label="放置选项">
+      <div className="panel-heading">
+        <span className="eyebrow">PLACE / 03</span>
+        <h2>放置选项</h2>
+        <p>设置 {placementName} 参数，然后在面包板选择孔位。</p>
+      </div>
+
+      <div className="placement-stack">
+        <div className="placement-summary">
+          <span className={`placement-icon ${tool === 'wire' ? 'is-wire' : ''}`}>
+            {tool === 'wire' ? <Cable size={21} /> : tool.toUpperCase()}
+          </span>
+          <div><strong>{placementName}</strong><small>类型已在左侧选定，参数将应用到下一个元件</small></div>
+        </div>
+
+        {tool === 'wire' ? (
+          <div className="option-group">
+            <div className="option-label"><span>导线颜色</span><code>{wireColor.toUpperCase()}</code></div>
+            <div className="option-color-row">
+              {wireColors.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  className={`option-color ${wireColor === color ? 'is-active' : ''}`}
+                  style={{ backgroundColor: color }}
+                  aria-label={`导线颜色 ${color}`}
+                  aria-pressed={wireColor === color}
+                  onClick={() => setWireColor(color)}
+                />
+              ))}
+              <label className="custom-color" title="自定义颜色">
+                <input aria-label="自定义导线颜色" type="color" value={wireColor} onChange={(event) => setWireColor(event.target.value)} />
+              </label>
+            </div>
+          </div>
+        ) : null}
+
+        {tool === 'resistor' && options ? (
+          <>
+            <label className="field-label">
+              <span>阻值 (Ω)</span>
+              <input type="number" min="0.01" step="any" value={options.value} onChange={(event) => setValue('resistor', event.target.value, 'Ω')} />
+            </label>
+            <div className="option-presets" aria-label="常用阻值">
+              {[220, 1000, 10000, 100000].map((value) => (
+                <button key={value} type="button" onClick={() => update('resistor', { value, label: compactEngineering(value, 'Ω') })}>{compactEngineering(value, 'Ω')}</button>
+              ))}
+            </div>
+            <div className="option-group">
+              <div className="option-label"><span>色环数量</span><code>{options.bandCount ?? 4} BANDS</code></div>
+              <div className="segmented-options">
+                {([4, 5] as ResistorBandCount[]).map((count) => (
+                  <button key={count} type="button" className={(options.bandCount ?? 4) === count ? 'is-active' : ''} aria-pressed={(options.bandCount ?? 4) === count} onClick={() => update('resistor', { bandCount: count })}>{count} 环</button>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : null}
+
+        {tool === 'capacitor' && options ? (
+          <>
+            <label className="field-label">
+              <span>容量 (F)</span>
+              <input type="number" min="0.000000000001" step="any" value={options.value} onChange={(event) => setValue('capacitor', event.target.value, 'F')} />
+            </label>
+            <div className="option-presets" aria-label="常用容量">
+              {[10e-9, 100e-9, 1e-6, 10e-6].map((value) => (
+                <button key={value} type="button" onClick={() => update('capacitor', { value, label: compactEngineering(value, 'F') })}>{compactEngineering(value, 'F')}</button>
+              ))}
+            </div>
+          </>
+        ) : null}
+
+        {(tool === 'npn' || tool === 'pnp') && options ? (
+          <label className="field-label">
+            <span>放大倍数 β</span>
+            <input type="number" min="1" step="1" value={options.value} onChange={(event) => update(tool, { value: numericValue(event.target.value) })} />
+          </label>
+        ) : null}
+
+        <div className="placement-guide">
+          <Settings2 size={16} />
+          <div><strong>参数已就绪</strong><span>{tool === 'wire' || tool === 'resistor' || tool === 'capacitor' || tool === 'led' || tool === 'diode' ? '从起点孔拖到终点孔完成放置' : '在目标孔位单击完成放置'}</span></div>
+        </div>
+      </div>
+    </aside>
+  )
 }
 
 function formatEngineering(value: number, unit: string): string {
@@ -18,6 +152,7 @@ function formatEngineering(value: number, unit: string): string {
 }
 
 export function Inspector() {
+  const activeTool = useWorkbenchStore((state) => state.activeTool)
   const selectedId = useWorkbenchStore((state) => state.selectedId)
   const document = useWorkbenchStore((state) => state.document)
   const reading = useWorkbenchStore((state) => selectedId ? state.readings[selectedId] : undefined)
@@ -29,6 +164,8 @@ export function Inspector() {
   const component = document.components.find((item) => item.id === selectedId)
   const wire = document.wires.find((item) => item.id === selectedId)
   const selectedIssues = issues.filter((issue) => !issue.targetId || issue.targetId === selectedId)
+
+  if (activeTool !== 'select') return <PlacementInspector tool={activeTool} />
 
   return (
     <aside className="inspector panel" aria-label="属性与测量">
@@ -50,7 +187,7 @@ export function Inspector() {
         <div className="property-stack">
           <div className="selected-summary">
             <span className={`component-badge badge-${component.kind}`}>{component.kind.toUpperCase()}</span>
-            <div><strong>{names[component.kind]}</strong><small>{component.label}</small></div>
+            <div><strong>{component.kind === 'capacitor' ? component.variant === 'electrolytic' ? '电解电容' : '瓷片电容' : names[component.kind]}</strong><small>{component.label}</small></div>
           </div>
 
           <label className="field-label">

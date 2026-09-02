@@ -3,13 +3,21 @@ import { expect, test } from '@playwright/test'
 test('renders the 5V breadboard laboratory and drag-places a resistor', async ({ page }) => {
   await page.goto('')
   await page.waitForLoadState('networkidle')
-  await expect(page.getByText('元器件库')).toBeVisible()
+  await expect(page.getByAltText('CyCore logo')).toBeVisible()
+  await expect(page.getByLabel('元器件库')).toBeVisible()
+  await expect(page.getByText('TIP / 01')).toHaveCount(0)
   await expect(page.getByText('属性与测量')).toBeVisible()
-  await expect(page.getByText('BOARD POWER')).toBeVisible()
+  await expect(page.getByText('BOARD POWER')).toHaveCount(0)
+  await expect(page.getByText('BOARD / DUAL-830 MOD')).toHaveCount(0)
+  await expect(page.getByText('WHEEL ZOOM · MMB PAN')).toHaveCount(0)
   await expect(page.getByText('访客模式')).toBeVisible()
   await expect(page.getByTitle('访客模式不能保存云项目')).toBeDisabled()
 
   await page.getByTestId('part-resistor').click()
+  const placementPanel = page.getByLabel('放置选项')
+  await expect(placementPanel.getByRole('heading', { name: '放置选项' })).toBeVisible()
+  await placementPanel.getByLabel('阻值 (Ω)').fill('2200')
+  await placementPanel.getByRole('button', { name: '5 环' }).click()
   const canvas = page.locator('.canvas-shell canvas').first()
   await expect(canvas).toBeVisible()
   const box = await canvas.boundingBox()
@@ -25,8 +33,33 @@ test('renders the 5V breadboard laboratory and drag-places a resistor', async ({
   await page.mouse.down()
   await page.mouse.move(end.x, end.y, { steps: 8 })
   await page.mouse.up()
-  await expect(page.getByLabel('属性与测量').getByText('1 kΩ')).toBeVisible()
+  await expect(page.getByLabel('属性与测量').getByText('2.2 kΩ')).toBeVisible()
   await expect(page.getByText('旋转 90°')).toBeVisible()
+})
+
+test('chooses component subtypes from the left menu without duplicate right-side selectors', async ({ page }) => {
+  await page.goto('')
+  await page.waitForLoadState('networkidle')
+
+  const palette = page.getByLabel('元器件库')
+  await palette.getByTestId('part-menu-capacitor').click()
+  await expect(palette.getByTestId('part-capacitor-ceramic')).toBeVisible()
+  await palette.getByTestId('part-capacitor-electrolytic').click()
+
+  const placementPanel = page.getByLabel('放置选项')
+  await expect(placementPanel.getByText('电解电容', { exact: true }).first()).toBeVisible()
+  await expect(placementPanel.getByLabel('容量 (F)')).toBeVisible()
+  await expect(placementPanel.locator('select')).toHaveCount(0)
+
+  await palette.getByTestId('part-menu-led').click()
+  await palette.getByTestId('part-led-green').click()
+  await expect(placementPanel.getByText('绿色 LED', { exact: true }).first()).toBeVisible()
+  await expect(placementPanel.getByLabel('自定义 LED 颜色')).toHaveCount(0)
+
+  await palette.getByTestId('part-menu-diode').click()
+  await palette.getByTestId('part-diode-1n5819').click()
+  await expect(placementPanel.getByText('1N5819 二极管', { exact: true }).first()).toBeVisible()
+  await expect(placementPanel.getByLabel('二极管型号')).toHaveCount(0)
 })
 
 test('uses wheel zoom and middle-button pan without left-button panning', async ({ page }) => {
@@ -63,4 +96,21 @@ test('uses wheel zoom and middle-button pan without left-button panning', async 
 
   await page.getByTestId('part-wire').click()
   await expect(page.getByText('选择导线起点')).toBeVisible()
+})
+
+test('toggles and persists the color theme while reserving solver status width', async ({ page }) => {
+  await page.goto('')
+  await page.evaluate(() => localStorage.removeItem('darkMode'))
+  await page.reload()
+  await page.waitForLoadState('networkidle')
+
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  await page.getByRole('button', { name: '切换到浅色模式' }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+  await expect(page.getByRole('button', { name: '切换到深色模式' })).toBeVisible()
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('darkMode'))).toBe('false')
+
+  await page.reload()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+  await expect.poll(() => page.locator('.engine-pill').evaluate((node) => getComputedStyle(node).width)).toBe('96px')
 })

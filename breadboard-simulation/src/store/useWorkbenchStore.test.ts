@@ -5,9 +5,12 @@ import { useWorkbenchStore } from './useWorkbenchStore'
 
 describe('workbench history and placement', () => {
   beforeEach(() => {
+    const initial = useWorkbenchStore.getInitialState()
     useWorkbenchStore.setState({
       document: createEmptyDocument(), projectId: null, dirty: false, selectedId: null,
       activeTool: 'select', wireStart: null, componentStart: null, past: [], future: [], issues: [], readings: {},
+      wireColor: initial.wireColor,
+      placementOptions: structuredClone(initial.placementOptions),
     })
   })
 
@@ -33,6 +36,7 @@ describe('workbench history and placement', () => {
     expect(useWorkbenchStore.getState().wireStart).toBe(start.id)
     expect(useWorkbenchStore.getState().wireAt(end)).toBe(true)
     expect(useWorkbenchStore.getState().document.wires[0]).toMatchObject({ from: start.id, to: end.id })
+    expect(useWorkbenchStore.getState().activeTool).toBe('select')
     const moved = holeById.get('t-0-0-12')!
     expect(useWorkbenchStore.getState().moveWireEndTo(useWorkbenchStore.getState().document.wires[0]!.id, 'to', moved)).toBe(true)
     expect(useWorkbenchStore.getState().document.wires[0]?.to).toBe(moved.id)
@@ -64,5 +68,47 @@ describe('workbench history and placement', () => {
       't-1-2-7',
       't-1-2-16',
     ])
+  })
+
+  it('clears selection in drawing mode and applies placement options to the new component', () => {
+    const selectedAnchor = holeById.get('t-0-0-2')!
+    useWorkbenchStore.getState().placeAt('diode', selectedAnchor)
+    expect(useWorkbenchStore.getState().selectedId).not.toBeNull()
+
+    useWorkbenchStore.getState().setActiveTool('resistor')
+    expect(useWorkbenchStore.getState().selectedId).toBeNull()
+    useWorkbenchStore.getState().updatePlacementOptions('resistor', {
+      value: 2200,
+      label: '2.2 kΩ',
+      bandCount: 5,
+    })
+
+    const start = holeById.get('t-1-0-8')!
+    const end = holeById.get('t-1-0-18')!
+    useWorkbenchStore.getState().componentAt('resistor', start)
+    useWorkbenchStore.getState().componentAt('resistor', end)
+
+    const component = useWorkbenchStore.getState().document.components.at(-1)
+    expect(component).toMatchObject({ kind: 'resistor', value: 2200, label: '2.2 kΩ', bandCount: 5 })
+    expect(useWorkbenchStore.getState().activeTool).toBe('select')
+    expect(useWorkbenchStore.getState().selectedId).toBe(component?.id)
+  })
+
+  it('keeps the capacitor subtype selected on the left and copies it into the placed component', () => {
+    useWorkbenchStore.getState().updatePlacementOptions('capacitor', {
+      variant: 'electrolytic',
+      value: 10e-6,
+      label: '10 µF',
+    })
+    useWorkbenchStore.getState().setActiveTool('capacitor')
+
+    const start = holeById.get('t-1-1-8')!
+    const end = holeById.get('t-1-1-14')!
+    useWorkbenchStore.getState().componentAt('capacitor', start)
+    useWorkbenchStore.getState().componentAt('capacitor', end)
+
+    expect(useWorkbenchStore.getState().document.components[0]).toMatchObject({
+      kind: 'capacitor', variant: 'electrolytic', value: 10e-6, label: '10 µF',
+    })
   })
 })
