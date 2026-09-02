@@ -6744,6 +6744,21 @@ MouseOutHandler, MouseWheelHandler {
 	    }
 	    return arr;
 	}
+
+	boolean bindElement(int index, String externalId, String expectedType) {
+	    if (index < 0 || index >= elmList.size() || externalId == null || externalId.length() == 0)
+		return false;
+	    CircuitElm ce = getElm(index);
+	    if (expectedType != null && expectedType.length() > 0 && !ce.getClassName().equals(expectedType))
+		return false;
+	    for (int i = 0; i != elmList.size(); i++) {
+		String boundId = getElm(i).getExternalId();
+		if (externalId.equals(boundId) && getElm(i) != ce)
+		    return false;
+	    }
+	    ce.setExternalId(externalId);
+	    return true;
+	}
 	
 	native void setupJSInterface() /*-{
 	    var that = this;
@@ -6759,6 +6774,7 @@ MouseOutHandler, MouseWheelHandler {
 	        getNodeVoltage: $entry(function(n) { return that.@com.lushprojects.circuitjs1.client.CirSim::getLabeledNodeVoltage(Ljava/lang/String;)(n); } ),
 	        setExtVoltage: $entry(function(n, v) { that.@com.lushprojects.circuitjs1.client.CirSim::setExtVoltage(Ljava/lang/String;D)(n, v); } ),
 	        getElements: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::getJSElements()(); } ),
+	        bindElement: $entry(function(index, externalId, expectedType) { return that.@com.lushprojects.circuitjs1.client.CirSim::bindElement(ILjava/lang/String;Ljava/lang/String;)(index, externalId, expectedType); } ),
 	        getCircuitAsSVG: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::doExportAsSVGFromAPI()(); } ),
 	        exportCircuit: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::dumpCircuit()(); } ),
 	        importCircuit: $entry(function(circuit, subcircuitsOnly) { return that.@com.lushprojects.circuitjs1.client.CirSim::importCircuitFromText(Ljava/lang/String;Z)(circuit, subcircuitsOnly); } ),
@@ -6836,4 +6852,3 @@ MouseOutHandler, MouseWheelHandler {
 	public MenuItem menuItemWithShortcutPublic(String icon, String text, String shortcut, MyCommand cmd) { return menuItemWithShortcut(icon, text, shortcut, cmd); }
 
 }
-

@@ -20,7 +20,9 @@ describe('connectivity validation and CircuitJS adapter', () => {
     })
     const result = buildCircuitJsNetlist(document)
     expect(result.blocked).toBe(false)
-    expect(result.componentOrder).toEqual(['r1'])
+    expect(result.componentBindings).toEqual([
+      expect.objectContaining({ componentId: 'r1', expectedType: 'ResistorElm' }),
+    ])
     expect(result.circuit).toContain('\nv ')
     expect(result.circuit).toContain('\ng ')
     expect(result.circuit).toMatch(/\nr \d+ \d+ \d+ \d+ 0 1000/)
@@ -34,7 +36,9 @@ describe('connectivity validation and CircuitJS adapter', () => {
 
     expect(buildCircuitJsNetlist(document).circuit).toMatch(/\ns \d+ \d+ \d+ \d+ 0 1 false/)
     expect(buildCircuitJsNetlist(document, { button1: true }).circuit).toMatch(/\ns \d+ \d+ \d+ \d+ 0 0 false/)
-    expect(buildCircuitJsNetlist(document).componentOrder).toEqual(['button1'])
+    expect(buildCircuitJsNetlist(document).componentBindings).toEqual([
+      expect.objectContaining({ componentId: 'button1', expectedType: 'SwitchElm' }),
+    ])
   })
 
   it('maps a retaining switch to the same runtime-controlled CircuitJS contact', () => {
@@ -65,5 +69,65 @@ describe('connectivity validation and CircuitJS adapter', () => {
     expect(validateDocument(document)).toEqual(expect.arrayContaining([
       expect.objectContaining({ code: 'FLOATING_PIN', level: 'warning', targetId: 'floating-r' }),
     ]))
+  })
+
+  it('maps every supported component category to exactly one CircuitJS element', () => {
+    const cases = [
+      { id: 'r', kind: 'resistor' as const, value: 1000, expectedType: 'ResistorElm', token: 'r ' },
+      { id: 'c', kind: 'capacitor' as const, value: 1e-6, variant: 'ceramic' as const, expectedType: 'CapacitorElm', token: 'c ' },
+      { id: 'ce', kind: 'capacitor' as const, value: 10e-6, variant: 'electrolytic' as const, expectedType: 'PolarCapacitorElm', token: '209 ' },
+      { id: 'led', kind: 'led' as const, value: 0.02, color: '#48b96b', expectedType: 'LEDElm', token: '162 ' },
+      { id: 'd', kind: 'diode' as const, value: 1, expectedType: 'DiodeElm', token: 'd ' },
+      { id: 's', kind: 'switch' as const, value: 1, expectedType: 'SwitchElm', token: 's ' },
+      { id: 'b', kind: 'button' as const, value: 1, expectedType: 'SwitchElm', token: 's ' },
+      { id: 'q1', kind: 'npn' as const, value: 120, expectedType: 'TransistorElm', token: 't ' },
+      { id: 'q2', kind: 'pnp' as const, value: 80, expectedType: 'TransistorElm', token: 't ' },
+    ]
+
+    for (const component of cases) {
+      const document = createEmptyDocument()
+      document.components.push({
+        ...component,
+        pins: component.kind === 'npn' || component.kind === 'pnp'
+          ? ['t-0-0-2', 't-0-0-3', 't-0-0-4']
+          : ['t-0-0-2', 't-0-0-7'],
+        rotation: 0,
+      })
+      const result = buildCircuitJsNetlist(document)
+      expect(result.componentBindings).toHaveLength(1)
+      const binding = result.componentBindings[0]!
+      expect(binding).toMatchObject({ componentId: component.id, expectedType: component.expectedType })
+      expect(result.circuit.split('\n')[binding.elementIndex + 1]).toMatch(new RegExp(`^${component.token}`))
+    }
+  })
+
+  it('writes LED color and maximum brightness current into the CircuitJS LED', () => {
+    const document = createEmptyDocument()
+    document.components.push({
+      id: 'green-led', kind: 'led', pins: ['t-0-0-2', 't-0-0-7'], rotation: 0,
+      value: 0.02, color: '#48b96b', label: '绿色 LED',
+    })
+    const result = buildCircuitJsNetlist(document)
+    const binding = result.componentBindings[0]!
+    const tokens = result.circuit.split('\n')[binding.elementIndex + 1]!.split(' ')
+    expect(tokens[0]).toBe('162')
+    expect(Number(tokens.at(-4))).toBeCloseTo(72 / 255)
+    expect(Number(tokens.at(-3))).toBeCloseTo(185 / 255)
+    expect(Number(tokens.at(-2))).toBeCloseTo(107 / 255)
+    expect(Number(tokens.at(-1))).toBe(0.02)
+  })
+
+  it('gives duplicate component types distinct stable element bindings', () => {
+    const document = createEmptyDocument()
+    document.components.push(
+      { id: 'r1', kind: 'resistor', pins: ['t-0-0-2', 't-0-0-7'], rotation: 0, value: 1000 },
+      { id: 'r2', kind: 'resistor', pins: ['t-0-0-12', 't-0-0-17'], rotation: 0, value: 2200 },
+    )
+    const result = buildCircuitJsNetlist(document)
+    expect(result.componentBindings.map(({ componentId }) => componentId)).toEqual(['r1', 'r2'])
+    expect(new Set(result.componentBindings.map(({ elementIndex }) => elementIndex)).size).toBe(2)
+    for (const binding of result.componentBindings) {
+      expect(result.circuit.split('\n')[binding.elementIndex + 1]).toMatch(/^r /)
+    }
   })
 })

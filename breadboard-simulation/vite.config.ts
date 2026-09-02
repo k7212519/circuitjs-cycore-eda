@@ -36,6 +36,15 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/circuit-engine/, ''),
         },
+        '/circuitjs1': {
+          target: env.VITE_CIRCUITJS_DEV_ORIGIN || 'http://127.0.0.1:8000',
+          changeOrigin: true,
+        },
+        '/circuit/manifest.json': {
+          target: env.VITE_CIRCUITJS_DEV_ORIGIN || 'http://127.0.0.1:8000',
+          changeOrigin: true,
+          rewrite: () => '/manifest.json',
+        },
         '/api': {
           target: env.VITE_API_DEV_ORIGIN || 'http://192.168.1.103:8088',
           changeOrigin: true,

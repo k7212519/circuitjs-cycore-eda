@@ -28,6 +28,11 @@ function numericValue(raw: string): number {
   return Number.isFinite(value) ? Math.max(value, 1e-12) : 1e-12
 }
 
+function pinName(kind: ComponentKind, index: number): string {
+  if (kind === 'npn' || kind === 'pnp') return ['B', 'C', 'E'][index] ?? `P${index + 1}`
+  return `P${index + 1}`
+}
+
 function PlacementInspector({ tool }: { tool: Exclude<ToolKind, 'select'> }) {
   const placementOptions = useWorkbenchStore((state) => state.placementOptions)
   const updatePlacementOptions = useWorkbenchStore((state) => state.updatePlacementOptions)
@@ -248,14 +253,18 @@ export function Inspector() {
             <div className="section-label">PIN MAP</div>
             {component.pins.map((pin, index) => (
               <div className="pin-row" key={pin}>
-                <span>P{index + 1}</span><strong>{boardPointLabel(pin)}</strong>
+                <span>{pinName(component.kind, index)}</span>
+                <strong>{boardPointLabel(pin)}</strong>
+                <small>
+                  {formatEngineering(reading?.pinVoltages[index] ?? 0, 'V')} · {formatEngineering(reading?.pinCurrents[index] ?? 0, 'A')}
+                </small>
               </div>
             ))}
           </div>
 
           <div className="meter-grid">
-            <div className="meter-card"><span>VOLTAGE</span><strong>{formatEngineering(reading?.voltage ?? 0, 'V')}</strong></div>
-            <div className="meter-card"><span>CURRENT</span><strong>{formatEngineering(reading?.current ?? 0, 'A')}</strong></div>
+            <div className="meter-card"><span>{component.kind === 'npn' || component.kind === 'pnp' ? 'VCE' : 'VOLTAGE'}</span><strong>{formatEngineering(reading?.voltage ?? 0, 'V')}</strong></div>
+            <div className="meter-card"><span>{component.kind === 'npn' || component.kind === 'pnp' ? 'IC' : 'CURRENT'}</span><strong>{formatEngineering(reading?.current ?? 0, 'A')}</strong></div>
             <div className="meter-card wide"><span>POWER</span><strong>{formatEngineering(reading?.power ?? 0, 'W')}</strong></div>
           </div>
 

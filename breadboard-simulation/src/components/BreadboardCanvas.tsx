@@ -247,13 +247,23 @@ function mutedLedColor(color: string): string {
   return `#${channels.map((channel) => Math.round(channel * 0.22 + gray * 0.78).toString(16).padStart(2, '0')).join('')}`
 }
 
-function LedBody({ points, selected, color, current }: { points: Point[]; selected: boolean; color?: string; current: number }) {
+function blendLedColor(color: string, brightness: number): string {
+  const lit = color.replace('#', '')
+  const muted = mutedLedColor(color).replace('#', '')
+  if (!/^[0-9a-f]{6}$/i.test(lit) || !/^[0-9a-f]{6}$/i.test(muted)) return '#747b77'
+  const channel = (source: string, index: number) => Number.parseInt(source.slice(index * 2, index * 2 + 2), 16)
+  return `#${[0, 1, 2].map((index) => Math.round(
+    channel(muted, index) + (channel(lit, index) - channel(muted, index)) * brightness,
+  ).toString(16).padStart(2, '0')).join('')}`
+}
+
+function LedBody({ points, selected, color, brightness }: { points: Point[]; selected: boolean; color?: string; brightness: number }) {
   const frame = twoPinFrame(points, 'led')
   if (!frame) return null
   const lampColor = color ?? '#ef3d32'
-  const isLit = current > 0.0002
-  const glow = isLit ? Math.min(24, Math.max(14, Math.abs(current) * 5000)) : 0
-  const bodyColor = isLit ? lampColor : mutedLedColor(lampColor)
+  const intensity = Math.min(1, Math.max(0, brightness))
+  const glow = intensity * 24
+  const bodyColor = blendLedColor(lampColor, intensity)
   return (
     <Group x={frame.mid.x} y={frame.mid.y} rotation={frame.angle}>
       <UprightPinLeads length={frame.length} slots={[-HOLE_PITCH / 2, HOLE_PITCH / 2]} attachY={-16 + uprightLeadShorten} />
@@ -263,7 +273,7 @@ function LedBody({ points, selected, color, current }: { points: Point[]; select
           data="M -15 -20 L -15 -42 C -15 -51 -8 -57 0 -57 C 8 -57 15 -51 15 -42 L 15 -20 Z"
           fill={bodyColor} opacity={0.94}
           stroke={selected ? '#f5b83b' : '#38413d'} strokeWidth={selected ? 2 : 1}
-          shadowColor={lampColor} shadowBlur={glow} shadowOpacity={isLit ? 0.95 : 0}
+          shadowColor={lampColor} shadowBlur={glow} shadowOpacity={intensity * 0.95}
         />
         <Path data="M -10 -44 C -10 -50 -7 -54 -3 -55" stroke="#fff" strokeWidth={2.2} opacity={0.52} lineCap="round" />
         <Line points={[-10, -18, 10, -18]} stroke="#edf2ef" strokeWidth={1} opacity={0.55} />
@@ -393,7 +403,7 @@ function TwoPinBody({ kind, points, selected, options }: { kind: TwoPinComponent
   if (kind === 'diode') return <DiodeBody points={points} selected={selected} variant={options.variant} label={options.label} />
   if (kind === 'switch') return <SwitchBody points={points} selected={selected} />
   if (kind === 'button') return <PushButtonBody points={points} selected={selected} />
-  return <LedBody points={points} selected={selected} color={options.color} current={0} />
+  return <LedBody points={points} selected={selected} color={options.color} brightness={0} />
 }
 
 function TransistorBody({ points, selected, kind }: { points: Point[]; selected: boolean; kind: 'npn' | 'pnp' }) {
@@ -544,7 +554,7 @@ function ComponentShape({
         {component.kind === 'resistor' ? <ResistorBody points={renderedPoints} selected={selected} value={component.value} bandCount={component.bandCount} /> : null}
         {component.kind === 'capacitor' ? <CapacitorBody points={renderedPoints} selected={selected} variant={component.variant} /> : null}
         {component.kind === 'diode' ? <DiodeBody points={renderedPoints} selected={selected} variant={component.variant} label={component.label} /> : null}
-        {component.kind === 'led' ? <LedBody points={renderedPoints} selected={selected} color={component.color} current={reading?.current ?? 0} /> : null}
+        {component.kind === 'led' ? <LedBody points={renderedPoints} selected={selected} color={component.color} brightness={reading?.brightness ?? 0} /> : null}
         {component.kind === 'switch' ? <SwitchBody points={renderedPoints} selected={selected} closed={contactClosed} /> : null}
         {component.kind === 'button' ? (
           <PushButtonBody

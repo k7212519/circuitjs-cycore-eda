@@ -85,6 +85,7 @@ public abstract class CircuitElm implements Editable {
     double volts[];
     
     double current, curcount;
+    String externalId;
     Rectangle boundingBox;
     
     // if subclasses set this to true, element will be horizontal or vertical only 
@@ -240,6 +241,19 @@ public abstract class CircuitElm implements Editable {
     
     // get current for one- or two-terminal elements
     double getCurrent() { return current; }
+
+    // Current entering this element through the requested external post.
+    double getPostCurrent(int n) {
+	if (n < 0 || n >= getPostCount())
+	    return 0;
+	return -getCurrentIntoNode(n);
+    }
+
+    // Normalized visual intensity for light-emitting elements.
+    double getBrightness() { return 0; }
+
+    void setExternalId(String id) { externalId = id; }
+    String getExternalId() { return externalId; }
 
     void setParentList(Vector<CircuitElm> elmList) {}
     
@@ -1207,10 +1221,14 @@ public abstract class CircuitElm implements Editable {
     native void addJSMethods() /*-{
         var that = this;
         this.getType = $entry(function() { return that.@com.lushprojects.circuitjs1.client.CircuitElm::getClassName()(); });
+        this.getExternalId = $entry(function() { return that.@com.lushprojects.circuitjs1.client.CircuitElm::getExternalId()(); });
         this.getInfo = $entry(function() { return that.@com.lushprojects.circuitjs1.client.CircuitElm::getInfoJS()(); });
         this.getVoltageDiff = $entry(function() { return that.@com.lushprojects.circuitjs1.client.CircuitElm::getVoltageDiff()(); });
         this.getVoltage = $entry(function(n) { return that.@com.lushprojects.circuitjs1.client.CircuitElm::getVoltageJS(I)(n); });
         this.getCurrent = $entry(function() { return that.@com.lushprojects.circuitjs1.client.CircuitElm::getCurrent()(); });
+        this.getPostCurrent = $entry(function(n) { return that.@com.lushprojects.circuitjs1.client.CircuitElm::getPostCurrent(I)(n); });
+        this.getPower = $entry(function() { return that.@com.lushprojects.circuitjs1.client.CircuitElm::getPower()(); });
+        this.getBrightness = $entry(function() { return that.@com.lushprojects.circuitjs1.client.CircuitElm::getBrightness()(); });
         this.getLabelName = $entry(function() { return that.@com.lushprojects.circuitjs1.client.LabeledNodeElm::getName()(); });
         this.getPostCount = $entry(function() { return that.@com.lushprojects.circuitjs1.client.CircuitElm::getPostCount()(); });
     }-*/;

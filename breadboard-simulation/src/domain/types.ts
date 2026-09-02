@@ -61,6 +61,9 @@ export interface SimulationReading {
   voltage: number
   current: number
   power: number
+  pinVoltages: number[]
+  pinCurrents: number[]
+  brightness?: number
 }
 
 export type SimulationStatus = 'connecting' | 'ready' | 'running' | 'paused' | 'offline' | 'error'

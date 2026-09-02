@@ -79,13 +79,7 @@ class LEDElm extends DiodeElm {
 	    int cr = 12;
 	    drawThickCircle(g, ledCenter.x, ledCenter.y, cr);
 	    cr -= 4;
-	    double w = current/maxBrightnessCurrent;
-	    if (w > 0)
-		w = 255*(1+.2*Math.log(w));
-	    if (w > 255)
-		w = 255;
-	    if (w < 0)
-		w = 0;
+	    double w = 255*getBrightness();
 	    Color cc = new Color((int) (colorR*w), (int) (colorG*w),
 				 (int) (colorB*w));
 	    g.setColor(cc);
@@ -95,6 +89,17 @@ class LEDElm extends DiodeElm {
 	    drawDots(g, point1, ledLead1, curcount);
 	    drawDots(g, point2, ledLead2, -curcount);
 	    drawPosts(g);
+	}
+
+	double getBrightness() {
+	    double w = current/maxBrightnessCurrent;
+	    if (w > 0)
+		w = 1+.2*Math.log(w);
+	    if (w > 1)
+		w = 1;
+	    if (w < 0)
+		w = 0;
+	    return w;
 	}
 
 	void getInfo(String arr[]) {
