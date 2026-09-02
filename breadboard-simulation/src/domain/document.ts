@@ -10,7 +10,7 @@ const componentSchema = z.object({
   color: z.string().optional(),
   label: z.string().optional(),
   bandCount: z.union([z.literal(4), z.literal(5)]).optional(),
-  variant: z.enum(['ceramic', 'electrolytic']).optional(),
+  variant: z.enum(['ceramic', 'electrolytic', 'small-signal', 'rectifier', 'schottky']).optional(),
 })
 
 const wireSchema = z.object({

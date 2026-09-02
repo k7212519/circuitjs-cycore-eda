@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertCircle, CheckCircle2, LoaderCircle } from 'lucide-react'
+import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, LoaderCircle } from 'lucide-react'
 import { BreadboardCanvas } from '@/components/BreadboardCanvas'
 import { Inspector } from '@/components/Inspector'
 import { Palette } from '@/components/Palette'
@@ -22,6 +22,8 @@ export default function App() {
   const [accessMode, setAccessMode] = useState<AccessMode>('guest')
   const [dialog, setDialog] = useState<'open' | 'saveAs' | null>(null)
   const [toast, setToast] = useState<{ kind: 'ok' | 'error'; message: string } | null>(null)
+  const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false)
+  const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(false)
   const queryClient = useQueryClient()
 
   const document = useWorkbenchStore((state) => state.document)
@@ -149,10 +151,28 @@ export default function App() {
         theme={theme}
         onToggleTheme={() => setTheme((current) => current === 'dark' ? 'light' : 'dark')}
       />
-      <div className="workspace-grid">
+      <div className={`workspace-grid ${leftSidebarCollapsed ? 'is-left-collapsed' : ''} ${rightSidebarCollapsed ? 'is-right-collapsed' : ''}`}>
         <Palette />
         <BreadboardCanvas />
         <Inspector />
+        <button
+          type="button"
+          className="sidebar-toggle sidebar-toggle-left"
+          aria-label={leftSidebarCollapsed ? '展开元器件栏' : '折叠元器件栏'}
+          title={leftSidebarCollapsed ? '展开元器件栏' : '折叠元器件栏'}
+          onClick={() => setLeftSidebarCollapsed((collapsed) => !collapsed)}
+        >
+          {leftSidebarCollapsed ? <ChevronRight size={21} /> : <ChevronLeft size={21} />}
+        </button>
+        <button
+          type="button"
+          className="sidebar-toggle sidebar-toggle-right"
+          aria-label={rightSidebarCollapsed ? '展开属性栏' : '折叠属性栏'}
+          title={rightSidebarCollapsed ? '展开属性栏' : '折叠属性栏'}
+          onClick={() => setRightSidebarCollapsed((collapsed) => !collapsed)}
+        >
+          {rightSidebarCollapsed ? <ChevronLeft size={21} /> : <ChevronRight size={21} />}
+        </button>
       </div>
 
       <CircuitJsEngine document={document} running={running} onReadings={setReadings} onStatus={setSimulationStatus} />

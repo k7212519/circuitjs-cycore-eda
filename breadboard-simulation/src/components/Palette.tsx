@@ -51,9 +51,9 @@ const menus: PartsMenu[] = [
   {
     id: 'diode', label: '二极管', glyph: 'diode',
     children: [
-      { id: '1n4148', tool: 'diode', label: '小信号二极管', glyph: 'diode', options: { label: '1N4148' } },
-      { id: '1n4007', tool: 'diode', label: '整流二极管', glyph: 'diode', options: { label: '1N4007' } },
-      { id: '1n5819', tool: 'diode', label: '肖特基二极管', glyph: 'diode', options: { label: '1N5819' } },
+      { id: '1n4148', tool: 'diode', label: '小信号二极管', glyph: 'diode', options: { label: '1N4148', variant: 'small-signal' } },
+      { id: '1n4007', tool: 'diode', label: '整流二极管', glyph: 'diode', options: { label: '1N4007', variant: 'rectifier' } },
+      { id: '1n5819', tool: 'diode', label: '肖特基二极管', glyph: 'diode', options: { label: '1N5819', variant: 'schottky' } },
     ],
   },
   {

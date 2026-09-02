@@ -22,7 +22,7 @@ const defaults: Record<ComponentKind, ComponentPlacementOptions> = {
   resistor: { value: 1000, label: '1 kΩ', bandCount: 4 },
   capacitor: { value: 100e-9, label: '100 nF', variant: 'ceramic' },
   led: { value: 0.01, color: '#ef3d32', label: '红色 LED' },
-  diode: { value: 1, label: '1N4148' },
+  diode: { value: 1, label: '1N4148', variant: 'small-signal' },
   npn: { value: 100, label: '2N3904' },
   pnp: { value: 100, label: '2N3906' },
 }
@@ -49,6 +49,7 @@ interface WorkbenchState {
   wireAt: (point: Point) => boolean
   moveComponentTo: (componentId: string, point: Point) => boolean
   movePinTo: (componentId: string, pinIndex: number, point: Point) => boolean
+  moveWireTo: (wireId: string, point: Point) => boolean
   moveWireEndTo: (wireId: string, end: 'from' | 'to', point: Point) => boolean
   select: (id: string | null) => void
   deleteSelected: () => void
@@ -233,6 +234,31 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
     set(withDocument(state, (document) => {
       const target = document.components.find((item) => item.id === componentId)
       if (target) target.pins[pinIndex] = hole.id
+    }))
+    return true
+  },
+
+  moveWireTo: (wireId, point) => {
+    const state = get()
+    const wire = state.document.wires.find((item) => item.id === wireId)
+    if (!wire) return false
+    const from = holeById.get(wire.from)
+    const to = holeById.get(wire.to)
+    if (!from || !to) return false
+    const occupied = occupiedHoles(state.document, wireId)
+    const nextFrom = nearestHole(point, 24, occupied)
+    if (!nextFrom) return false
+    const offset = { x: nextFrom.x - from.x, y: nextFrom.y - from.y }
+    const reserved = new Set(occupied)
+    reserved.add(nextFrom.id)
+    const nextTo = nearestHole({ x: to.x + offset.x, y: to.y + offset.y }, 24, reserved)
+    if (!nextTo || nextFrom.nodeId === nextTo.nodeId) return false
+    set(withDocument(state, (document) => {
+      const target = document.wires.find((item) => item.id === wireId)
+      if (target) {
+        target.from = nextFrom.id
+        target.to = nextTo.id
+      }
     }))
     return true
   },
