@@ -1,6 +1,6 @@
 import {
-  ChevronDown, Cloud, FilePlus2, FolderOpen, Moon, Pause, Play, Redo2,
-  RotateCcw, Save, Sun, Undo2,
+  ChevronDown, Cloud, FilePlus2, FolderOpen, Moon, Pause, Play,
+  RotateCcw, Save, Sun,
 } from 'lucide-react'
 import logoUrl from '../../imgs/logo.svg'
 import { useWorkbenchStore } from '@/store/useWorkbenchStore'
@@ -20,10 +20,6 @@ export function Toolbar({ onNew, onOpen, onSave, onSaveAs, saving, cloudEnabled,
   const document = useWorkbenchStore((state) => state.document)
   const projectId = useWorkbenchStore((state) => state.projectId)
   const dirty = useWorkbenchStore((state) => state.dirty)
-  const past = useWorkbenchStore((state) => state.past)
-  const future = useWorkbenchStore((state) => state.future)
-  const undo = useWorkbenchStore((state) => state.undo)
-  const redo = useWorkbenchStore((state) => state.redo)
   const running = useWorkbenchStore((state) => state.running)
   const toggleRunning = useWorkbenchStore((state) => state.toggleRunning)
   const status = useWorkbenchStore((state) => state.simulationStatus)
@@ -55,10 +51,6 @@ export function Toolbar({ onNew, onOpen, onSave, onSaveAs, saving, cloudEnabled,
           <button type="button" className="icon-button" onClick={onOpen} disabled={!cloudEnabled} title={cloudEnabled ? '打开' : '访客模式不能打开云项目'}><FolderOpen size={17} /></button>
           <button type="button" className="icon-button" onClick={onSave} disabled={saving || !cloudEnabled} title={cloudEnabled ? '保存' : '访客模式不能保存云项目'}><Save size={17} /></button>
           <button type="button" className="text-button" onClick={onSaveAs} disabled={saving || !cloudEnabled} title={cloudEnabled ? '另存' : '访客模式不能另存到云端'}>另存</button>
-        </div>
-        <div className="tool-cluster">
-          <button type="button" className="icon-button" onClick={undo} disabled={!past.length} title="撤销"><Undo2 size={17} /></button>
-          <button type="button" className="icon-button" onClick={redo} disabled={!future.length} title="重做"><Redo2 size={17} /></button>
         </div>
         <button type="button" className={`run-button ${running ? 'is-running' : ''}`} onClick={toggleRunning}>
           {running ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}

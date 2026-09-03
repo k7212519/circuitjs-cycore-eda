@@ -7,8 +7,8 @@ import { useWorkbenchStore } from '@/store/useWorkbenchStore'
 const names = {
   resistor: '电阻', capacitor: '电容', led: '发光二极管', diode: '二极管', switch: '开关', button: '按键', npn: 'NPN 三极管', pnp: 'PNP 三极管', 'seven-segment': '数码管',
 }
-const toolNames: Record<Exclude<ToolKind, 'select'>, string> = { wire: '导线', ...names }
-const wireColors = ['#e4523d', '#232a28', '#e8b83f', '#277fbc', '#4a9b65']
+const toolNames: Record<Exclude<ToolKind, 'select' | 'pan'>, string> = { wire: '导线', ...names }
+const wireColors = ['#f28c28', '#e8b83f', '#277fbc', '#4a9b65']
 
 function compactEngineering(value: number, unit: string): string {
   const scales = [
@@ -40,7 +40,7 @@ function pinName(kind: ComponentKind, index: number, variant?: ComponentPlacemen
   return `P${index + 1}`
 }
 
-function PlacementInspector({ tool }: { tool: Exclude<ToolKind, 'select'> }) {
+function PlacementInspector({ tool }: { tool: Exclude<ToolKind, 'select' | 'pan'> }) {
   const placementOptions = useWorkbenchStore((state) => state.placementOptions)
   const updatePlacementOptions = useWorkbenchStore((state) => state.updatePlacementOptions)
   const wireColor = useWorkbenchStore((state) => state.wireColor)
@@ -201,7 +201,7 @@ export function Inspector() {
   const wire = document.wires.find((item) => item.id === singleSelectedId)
   const selectedIssues = issues.filter((issue) => !issue.targetId || issue.targetId === singleSelectedId)
 
-  if (activeTool !== 'select') return <PlacementInspector tool={activeTool} />
+  if (activeTool !== 'select' && activeTool !== 'pan') return <PlacementInspector tool={activeTool} />
 
   if (selectedIds.length > 1) {
     const selected = new Set(selectedIds)

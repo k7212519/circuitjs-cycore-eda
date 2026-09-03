@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, LoaderCircle } from 'lucide-react'
 import { BreadboardCanvas } from '@/components/BreadboardCanvas'
@@ -24,7 +24,21 @@ export default function App() {
   const [toast, setToast] = useState<{ kind: 'ok' | 'error'; message: string } | null>(null)
   const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false)
   const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(false)
+  const [fullscreenSnapshot, setFullscreenSnapshot] = useState<{ left: boolean; right: boolean } | null>(null)
+  const canvasFullscreen = fullscreenSnapshot !== null
   const queryClient = useQueryClient()
+
+  const toggleCanvasFullscreen = useCallback(() => {
+    if (fullscreenSnapshot) {
+      setLeftSidebarCollapsed(fullscreenSnapshot.left)
+      setRightSidebarCollapsed(fullscreenSnapshot.right)
+      setFullscreenSnapshot(null)
+    } else {
+      setFullscreenSnapshot({ left: leftSidebarCollapsed, right: rightSidebarCollapsed })
+      setLeftSidebarCollapsed(true)
+      setRightSidebarCollapsed(true)
+    }
+  }, [fullscreenSnapshot, leftSidebarCollapsed, rightSidebarCollapsed])
 
   const document = useWorkbenchStore((state) => state.document)
   const projectId = useWorkbenchStore((state) => state.projectId)
@@ -115,7 +129,10 @@ export default function App() {
       const target = event.target as HTMLElement
       if (target.matches('input, textarea')) return
       if (event.key === 'Delete' || event.key === 'Backspace') deleteSelected()
-      if (event.key === 'Escape') setActiveTool('select')
+      if (event.key === 'Escape') {
+        setActiveTool('select')
+        if (canvasFullscreen) toggleCanvasFullscreen()
+      }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
         event.preventDefault()
         if (event.shiftKey) redo()
@@ -130,7 +147,7 @@ export default function App() {
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [accessMode, deleteSelected, projectId, redo, saveMutation, setActiveTool, undo])
+  }, [accessMode, canvasFullscreen, deleteSelected, projectId, redo, saveMutation, setActiveTool, toggleCanvasFullscreen, undo])
 
   if (!authReady) {
     return <div className="boot-screen"><span className="brand-mark large"><span>+</span><span>−</span></span><LoaderCircle className="spin" /><strong>正在准备面包板实验台…</strong></div>
@@ -141,7 +158,7 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${canvasFullscreen ? 'is-canvas-fullscreen' : ''}`}>
       <Toolbar
         onNew={requestNew}
         onOpen={() => setDialog('open')}
@@ -154,7 +171,7 @@ export default function App() {
       />
       <div className={`workspace-grid ${leftSidebarCollapsed ? 'is-left-collapsed' : ''} ${rightSidebarCollapsed ? 'is-right-collapsed' : ''}`}>
         <Palette />
-        <BreadboardCanvas />
+        <BreadboardCanvas isFullscreen={canvasFullscreen} onToggleFullscreen={toggleCanvasFullscreen} />
         <Inspector />
         <button
           type="button"

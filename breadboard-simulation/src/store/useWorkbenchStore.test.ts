@@ -36,7 +36,8 @@ describe('workbench history and placement', () => {
     expect(useWorkbenchStore.getState().wireStart).toBe(start.id)
     expect(useWorkbenchStore.getState().wireAt(end)).toBe(true)
     expect(useWorkbenchStore.getState().document.wires[0]).toMatchObject({ from: start.id, to: end.id })
-    expect(useWorkbenchStore.getState().activeTool).toBe('select')
+    expect(useWorkbenchStore.getState().activeTool).toBe('wire')
+    useWorkbenchStore.getState().setActiveTool('select')
     const moved = holeById.get('t-0-0-12')!
     expect(useWorkbenchStore.getState().moveWireEndTo(useWorkbenchStore.getState().document.wires[0]!.id, 'to', moved)).toBe(true)
     expect(useWorkbenchStore.getState().document.wires[0]?.to).toBe(moved.id)

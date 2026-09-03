@@ -134,7 +134,7 @@ export function Palette() {
   }
 
   const startDrag = (event: React.DragEvent, tool: ToolKind, child?: MenuChild) => {
-    if (tool === 'wire' || tool === 'select') return
+    if (tool === 'wire' || tool === 'select' || tool === 'pan') return
     if (child) updatePlacementOptions(child.tool, child.options)
     event.dataTransfer.setData('application/x-breadboard-component', tool)
     event.dataTransfer.effectAllowed = 'copy'

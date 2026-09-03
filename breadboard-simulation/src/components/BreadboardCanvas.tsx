@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Maximize2, Minimize2, Move, MousePointer2, Redo2, Undo2, ZoomIn, ZoomOut } from 'lucide-react'
 import { Circle, Group, Layer, Line, Path, Rect, Stage, Text } from 'react-konva'
 import type Konva from 'konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
@@ -50,6 +51,8 @@ const componentLeadWidth = 4
 const uprightLeadShorten = 5
 const wireWidth = 5
 const selectedWireWidth = 6.5
+const minViewportScale = 0.25
+const maxViewportScale = 3.5
 
 function componentName(kind: ComponentKind): string {
   return ({ resistor: 'R', capacitor: 'C', led: 'LED', diode: 'D', switch: '开关', button: '按键', npn: 'NPN', pnp: 'PNP', 'seven-segment': '数码管' })[kind]
@@ -624,6 +627,7 @@ function ComponentShape({
 }) {
   const [pinPreview, setPinPreview] = useState<{ index: number; point: Point } | null>(null)
   const activeButtonPointerRef = useRef<number | null>(null)
+  const activeTool = useWorkbenchStore((state) => state.activeTool)
   const selectedIds = useWorkbenchStore((state) => state.selectedIds)
   const select = useWorkbenchStore((state) => state.select)
   const moveSelectionTo = useWorkbenchStore((state) => state.moveSelectionTo)
@@ -637,7 +641,7 @@ function ComponentShape({
     ? points.map((point, index) => index === pinPreview.index ? pinPreview.point : point)
     : points
   const selected = selectedIds.includes(component.id)
-  const showHandles = selected && selectedIds.length === 1 && component.kind !== 'seven-segment'
+  const showHandles = selected && selectedIds.length === 1 && component.kind !== 'seven-segment' && activeTool !== 'pan'
   const previewOffset = selected && selectionDrag?.leaderId !== component.id ? selectionDrag?.delta : undefined
   const first = points[0]
   const isButton = component.kind === 'button'
@@ -678,6 +682,7 @@ function ComponentShape({
     <Group
       id={component.id}
       name="selectable"
+      listening={activeTool !== 'wire' && activeTool !== 'pan'}
       x={previewOffset?.x ?? 0}
       y={previewOffset?.y ?? 0}
       draggable
@@ -757,7 +762,10 @@ function ComponentShape({
   )
 }
 
-export function BreadboardCanvas() {
+export function BreadboardCanvas({ isFullscreen, onToggleFullscreen }: {
+  isFullscreen: boolean
+  onToggleFullscreen: () => void
+}) {
   const containerRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<Konva.Stage>(null)
   const boardGroupRef = useRef<Konva.Group>(null)
@@ -787,6 +795,10 @@ export function BreadboardCanvas() {
   const selectMany = useWorkbenchStore((state) => state.selectMany)
   const moveSelectionTo = useWorkbenchStore((state) => state.moveSelectionTo)
   const moveWireEndTo = useWorkbenchStore((state) => state.moveWireEndTo)
+  const undo = useWorkbenchStore((state) => state.undo)
+  const redo = useWorkbenchStore((state) => state.redo)
+  const canUndo = useWorkbenchStore((state) => state.past.length > 0)
+  const canRedo = useWorkbenchStore((state) => state.future.length > 0)
 
   const viewport = document.viewport
   const pendingHoleId = activeTool === 'wire' ? wireStart : componentStart
@@ -822,12 +834,17 @@ export function BreadboardCanvas() {
       if (event.key !== 'Escape') return
       marqueeRef.current = null
       setMarquee(null)
+      panRef.current = null
+      pinchRef.current = null
+      placementDragRef.current = null
+      setPanning(false)
     }
     window.addEventListener('keydown', cancelMarquee)
     return () => window.removeEventListener('keydown', cancelMarquee)
   }, [])
 
   useEffect(() => {
+    if (isFullscreen) return
     if (size.width <= 0 || size.height <= 0) return
     if (viewport.x !== 0 || viewport.y !== 0 || viewport.scale !== 1) return
     const scale = Math.min(1, (size.width - 32) / BOARD_WIDTH, (size.height - 48) / BOARD_HEIGHT)
@@ -837,7 +854,21 @@ export function BreadboardCanvas() {
       x: (size.width - BOARD_WIDTH * scale) / 2,
       y: (size.height - BOARD_HEIGHT * scale) / 2,
     })
-  }, [setViewport, size.height, size.width, viewport.scale, viewport.x, viewport.y])
+  }, [isFullscreen, setViewport, size.height, size.width, viewport.scale, viewport.x, viewport.y])
+
+  useLayoutEffect(() => {
+    if (!isFullscreen || !containerRef.current) return
+    // Measure the expanded layout directly, before ResizeObserver updates size.
+    const { width, height } = containerRef.current.getBoundingClientRect()
+    // Symmetric margins keep the board centered and clear of the bottom controls.
+    const scale = Math.min(maxViewportScale, (width - 48) / BOARD_WIDTH, (height - 128) / BOARD_HEIGHT)
+    if (!Number.isFinite(scale) || scale <= 0) return
+    setViewport({
+      scale,
+      x: (width - BOARD_WIDTH * scale) / 2,
+      y: (height - BOARD_HEIGHT * scale) / 2,
+    })
+  }, [isFullscreen, setViewport])
 
   const toWorld = (screen: Point): Point => ({
     x: (screen.x - viewport.x) / viewport.scale,
@@ -860,6 +891,12 @@ export function BreadboardCanvas() {
     const screen = stageRef.current?.getPointerPosition()
     const world = pointerWorld()
     if (!world || !screen) return
+    if (activeTool === 'pan') {
+      event.evt.preventDefault()
+      panRef.current = screen
+      setPanning(true)
+      return
+    }
     if (activeTool === 'wire') {
       const beginsGesture = !wireStart
       if (wireAt(world) && beginsGesture) placementDragRef.current = { tool: 'wire', screen }
@@ -940,20 +977,37 @@ export function BreadboardCanvas() {
     setPanning(false)
   }
 
+  const enterSelectMode = () => {
+    cancelPointerAction()
+    pinchRef.current = null
+    setActiveTool('select')
+  }
+
+  const enterPanMode = () => {
+    cancelPointerAction()
+    pinchRef.current = null
+    setActiveTool('pan')
+  }
+
+  const zoomAt = (screen: Point, factor: number) => {
+    const current = useWorkbenchStore.getState().document.viewport
+    const scale = Math.min(maxViewportScale, Math.max(minViewportScale, current.scale * factor))
+    const ratio = scale / current.scale
+    setViewport({ x: screen.x - (screen.x - current.x) * ratio, y: screen.y - (screen.y - current.y) * ratio, scale })
+  }
+
   const handleWheel = (event: KonvaEventObject<WheelEvent>) => {
     event.evt.preventDefault()
     const screen = stageRef.current?.getPointerPosition()
-    if (!screen) return
-    const world = toWorld(screen)
-    const factor = event.evt.deltaY > 0 ? 0.9 : 1.1
-    const scale = Math.min(3.5, Math.max(0.25, viewport.scale * factor))
-    setViewport({ x: screen.x - world.x * scale, y: screen.y - world.y * scale, scale })
+    if (screen) zoomAt(screen, event.evt.deltaY > 0 ? 0.9 : 1.1)
   }
 
   const handleTouchMove = (event: KonvaEventObject<TouchEvent>) => {
     const touches = event.evt.touches
     if (touches.length !== 2) return
     event.evt.preventDefault()
+    panRef.current = null
+    setPanning(false)
     const rect = containerRef.current?.getBoundingClientRect()
     const a = touches[0]
     const b = touches[1]
@@ -963,7 +1017,7 @@ export function BreadboardCanvas() {
     const previous = pinchRef.current
     if (previous) {
       const world = toWorld(previous.center)
-      const scale = Math.min(3.5, Math.max(0.25, viewport.scale * distance / previous.distance))
+      const scale = Math.min(maxViewportScale, Math.max(minViewportScale, viewport.scale * distance / previous.distance))
       setViewport({ x: center.x - world.x * scale, y: center.y - world.y * scale, scale })
     }
     pinchRef.current = { distance, center }
@@ -996,6 +1050,60 @@ export function BreadboardCanvas() {
       data-selected-count={selectedIds.length}
     >
       <div className="canvas-coordinate">X {Math.round(pointer?.x ?? 0).toString().padStart(4, '0')} / Y {Math.round(pointer?.y ?? 0).toString().padStart(4, '0')}</div>
+      <div className="canvas-actions" role="group" aria-label="画布操作">
+        <div className="canvas-action-group" role="group" aria-label="交互模式">
+          <button
+            type="button"
+            className="canvas-action-button canvas-select-mode"
+            aria-label="选择模式"
+            title="选择模式（Esc）"
+            data-testid="canvas-select-mode"
+            onClick={enterSelectMode}
+          >
+            <MousePointer2 size={17} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="canvas-action-button"
+            aria-label="抓手模式"
+            title="抓手模式：拖动画布"
+            data-testid="canvas-pan-mode"
+            onClick={enterPanMode}
+          >
+            <Move size={17} aria-hidden="true" />
+          </button>
+        </div>
+        <div className="canvas-action-group" role="group" aria-label="历史操作">
+          <button type="button" className="canvas-action-button" aria-label="撤销" title="撤销" onClick={undo} disabled={!canUndo}>
+            <Undo2 size={17} aria-hidden="true" />
+          </button>
+          <button type="button" className="canvas-action-button" aria-label="重做" title="重做" onClick={redo} disabled={!canRedo}>
+            <Redo2 size={17} aria-hidden="true" />
+          </button>
+        </div>
+        <div className="canvas-action-group" role="group" aria-label="缩放操作">
+          <button type="button" className="canvas-action-button" aria-label="放大" title="放大" onClick={() => zoomAt({ x: size.width / 2, y: size.height / 2 }, 1.1)} disabled={viewport.scale >= maxViewportScale}>
+            <ZoomIn size={17} aria-hidden="true" />
+          </button>
+          <button type="button" className="canvas-action-button" aria-label="缩小" title="缩小" onClick={() => zoomAt({ x: size.width / 2, y: size.height / 2 }, 1 / 1.1)} disabled={viewport.scale <= minViewportScale}>
+            <ZoomOut size={17} aria-hidden="true" />
+          </button>
+        </div>
+        <button
+          type="button"
+          className="canvas-action-button"
+          aria-label={isFullscreen ? '退出网页全屏' : '网页内全屏'}
+          title={isFullscreen ? '退出网页全屏（Esc）' : '网页内全屏'}
+          data-testid="canvas-fullscreen"
+          onClick={() => {
+            cancelPointerAction()
+            pinchRef.current = null
+            onToggleFullscreen()
+          }}
+        >
+          {isFullscreen ? <Minimize2 size={17} aria-hidden="true" /> : <Maximize2 size={17} aria-hidden="true" />}
+        </button>
+      </div>
       {size.width > 0 && size.height > 0 ? (
         <Stage
           ref={stageRef}
@@ -1005,6 +1113,7 @@ export function BreadboardCanvas() {
           onPointerMove={handlePointerMove}
           onPointerUp={finishPointerAction}
           onPointerLeave={cancelPointerAction}
+          onPointerCancel={cancelPointerAction}
           onWheel={handleWheel}
           onTouchMove={handleTouchMove}
           onTouchEnd={() => { pinchRef.current = null }}
@@ -1107,7 +1216,7 @@ export function BreadboardCanvas() {
               const renderedFrom = preview?.end === 'from' ? preview.point : from
               const renderedTo = preview?.end === 'to' ? preview.point : to
               const selected = selectedIds.includes(wire.id)
-              const showHandles = selected && selectedIds.length === 1
+              const showHandles = selected && selectedIds.length === 1 && activeTool !== 'pan'
               const previewOffset = selected && selectionDrag?.leaderId !== wire.id ? selectionDrag?.delta : undefined
               const lift = Math.min(35, Math.abs(renderedTo.x - renderedFrom.x) * 0.08 + Math.abs(renderedTo.y - renderedFrom.y) * 0.04)
               const points = [renderedFrom.x, renderedFrom.y, (renderedFrom.x + renderedTo.x) / 2, (renderedFrom.y + renderedTo.y) / 2 - lift, renderedTo.x, renderedTo.y]
@@ -1123,6 +1232,7 @@ export function BreadboardCanvas() {
                   key={wire.id}
                   id={wire.id}
                   name="selectable"
+                  listening={activeTool !== 'wire' && activeTool !== 'pan'}
                   x={previewOffset?.x ?? 0}
                   y={previewOffset?.y ?? 0}
                   draggable
@@ -1201,7 +1311,7 @@ export function BreadboardCanvas() {
             ) : null}
 
             {pendingStart && pendingEnd ? (
-              activeTool !== 'wire' && activeTool !== 'select' && isTwoPinComponent(activeTool) ? (
+              activeTool !== 'wire' && activeTool !== 'select' && activeTool !== 'pan' && isTwoPinComponent(activeTool) ? (
                 <Group opacity={0.78} listening={false}>
                   <TwoPinBody kind={activeTool} points={[pendingStart, pendingEnd]} selected options={placementOptions[activeTool]} />
                   <Circle x={pendingStart.x} y={pendingStart.y} radius={7} fill="#f5b83b" stroke="#171a18" strokeWidth={2} />
@@ -1230,13 +1340,15 @@ export function BreadboardCanvas() {
       ) : null}
       {activeTool !== 'select' ? (
         <div className="active-tool-toast">
-          <strong>{activeTool === 'wire'
+          <strong>{activeTool === 'pan'
+            ? '拖动画布'
+            : activeTool === 'wire'
             ? (wireStart ? '拖到导线终点孔' : '选择导线起点孔')
             : isTwoPinComponent(activeTool)
               ? (componentStart ? `拖到 ${componentName(activeTool)} 终点孔` : `选择 ${componentName(activeTool)} 起点孔`)
               : `放置 ${componentName(activeTool)}`}</strong>
           <span>ESC 退出工具</span>
-          <button type="button" onClick={() => setActiveTool('select')}>退出</button>
+          <button type="button" onClick={enterSelectMode}>退出</button>
         </div>
       ) : null}
     </main>

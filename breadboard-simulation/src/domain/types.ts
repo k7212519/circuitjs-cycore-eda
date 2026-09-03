@@ -1,6 +1,6 @@
 export type ComponentKind = 'resistor' | 'capacitor' | 'led' | 'diode' | 'switch' | 'button' | 'npn' | 'pnp' | 'seven-segment'
 export type TwoPinComponentKind = Exclude<ComponentKind, 'npn' | 'pnp' | 'seven-segment'>
-export type ToolKind = ComponentKind | 'wire' | 'select'
+export type ToolKind = ComponentKind | 'wire' | 'select' | 'pan'
 export type ResistorBandCount = 4 | 5
 export type ComponentVariant = 'ceramic' | 'electrolytic' | 'small-signal' | 'rectifier' | 'schottky' | 'common-cathode' | 'common-anode'
 export type DiodeVariant = Extract<ComponentVariant, 'small-signal' | 'rectifier' | 'schottky'>

@@ -125,7 +125,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
   activeTool: 'select',
   wireStart: null,
   componentStart: null,
-  wireColor: '#e4523d',
+  wireColor: '#f28c28',
   placementOptions: structuredClone(defaults),
   past: [],
   future: [],
@@ -137,7 +137,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
 
   setActiveTool: (activeTool) => set((state) => ({
     activeTool,
-    selectedIds: activeTool === 'select' ? state.selectedIds : [],
+    selectedIds: activeTool === 'select' || activeTool === 'pan' ? state.selectedIds : [],
     wireStart: activeTool === 'wire' ? state.wireStart : null,
     componentStart: activeTool === state.activeTool && activeTool !== 'select'
       ? state.componentStart
@@ -220,8 +220,8 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
     set({
       ...withDocument(state, (document) => document.wires.push(wire)),
       wireStart: null,
-      selectedIds: [wire.id],
-      activeTool: 'select',
+      selectedIds: [],
+      activeTool: 'wire',
     })
     return true
   },
