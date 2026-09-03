@@ -84,7 +84,7 @@ describe('workbench history and placement', () => {
     expect(useWorkbenchStore.getState().document.components[0]?.rotation).toBe(0)
     expect(useWorkbenchStore.getState().moveSelectionTo(component.id, holeById.get('t-3-1-30')!)).toBe(true)
     expect(useWorkbenchStore.getState().document.components[0]?.pins[0]).toBe('t-3-1-30')
-    expect(useWorkbenchStore.getState().moveSelectionTo(component.id, holeById.get('t-2-1-30')!)).toBe(false)
+    expect(useWorkbenchStore.getState().moveSelectionTo(component.id, holeById.get('t-2-1-30')!)).toBe(true)
   })
 
   it('clears selection in drawing mode and applies placement options to the new component', () => {

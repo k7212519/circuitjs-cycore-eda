@@ -120,28 +120,27 @@ export function defaultPlacement(kind: ComponentKind, anchor: Hole, occupied: Se
 
 function sevenSegmentPlacement(anchor: Hole, occupied: Set<string>): string[] | null {
   if (anchor.region !== 'terminal' || anchor.zone === undefined || anchor.row === undefined) return null
-  if (anchor.column + 4 >= 63) return null
 
-  let upperZone: number
-  let upperRow: number
-  let lowerZone: number
-  let lowerRow: number
-  if ((anchor.zone === 0 || anchor.zone === 2) && anchor.row >= 1) {
-    upperZone = anchor.zone
-    upperRow = anchor.row
-    lowerZone = anchor.zone + 1
-    lowerRow = anchor.row - 1
-  } else if ((anchor.zone === 1 || anchor.zone === 3) && anchor.row <= 3) {
-    lowerZone = anchor.zone
-    lowerRow = anchor.row
-    upperZone = anchor.zone - 1
-    upperRow = anchor.row + 1
-  } else {
-    return null
+  const lowerAnchorBelow = holeById.get(`t-${anchor.zone + 1}-${anchor.row - 1}-${anchor.column}`)
+  // Prefer the nearest gap; at equal distance retain the original A-B/C-D preference.
+  const preferBelow = anchor.row > 2 || (anchor.row === 2 && anchor.zone % 2 === 0)
+  const candidates = preferBelow ? [lowerAnchorBelow, anchor] : [anchor, lowerAnchorBelow]
+  for (const lowerAnchor of candidates) {
+    if (!lowerAnchor) continue
+    const pins = sevenSegmentPlacementFromLowerPin(lowerAnchor, new Set())
+    // Occupied holes block the chosen footprint instead of flipping it to another gap.
+    if (pins) return pins.some((pin) => occupied.has(pin)) ? null : pins
   }
+  return null
+}
 
-  const lower = Array.from({ length: 5 }, (_, offset) => `t-${lowerZone}-${lowerRow}-${anchor.column + offset}`)
-  const upper = Array.from({ length: 5 }, (_, offset) => `t-${upperZone}-${upperRow}-${anchor.column + offset}`)
+export function sevenSegmentPlacementFromLowerPin(anchor: Hole, occupied: Set<string>): string[] | null {
+  if (anchor.region !== 'terminal' || anchor.zone === undefined || anchor.row === undefined) return null
+  if (anchor.zone < 1 || anchor.zone > 3 || anchor.row < 0 || anchor.row > 3 || anchor.column + 4 >= 63) return null
+
+  // Every adjacent zone pair has the same spacing, including the B-C board join.
+  const lower = Array.from({ length: 5 }, (_, offset) => `t-${anchor.zone}-${anchor.row}-${anchor.column + offset}`)
+  const upper = Array.from({ length: 5 }, (_, offset) => `t-${anchor.zone - 1}-${anchor.row + 1}-${anchor.column + offset}`)
   // Physical numbering: bottom row 1-5 left-to-right, top row 6-10 right-to-left.
   const pins = [...lower, ...upper.reverse()]
   if (pins.some((pin) => !holeById.has(pin) || occupied.has(pin))) return null

@@ -17,6 +17,7 @@ interface MenuChild {
   label: string
   glyph: GlyphKind
   accent?: string
+  glyphColor?: string
   options: Partial<ComponentPlacementOptions>
 }
 
@@ -56,6 +57,8 @@ const menus: PartsMenu[] = [
         tool: 'seven-segment',
         label: '1位数码管',
         glyph: 'seven-segment',
+        accent: '#b8b8b8',
+        glyphColor: '#ef3d32',
         options: { value: 0.01, color: '#ef3d32', label: 'SC56-11EWA' },
       },
     ],
@@ -84,7 +87,7 @@ const menus: PartsMenu[] = [
   },
 ]
 
-function CircuitGlyph({ kind }: { kind: GlyphKind }) {
+function CircuitGlyph({ kind, color }: { kind: GlyphKind; color?: string }) {
   let shape: React.ReactNode
   if (kind === 'wire') {
     shape = <><path d="M3 12h18" /><circle cx="3" cy="12" r="1.8" /><circle cx="21" cy="12" r="1.8" /></>
@@ -103,15 +106,11 @@ function CircuitGlyph({ kind }: { kind: GlyphKind }) {
   } else if (kind === 'switch') {
     shape = <><path d="M2 15h4M18 15h4" /><circle cx="7" cy="15" r="1.8" /><circle cx="17" cy="15" r="1.8" /><path d="M8.5 13.8 16 7" /></>
   } else if (kind === 'seven-segment') {
-    shape = <>
-      <rect x="5" y="2.5" width="13" height="19" rx="1.5" fill="#090b0a" stroke="currentColor" />
-      <path d="M8 5h7M7.5 6.5v4M15.5 6.5v4M8 12h7M7.5 13.5v4M15.5 13.5v4M8 19h7" />
-      <circle cx="17" cy="19" r=".9" fill="currentColor" stroke="none" />
-    </>
+    shape = <path d="M9 4h6M7 6v4M17 6v4M9 12h6M7 14v4M17 14v4M9 20h6" />
   } else {
     shape = <path d="M5 12h5M10 5v14M10 9l7-4M10 15l7 4" />
   }
-  return <svg className="circuit-glyph" viewBox="0 0 24 24" aria-hidden="true">{shape}</svg>
+  return <svg className="circuit-glyph" viewBox="0 0 24 24" aria-hidden="true" style={color ? { color } : undefined}>{shape}</svg>
 }
 
 export function Palette() {
@@ -193,7 +192,7 @@ export function Palette() {
                       onClick={() => chooseChild(child)}
                       data-testid={`part-${id}-${child.id}`}
                     >
-                      <span className="subitem-mark" style={child.accent ? { '--subitem-accent': child.accent } as React.CSSProperties : undefined}><CircuitGlyph kind={child.glyph} /></span>
+                      <span className="subitem-mark" style={child.accent ? { '--subitem-accent': child.accent } as React.CSSProperties : undefined}><CircuitGlyph kind={child.glyph} color={child.glyphColor} /></span>
                       <span><strong>{child.label}</strong></span>
                     </button>
                   ))}

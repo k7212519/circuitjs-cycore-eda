@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { defaultPlacement, holeById, isTwoPinComponent, isValidButtonPinPair, nearestHole } from '@/domain/board'
+import { defaultPlacement, holeById, isTwoPinComponent, isValidButtonPinPair, nearestHole, sevenSegmentPlacementFromLowerPin } from '@/domain/board'
 import { createEmptyDocument, parseDocument } from '@/domain/document'
 import { occupiedHoles, validateDocument } from '@/domain/validation'
 import type {
@@ -234,7 +234,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
     const anchor = nearestHole(point, 24, occupied)
     if (!anchor) return false
     if (component.kind === 'seven-segment') {
-      const pins = defaultPlacement(component.kind, anchor, occupied)
+      const pins = sevenSegmentPlacementFromLowerPin(anchor, occupied)
       if (!pins) return false
       set(withDocument(state, (document) => {
         const target = document.components.find((item) => item.id === componentId)
@@ -378,7 +378,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
         if (!first || !second || !isValidButtonPinPair(first, second)) return false
       }
       if (component.kind === 'seven-segment') {
-        const expected = defaultPlacement(component.kind, resolved[0]!, occupied)
+        const expected = sevenSegmentPlacementFromLowerPin(resolved[0]!, occupied)
         if (!expected || expected.some((pin, index) => pin !== resolved[index]?.id)) return false
       }
       componentPins.set(component.id, resolved.map((target) => target.id))

@@ -95,7 +95,7 @@ function PlacementInspector({ tool }: { tool: Exclude<ToolKind, 'select'> }) {
             <div className="fixed-component-spec">
               <span>{sevenSegmentCommonAnode ? 'COMMON ANODE' : 'COMMON CATHODE'}</span>
               <strong>3、8 脚内部相连</strong>
-              <small>将封装左边缘对准跨槽孔位后单击放置。</small>
+              <small>可跨沟槽或中间拼缝，将封装左边缘对准孔位后单击放置。</small>
             </div>
           </>
         ) : null}

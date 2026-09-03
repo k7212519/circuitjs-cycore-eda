@@ -583,16 +583,19 @@ function SevenSegmentBody({
           shadowOffsetY={5}
         />
         <Rect x={-bodyWidth / 2 + 5} y={-bodyHeight / 2 + 5} width={bodyWidth - 10} height={bodyHeight - 10} cornerRadius={2} stroke="#171c19" strokeWidth={1} />
-        {horizontal(0, -segmentRowOffset)}
-        {vertical(1, 21, -segmentRowOffset / 2)}
-        {vertical(2, 21, segmentRowOffset / 2)}
-        {horizontal(3, segmentRowOffset)}
-        {vertical(4, -21, segmentRowOffset / 2)}
-        {vertical(5, -21, -segmentRowOffset / 2)}
-        {horizontal(6, 0)}
+        {/* Shear only the digit rightward (~7°), keeping the package and decimal point upright. */}
+        <Group skewX={-0.12}>
+          {horizontal(0, -segmentRowOffset)}
+          {vertical(1, 21, -segmentRowOffset / 2)}
+          {vertical(2, 21, segmentRowOffset / 2)}
+          {horizontal(3, segmentRowOffset)}
+          {vertical(4, -21, segmentRowOffset / 2)}
+          {vertical(5, -21, -segmentRowOffset / 2)}
+          {horizontal(6, 0)}
+        </Group>
         <Circle
-          x={32}
-          y={segmentRowOffset - 1}
+          x={27}
+          y={segmentRowOffset + 2}
           radius={5}
           fill={segmentFill(7)}
           shadowColor="#ff3026"

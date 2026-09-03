@@ -113,7 +113,7 @@ describe('dual 830 trimmed breadboard', () => {
       't-1-1-20', 't-1-1-21', 't-1-1-22', 't-1-1-23', 't-1-1-24',
       't-0-2-24', 't-0-2-23', 't-0-2-22', 't-0-2-21', 't-0-2-20',
     ])
-    expect(defaultPlacement('seven-segment', holeById.get('t-1-4-20')!, new Set())).toBeNull()
+    expect(defaultPlacement('seven-segment', holeById.get('t-3-4-20')!, new Set())).toBeNull()
     expect(defaultPlacement('seven-segment', holeById.get('t-1-1-59')!, new Set())).toBeNull()
     expect(defaultPlacement('seven-segment', lowerLeft, new Set(['t-0-2-22']))).toBeNull()
   })
