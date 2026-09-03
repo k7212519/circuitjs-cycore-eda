@@ -1,5 +1,9 @@
 import { holeById } from './board'
 import { buildConnectivity, validateDocument } from './validation'
+import {
+  SEVEN_SEGMENT_COMMON_PHYSICAL_INDICES,
+  SEVEN_SEGMENT_CORE_TO_PHYSICAL_INDEX,
+} from './sevenSegment'
 import type { BreadboardComponent, BreadboardDocument } from './types'
 
 export interface ComponentBinding {
@@ -26,6 +30,7 @@ export function circuitElementType(component: Pick<BreadboardComponent, 'kind' |
     case 'button': return 'SwitchElm'
     case 'npn':
     case 'pnp': return 'TransistorElm'
+    case 'seven-segment': return 'SevenSegElm'
   }
 }
 
@@ -86,7 +91,37 @@ export function buildCircuitJsNetlist(
     if (pinPoints.some((point) => !point)) return
 
     const origin = { x: 80 + (index % 12) * 96, y: 480 + Math.floor(index / 12) * 80 }
-    if (component.kind === 'npn' || component.kind === 'pnp') {
+    if (component.kind === 'seven-segment') {
+      // With a decimal point, SevenSegElm places a-d/common on the left and
+      // e-g/dp on the right (the common moves left when segmentCount is 8).
+      // A standard-size ChipElm uses a 32px post pitch and a 192px span.
+      const displayOrigin = {
+        x: 1600 + (index % 4) * 288,
+        y: 480 + Math.floor(index / 4) * 192,
+      }
+      const leftPosts = Array.from({ length: 4 }, (_, pin) => ({
+        x: displayOrigin.x,
+        y: displayOrigin.y + pin * 32,
+      }))
+      const rightPosts = Array.from({ length: 4 }, (_, pin) => ({
+        x: displayOrigin.x + 192,
+        y: displayOrigin.y + pin * 32,
+      }))
+      const commonPost = { x: displayOrigin.x, y: displayOrigin.y + 128 }
+      const corePosts = [...leftPosts, ...rightPosts, commonPost]
+      SEVEN_SEGMENT_CORE_TO_PHYSICAL_INDEX.forEach((physicalIndex, coreIndex) => {
+        wireTo(pinPoints[physicalIndex] as XY, corePosts[coreIndex] as XY)
+      })
+      for (const physicalIndex of SEVEN_SEGMENT_COMMON_PHYSICAL_INDICES) {
+        wireTo(pinPoints[physicalIndex] as XY, corePosts[8] as XY)
+      }
+      const diodeDirection = component.variant === 'common-anode' ? -1 : 1
+      componentBindings.push({
+        componentId: component.id,
+        elementIndex: addElement(`157 ${displayOrigin.x} ${displayOrigin.y} ${displayOrigin.x + 128} ${displayOrigin.y} 0 7 1 ${diodeDirection}`),
+        expectedType: circuitElementType(component),
+      })
+    } else if (component.kind === 'npn' || component.kind === 'pnp') {
       // Breadboard transistor pins are stored in physical left-to-right E-B-C
       // order. CircuitJS TransistorElm requires node order B-C-E.
       const emitterPin = pinPoints[0] as XY

@@ -82,6 +82,67 @@ with sync_playwright() as playwright:
     assert reverse_reading["brightness"] == 0
     reverse_context.close()
 
+    display_document = {
+        "schemaVersion": 1,
+        "boardId": "dual-830-trimmed-v1",
+        "projectName": "共阴极数码管验收",
+        "components": [
+            {"id": "ra", "kind": "resistor", "pins": ["t-2-0-2", "t-2-0-7"], "rotation": 0, "value": 1000},
+            {"id": "rg", "kind": "resistor", "pins": ["t-2-0-12", "t-2-0-17"], "rotation": 0, "value": 1000},
+            {"id": "rdp", "kind": "resistor", "pins": ["t-2-0-22", "t-2-0-27"], "rotation": 0, "value": 1000},
+            {
+                "id": "display", "kind": "seven-segment",
+                "pins": [
+                    "t-1-1-20", "t-1-1-21", "t-1-1-22", "t-1-1-23", "t-1-1-24",
+                    "t-0-2-24", "t-0-2-23", "t-0-2-22", "t-0-2-21", "t-0-2-20",
+                ],
+                "rotation": 0, "value": 0.01, "color": "#ef3d32", "label": "SC56-11EWA",
+            },
+        ],
+        "wires": [
+            {"id": "va", "from": "rail-top-positive-0", "to": "t-2-1-2", "color": "#e4523d"},
+            {"id": "a", "from": "t-2-1-7", "to": "t-0-0-23", "color": "#e4523d"},
+            {"id": "vg", "from": "rail-top-positive-1", "to": "t-2-1-12", "color": "#e4523d"},
+            {"id": "g", "from": "t-2-1-17", "to": "t-0-0-20", "color": "#e4523d"},
+            {"id": "vdp", "from": "rail-top-positive-2", "to": "t-2-1-22", "color": "#e4523d"},
+            {"id": "dp", "from": "t-2-1-27", "to": "t-1-0-24", "color": "#e4523d"},
+            {"id": "common", "from": "t-1-0-22", "to": "rail-top-negative-0", "color": "#232a28"},
+        ],
+        "viewport": {"x": 0, "y": 0, "scale": 1},
+    }
+    display_context, display_page = open_workbench(browser, display_document)
+    display_reading = display_page.locator("iframe").evaluate("""frame => {
+      const display = frame.contentWindow.CircuitJS1.getElements().find(element => element.getExternalId() === 'display');
+      if (!display) return null;
+      return {
+        type: display.getType(),
+        currents: Array.from({ length: display.getPostCount() }, (_, index) => display.getPostCurrent(index)),
+      };
+    }""")
+    assert display_reading is not None and display_reading["type"] == "SevenSegElm"
+    segment_currents = display_reading["currents"]
+    for index in [0, 6, 7]:
+        assert segment_currents[index] > 0.001, display_reading
+    for index in [1, 2, 3, 4, 5]:
+        assert abs(segment_currents[index]) < 0.000001, display_reading
+    assert segment_currents[8] < -0.003
+    assert abs(sum(segment_currents)) < 1e-8
+    display_page.screenshot(path="/tmp/breadboard-seven-segment.png", full_page=True)
+    display_context.close()
+
+    alternate_common_document = json.loads(json.dumps(display_document))
+    alternate_common_document["wires"][-1]["from"] = "t-0-0-22"
+    alternate_context, alternate_page = open_workbench(browser, alternate_common_document)
+    alternate_currents = alternate_page.locator("iframe").evaluate("""frame => {
+      const display = frame.contentWindow.CircuitJS1.getElements().find(element => element.getExternalId() === 'display');
+      return display ? Array.from({ length: display.getPostCount() }, (_, index) => display.getPostCurrent(index)) : null;
+    }""")
+    assert alternate_currents is not None
+    for index in [0, 6, 7]:
+        assert alternate_currents[index] > 0.001, alternate_currents
+    assert abs(alternate_currents[8] - segment_currents[8]) < 1e-8
+    alternate_context.close()
+
     transistor_document = {
         "schemaVersion": 1,
         "boardId": "dual-830-trimmed-v1",
@@ -193,6 +254,7 @@ with sync_playwright() as playwright:
     print(
         f"CircuitJS bindings verified; LED forward={led_current:.6f} A, "
         f"reverse={reverse_reading['current']:.3e} A, transistor terminal sum={sum(transistor['currents']):.3e} A, "
+        f"seven-segment a/g/dp={segment_currents[0]:.4f}/{segment_currents[6]:.4f}/{segment_currents[7]:.4f} A, "
         f"dual-button LED brightness={button_readings['leftLed']['brightness']:.3f}/{button_readings['rightLed']['brightness']:.3f}",
         flush=True,
     )

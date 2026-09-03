@@ -1,10 +1,11 @@
 import { AlertTriangle, Cable, Gauge, RotateCw, Settings2, Trash2 } from 'lucide-react'
 import { boardPointLabel } from '@/domain/board'
+import { SEVEN_SEGMENT_PHYSICAL_PIN_NAMES } from '@/domain/sevenSegment'
 import type { ComponentKind, ComponentPlacementOptions, ResistorBandCount, ToolKind } from '@/domain/types'
 import { useWorkbenchStore } from '@/store/useWorkbenchStore'
 
 const names = {
-  resistor: '电阻', capacitor: '电容', led: '发光二极管', diode: '二极管', switch: '开关', button: '按键', npn: 'NPN 三极管', pnp: 'PNP 三极管',
+  resistor: '电阻', capacitor: '电容', led: '发光二极管', diode: '二极管', switch: '开关', button: '按键', npn: 'NPN 三极管', pnp: 'PNP 三极管', 'seven-segment': '数码管',
 }
 const toolNames: Record<Exclude<ToolKind, 'select'>, string> = { wire: '导线', ...names }
 const wireColors = ['#e4523d', '#232a28', '#e8b83f', '#277fbc', '#4a9b65']
@@ -28,8 +29,14 @@ function numericValue(raw: string): number {
   return Number.isFinite(value) ? Math.max(value, 1e-12) : 1e-12
 }
 
-function pinName(kind: ComponentKind, index: number): string {
+function pinName(kind: ComponentKind, index: number, variant?: ComponentPlacementOptions['variant']): string {
   if (kind === 'npn' || kind === 'pnp') return ['E', 'B', 'C'][index] ?? `P${index + 1}`
+  if (kind === 'seven-segment') {
+    const segment = (index === 2 || index === 7) && variant === 'common-anode'
+      ? 'VCC'
+      : SEVEN_SEGMENT_PHYSICAL_PIN_NAMES[index] ?? '?'
+    return `P${index + 1} · ${segment}`
+  }
   return `P${index + 1}`
 }
 
@@ -39,6 +46,7 @@ function PlacementInspector({ tool }: { tool: Exclude<ToolKind, 'select'> }) {
   const wireColor = useWorkbenchStore((state) => state.wireColor)
   const setWireColor = useWorkbenchStore((state) => state.setWireColor)
   const options = tool === 'wire' ? null : placementOptions[tool]
+  const sevenSegmentCommonAnode = tool === 'seven-segment' && options?.variant === 'common-anode'
   const placementName = tool === 'capacitor'
     ? options?.variant === 'electrolytic' ? '电解电容' : '瓷片电容'
     : tool === 'led'
@@ -49,6 +57,8 @@ function PlacementInspector({ tool }: { tool: Exclude<ToolKind, 'select'> }) {
           ? options?.label ?? toolNames[tool]
         : tool === 'npn' || tool === 'pnp'
           ? `${tool.toUpperCase()} · ${options?.label ?? ''}`.trim()
+          : tool === 'seven-segment'
+            ? '1位数码管'
           : toolNames[tool]
 
   const update = (kind: ComponentKind, patch: Partial<ComponentPlacementOptions>) => updatePlacementOptions(kind, patch)
@@ -70,8 +80,25 @@ function PlacementInspector({ tool }: { tool: Exclude<ToolKind, 'select'> }) {
           <span className={`placement-icon ${tool === 'wire' ? 'is-wire' : ''}`}>
             {tool === 'wire' ? <Cable size={21} /> : tool.toUpperCase()}
           </span>
-          <div><strong>{placementName}</strong><small>类型已在左侧选定，参数将应用到下一个元件</small></div>
+          <div><strong>{placementName}</strong><small>{tool === 'seven-segment' ? 'SC56-11EWA · 红色 · 固定 10 脚封装' : '类型已在左侧选定，参数将应用到下一个元件'}</small></div>
         </div>
+
+        {tool === 'seven-segment' ? (
+          <>
+            <div className="option-group">
+              <div className="option-label"><span>公共端类型</span><code>{sevenSegmentCommonAnode ? 'COMMON ANODE' : 'COMMON CATHODE'}</code></div>
+              <div className="segmented-options">
+                <button type="button" className={!sevenSegmentCommonAnode ? 'is-active' : ''} aria-pressed={!sevenSegmentCommonAnode} onClick={() => update('seven-segment', { variant: 'common-cathode' })}>共阴极</button>
+                <button type="button" className={sevenSegmentCommonAnode ? 'is-active' : ''} aria-pressed={sevenSegmentCommonAnode} onClick={() => update('seven-segment', { variant: 'common-anode' })}>共阳极</button>
+              </div>
+            </div>
+            <div className="fixed-component-spec">
+              <span>{sevenSegmentCommonAnode ? 'COMMON ANODE' : 'COMMON CATHODE'}</span>
+              <strong>3、8 脚内部相连</strong>
+              <small>将封装左边缘对准跨槽孔位后单击放置。</small>
+            </div>
+          </>
+        ) : null}
 
         {tool === 'wire' ? (
           <div className="option-group">
@@ -140,7 +167,7 @@ function PlacementInspector({ tool }: { tool: Exclude<ToolKind, 'select'> }) {
 
         <div className="placement-guide">
           <Settings2 size={16} />
-          <div><strong>参数已就绪</strong><span>{tool === 'wire' || tool === 'resistor' || tool === 'capacitor' || tool === 'led' || tool === 'diode' || tool === 'switch' || tool === 'button' ? '从起点孔拖到终点孔完成放置' : '在目标孔位单击完成放置'}</span></div>
+          <div><strong>参数已就绪</strong><span>{tool === 'wire' || tool === 'resistor' || tool === 'capacitor' || tool === 'led' || tool === 'diode' || tool === 'switch' || tool === 'button' ? '从起点孔拖到终点孔完成放置' : tool === 'seven-segment' ? '在跨槽封装预览处单击完成放置' : '在目标孔位单击完成放置'}</span></div>
         </div>
       </div>
     </aside>
@@ -221,16 +248,33 @@ export function Inspector() {
             <div><strong>{component.kind === 'capacitor' ? component.variant === 'electrolytic' ? '电解电容' : '瓷片电容' : names[component.kind]}</strong><small>{component.label}</small></div>
           </div>
 
-          {component.kind !== 'button' && component.kind !== 'switch' ? <label className="field-label">
-            <span>{component.kind === 'capacitor' ? '容量 (F)' : component.kind === 'npn' || component.kind === 'pnp' ? '放大倍数 β' : '数值'}</span>
-            <input
-              type="number"
-              min="0.000000001"
-              step="any"
-              value={component.value}
-              onChange={(event) => updateSelected({ value: Math.max(Number(event.target.value), 1e-12) })}
-            />
-          </label> : (
+          {component.kind === 'seven-segment' ? (
+            <>
+              <div className="option-group">
+                <div className="option-label"><span>公共端类型</span><code>{component.variant === 'common-anode' ? 'COMMON ANODE' : 'COMMON CATHODE'}</code></div>
+                <div className="segmented-options">
+                  <button type="button" className={component.variant !== 'common-anode' ? 'is-active' : ''} aria-pressed={component.variant !== 'common-anode'} onClick={() => updateSelected({ variant: 'common-cathode' })}>共阴极</button>
+                  <button type="button" className={component.variant === 'common-anode' ? 'is-active' : ''} aria-pressed={component.variant === 'common-anode'} onClick={() => updateSelected({ variant: 'common-anode' })}>共阳极</button>
+                </div>
+              </div>
+              <div className="fixed-component-spec">
+                <span>0.56 INCH · RED</span>
+                <strong>{component.variant === 'common-anode' ? '共阳极七段数码管' : '共阴极七段数码管'}</strong>
+                <small>右下小数点 · 外接限流电阻 · 3、8 脚内部相连</small>
+              </div>
+            </>
+          ) : component.kind !== 'button' && component.kind !== 'switch' ? (
+            <label className="field-label">
+              <span>{component.kind === 'capacitor' ? '容量 (F)' : component.kind === 'npn' || component.kind === 'pnp' ? '放大倍数 β' : '数值'}</span>
+              <input
+                type="number"
+                min="0.000000001"
+                step="any"
+                value={component.value}
+                onChange={(event) => updateSelected({ value: Math.max(Number(event.target.value), 1e-12) })}
+              />
+            </label>
+          ) : (
             <div className={`contact-state ${contactClosed ? 'is-closed' : ''}`}>
               <span className="contact-state-light" />
               <div>
@@ -253,23 +297,23 @@ export function Inspector() {
             <div className="section-label">PIN MAP</div>
             {component.pins.map((pin, index) => (
               <div className="pin-row" key={pin}>
-                <span>{pinName(component.kind, index)}</span>
+                <span>{pinName(component.kind, index, component.variant)}</span>
                 <strong>{boardPointLabel(pin)}</strong>
                 <small>
-                  {formatEngineering(reading?.pinVoltages[index] ?? 0, 'V')} · {formatEngineering(reading?.pinCurrents[index] ?? 0, 'A')}
+                  {formatEngineering(reading?.pinVoltages[index] ?? 0, 'V')} · {component.kind === 'seven-segment' && (index === 2 || index === 7) ? `公共端合计 ${formatEngineering(reading?.pinCurrents[index] ?? 0, 'A')}` : formatEngineering(reading?.pinCurrents[index] ?? 0, 'A')}
                 </small>
               </div>
             ))}
           </div>
 
           <div className="meter-grid">
-            <div className="meter-card"><span>{component.kind === 'npn' || component.kind === 'pnp' ? 'VCE' : 'VOLTAGE'}</span><strong>{formatEngineering(reading?.voltage ?? 0, 'V')}</strong></div>
-            <div className="meter-card"><span>{component.kind === 'npn' || component.kind === 'pnp' ? 'IC' : 'CURRENT'}</span><strong>{formatEngineering(reading?.current ?? 0, 'A')}</strong></div>
+            <div className="meter-card"><span>{component.kind === 'npn' || component.kind === 'pnp' ? 'VCE' : component.kind === 'seven-segment' ? 'MAX VF' : 'VOLTAGE'}</span><strong>{formatEngineering(reading?.voltage ?? 0, 'V')}</strong></div>
+            <div className="meter-card"><span>{component.kind === 'npn' || component.kind === 'pnp' ? 'IC' : component.kind === 'seven-segment' ? 'COM CURRENT' : 'CURRENT'}</span><strong>{formatEngineering(reading?.current ?? 0, 'A')}</strong></div>
             <div className="meter-card wide"><span>POWER</span><strong>{formatEngineering(reading?.power ?? 0, 'W')}</strong></div>
           </div>
 
-          <div className={`object-actions ${component.kind === 'button' ? 'is-single' : ''}`}>
-            {component.kind !== 'button' ? <button type="button" onClick={rotateSelected}><RotateCw size={15} />旋转 90°</button> : null}
+          <div className={`object-actions ${component.kind === 'button' || component.kind === 'seven-segment' ? 'is-single' : ''}`}>
+            {component.kind !== 'button' && component.kind !== 'seven-segment' ? <button type="button" onClick={rotateSelected}><RotateCw size={15} />旋转 90°</button> : null}
             <button type="button" className="danger" onClick={deleteSelected}><Trash2 size={15} />删除</button>
           </div>
         </div>

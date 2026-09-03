@@ -27,6 +27,7 @@ const defaults: Record<ComponentKind, ComponentPlacementOptions> = {
   button: { value: 1, label: '瞬时按键' },
   npn: { value: 100, label: '2N3904' },
   pnp: { value: 100, label: '2N3906' },
+  'seven-segment': { value: 0.01, color: '#ef3d32', label: 'SC56-11EWA', variant: 'common-cathode' },
 }
 
 interface WorkbenchState {
@@ -232,6 +233,15 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
     const occupied = occupiedHoles(state.document, componentId)
     const anchor = nearestHole(point, 24, occupied)
     if (!anchor) return false
+    if (component.kind === 'seven-segment') {
+      const pins = defaultPlacement(component.kind, anchor, occupied)
+      if (!pins) return false
+      set(withDocument(state, (document) => {
+        const target = document.components.find((item) => item.id === componentId)
+        if (target) target.pins = pins
+      }))
+      return true
+    }
     const sourcePoints = component.pins
       .map((pin) => holeById.get(pin))
       .filter((hole): hole is NonNullable<typeof hole> => Boolean(hole))
@@ -262,6 +272,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
     const state = get()
     const component = state.document.components.find((item) => item.id === componentId)
     if (!component) return false
+    if (component.kind === 'seven-segment') return false
     const occupied = occupiedHoles(state.document, componentId)
     component.pins.forEach((pin, index) => { if (index !== pinIndex) occupied.add(pin) })
     const hole = nearestHole(point, 24, component.kind === 'button' ? new Set() : occupied)
@@ -366,6 +377,10 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
         const [first, second] = resolved
         if (!first || !second || !isValidButtonPinPair(first, second)) return false
       }
+      if (component.kind === 'seven-segment') {
+        const expected = defaultPlacement(component.kind, resolved[0]!, occupied)
+        if (!expected || expected.some((pin, index) => pin !== resolved[index]?.id)) return false
+      }
       componentPins.set(component.id, resolved.map((target) => target.id))
     }
 
@@ -439,7 +454,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
     if (state.selectedIds.length !== 1) return
     const component = state.document.components.find((item) => item.id === state.selectedIds[0])
     if (!component) return
-    if (component.kind === 'button') return
+    if (component.kind === 'button' || component.kind === 'seven-segment') return
     const points = component.pins.map((pin) => holeById.get(pin)).filter(Boolean)
     if (points.length !== component.pins.length || !points[0]) return
     const occupied = occupiedHoles(state.document, component.id)

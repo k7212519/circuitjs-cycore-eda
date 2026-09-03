@@ -3,7 +3,7 @@ import { ChevronDown } from 'lucide-react'
 import type { ComponentKind, ComponentPlacementOptions, ToolKind } from '@/domain/types'
 import { useWorkbenchStore } from '@/store/useWorkbenchStore'
 
-type GlyphKind = 'wire' | 'resistor' | 'capacitor' | 'ceramic' | 'electrolytic' | 'led' | 'diode' | 'switch' | 'transistor' | 'npn' | 'pnp'
+type GlyphKind = 'wire' | 'resistor' | 'capacitor' | 'ceramic' | 'electrolytic' | 'led' | 'diode' | 'switch' | 'transistor' | 'npn' | 'pnp' | 'seven-segment'
 
 interface DirectItem {
   kind: 'wire' | 'resistor'
@@ -49,6 +49,18 @@ const menus: PartsMenu[] = [
     ],
   },
   {
+    id: 'seven-segment', label: '数码管', glyph: 'seven-segment',
+    children: [
+      {
+        id: 'single-common-cathode',
+        tool: 'seven-segment',
+        label: '1位数码管',
+        glyph: 'seven-segment',
+        options: { value: 0.01, color: '#ef3d32', label: 'SC56-11EWA' },
+      },
+    ],
+  },
+  {
     id: 'capacitor', label: '电容', glyph: 'capacitor',
     children: [
       { id: 'ceramic', tool: 'capacitor', label: '瓷片电容', glyph: 'ceramic', options: { variant: 'ceramic', value: 100e-9, label: '100 nF' } },
@@ -90,6 +102,12 @@ function CircuitGlyph({ kind }: { kind: GlyphKind }) {
     shape = <path d="M3 12h4M7 7l7 5-7 5ZM15 6v12M15 12h6" />
   } else if (kind === 'switch') {
     shape = <><path d="M2 15h4M18 15h4" /><circle cx="7" cy="15" r="1.8" /><circle cx="17" cy="15" r="1.8" /><path d="M8.5 13.8 16 7" /></>
+  } else if (kind === 'seven-segment') {
+    shape = <>
+      <rect x="5" y="2.5" width="13" height="19" rx="1.5" fill="#090b0a" stroke="currentColor" />
+      <path d="M8 5h7M7.5 6.5v4M15.5 6.5v4M8 12h7M7.5 13.5v4M15.5 13.5v4M8 19h7" />
+      <circle cx="17" cy="19" r=".9" fill="currentColor" stroke="none" />
+    </>
   } else {
     shape = <path d="M5 12h5M10 5v14M10 9l7-4M10 15l7 4" />
   }

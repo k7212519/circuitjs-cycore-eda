@@ -43,6 +43,7 @@ test('offers retaining switch and momentary button options under the switch menu
   expect(await palette.locator('.part-menu-trigger').evaluateAll((items) => items.map((item) => item.getAttribute('data-testid')))).toEqual([
     'part-menu-switch',
     'part-menu-led',
+    'part-menu-seven-segment',
     'part-menu-capacitor',
     'part-menu-diode',
     'part-menu-transistor',
@@ -58,6 +59,36 @@ test('offers retaining switch and momentary button options under the switch menu
   await button.click()
   await expect(page.getByLabel('放置选项').getByText('瞬时按键', { exact: true }).first()).toBeVisible()
   await expect(page.getByText('选择 按键 起点孔')).toBeVisible()
+})
+
+test('places the rigid ten-pin seven-segment display', async ({ page }) => {
+  await page.goto('')
+  await page.waitForLoadState('networkidle')
+  const palette = page.getByLabel('元器件库')
+  await palette.getByTestId('part-menu-seven-segment').click()
+  await palette.getByTestId('part-seven-segment-single-common-cathode').click()
+  const placementPanel = page.getByLabel('放置选项')
+  await expect(placementPanel.getByText('1位数码管', { exact: true }).first()).toBeVisible()
+  await expect(placementPanel.getByText('3、8 脚内部相连')).toBeVisible()
+
+  const board = page.getByTestId('breadboard-canvas')
+  const canvas = page.locator('.canvas-shell canvas').first()
+  const box = await canvas.boundingBox()
+  expect(box).not.toBeNull()
+  if (!box) return
+  const transform = (await board.getAttribute('data-board-transform'))!
+  const [offsetX, offsetY, scale] = transform.split(',').map(Number)
+  const lowerLeft = { x: box.x + offsetX! + 396 * scale!, y: box.y + offsetY! + 249 * scale! }
+  await page.mouse.move(lowerLeft.x, lowerLeft.y)
+  await page.mouse.click(lowerLeft.x, lowerLeft.y)
+
+  await expect(board).toHaveAttribute('data-selected-count', '1')
+  const inspector = page.getByLabel('属性与测量')
+  await expect(inspector.getByText('共阴极七段数码管')).toBeVisible()
+  await expect(inspector.locator('.pin-row')).toHaveCount(10)
+  await expect(inspector.getByText('P1 · e')).toBeVisible()
+  await expect(inspector.getByText('P10 · g')).toBeVisible()
+  await expect(inspector.getByRole('button', { name: '旋转 90°' })).toHaveCount(0)
 })
 
 test('keeps the button knob independent and marquee-selects movable objects', async ({ page }) => {

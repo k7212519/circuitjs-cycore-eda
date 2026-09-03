@@ -87,7 +87,7 @@ export function validateDocument(document: BreadboardDocument): ValidationIssue[
   ].map((node) => connectivity.rootForNode.get(node)).filter((root): root is string => Boolean(root)))
   for (const component of document.components) {
     const roots = component.pins.map((pin) => connectivity.rootForHole.get(pin)).filter(Boolean)
-    if (new Set(roots).size !== roots.length) {
+    if (component.kind !== 'seven-segment' && new Set(roots).size !== roots.length) {
       issues.push({
         level: 'error',
         code: 'SAME_NODE',
@@ -103,7 +103,7 @@ export function validateDocument(document: BreadboardDocument): ValidationIssue[
         targetId: component.id,
       })
     }
-    if (roots.some((root) => root && !suppliedRoots.has(root) && (attachmentCount.get(root) ?? 0) < 2)) {
+    if (component.kind !== 'seven-segment' && roots.some((root) => root && !suppliedRoots.has(root) && (attachmentCount.get(root) ?? 0) < 2)) {
       issues.push({
         level: 'warning',
         code: 'FLOATING_PIN',

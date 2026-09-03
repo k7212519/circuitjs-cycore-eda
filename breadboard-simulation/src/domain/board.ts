@@ -77,6 +77,7 @@ export function nearestHole(point: Point, maxDistance = 16, excluded = new Set<s
 }
 
 export function defaultPinCount(kind: ComponentKind): number {
+  if (kind === 'seven-segment') return 10
   return kind === 'npn' || kind === 'pnp' ? 3 : 2
 }
 
@@ -85,6 +86,7 @@ export function isTwoPinComponent(kind: ComponentKind): kind is TwoPinComponentK
 }
 
 export function defaultPlacement(kind: ComponentKind, anchor: Hole, occupied: Set<string>): string[] | null {
+  if (kind === 'seven-segment') return sevenSegmentPlacement(anchor, occupied)
   const count = defaultPinCount(kind)
   const candidates: string[][] = []
 
@@ -114,6 +116,36 @@ export function defaultPlacement(kind: ComponentKind, anchor: Hole, occupied: Se
     return pins
   }
   return null
+}
+
+function sevenSegmentPlacement(anchor: Hole, occupied: Set<string>): string[] | null {
+  if (anchor.region !== 'terminal' || anchor.zone === undefined || anchor.row === undefined) return null
+  if (anchor.column + 4 >= 63) return null
+
+  let upperZone: number
+  let upperRow: number
+  let lowerZone: number
+  let lowerRow: number
+  if ((anchor.zone === 0 || anchor.zone === 2) && anchor.row >= 1) {
+    upperZone = anchor.zone
+    upperRow = anchor.row
+    lowerZone = anchor.zone + 1
+    lowerRow = anchor.row - 1
+  } else if ((anchor.zone === 1 || anchor.zone === 3) && anchor.row <= 3) {
+    lowerZone = anchor.zone
+    lowerRow = anchor.row
+    upperZone = anchor.zone - 1
+    upperRow = anchor.row + 1
+  } else {
+    return null
+  }
+
+  const lower = Array.from({ length: 5 }, (_, offset) => `t-${lowerZone}-${lowerRow}-${anchor.column + offset}`)
+  const upper = Array.from({ length: 5 }, (_, offset) => `t-${upperZone}-${upperRow}-${anchor.column + offset}`)
+  // Physical numbering: bottom row 1-5 left-to-right, top row 6-10 right-to-left.
+  const pins = [...lower, ...upper.reverse()]
+  if (pins.some((pin) => !holeById.has(pin) || occupied.has(pin))) return null
+  return pins
 }
 
 export function isValidButtonPinPair(first: Hole, second: Hole): boolean {

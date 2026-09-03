@@ -1,8 +1,8 @@
-export type ComponentKind = 'resistor' | 'capacitor' | 'led' | 'diode' | 'switch' | 'button' | 'npn' | 'pnp'
-export type TwoPinComponentKind = Exclude<ComponentKind, 'npn' | 'pnp'>
+export type ComponentKind = 'resistor' | 'capacitor' | 'led' | 'diode' | 'switch' | 'button' | 'npn' | 'pnp' | 'seven-segment'
+export type TwoPinComponentKind = Exclude<ComponentKind, 'npn' | 'pnp' | 'seven-segment'>
 export type ToolKind = ComponentKind | 'wire' | 'select'
 export type ResistorBandCount = 4 | 5
-export type ComponentVariant = 'ceramic' | 'electrolytic' | 'small-signal' | 'rectifier' | 'schottky'
+export type ComponentVariant = 'ceramic' | 'electrolytic' | 'small-signal' | 'rectifier' | 'schottky' | 'common-cathode' | 'common-anode'
 export type DiodeVariant = Extract<ComponentVariant, 'small-signal' | 'rectifier' | 'schottky'>
 
 export interface Point {
@@ -64,6 +64,7 @@ export interface SimulationReading {
   pinVoltages: number[]
   pinCurrents: number[]
   brightness?: number
+  segmentBrightness?: number[]
 }
 
 export type SimulationStatus = 'connecting' | 'ready' | 'running' | 'paused' | 'offline' | 'error'

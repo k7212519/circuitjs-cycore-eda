@@ -70,6 +70,23 @@ describe('workbench history and placement', () => {
     ])
   })
 
+  it('places and moves the seven-segment display as a rigid non-rotating package', () => {
+    const anchor = holeById.get('t-1-1-20')!
+    expect(useWorkbenchStore.getState().placeAt('seven-segment', anchor)).toBe(true)
+    const component = useWorkbenchStore.getState().document.components[0]!
+    expect(component).toMatchObject({ kind: 'seven-segment', label: 'SC56-11EWA', rotation: 0 })
+    expect(component.pins).toEqual([
+      't-1-1-20', 't-1-1-21', 't-1-1-22', 't-1-1-23', 't-1-1-24',
+      't-0-2-24', 't-0-2-23', 't-0-2-22', 't-0-2-21', 't-0-2-20',
+    ])
+    expect(useWorkbenchStore.getState().movePinTo(component.id, 0, holeById.get('t-1-1-30')!)).toBe(false)
+    useWorkbenchStore.getState().rotateSelected()
+    expect(useWorkbenchStore.getState().document.components[0]?.rotation).toBe(0)
+    expect(useWorkbenchStore.getState().moveSelectionTo(component.id, holeById.get('t-3-1-30')!)).toBe(true)
+    expect(useWorkbenchStore.getState().document.components[0]?.pins[0]).toBe('t-3-1-30')
+    expect(useWorkbenchStore.getState().moveSelectionTo(component.id, holeById.get('t-2-1-30')!)).toBe(false)
+  })
+
   it('clears selection in drawing mode and applies placement options to the new component', () => {
     const selectedAnchor = holeById.get('t-0-0-2')!
     useWorkbenchStore.getState().placeAt('diode', selectedAnchor)

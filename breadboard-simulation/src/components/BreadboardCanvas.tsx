@@ -3,8 +3,9 @@ import { Circle, Group, Layer, Line, Path, Rect, Stage, Text } from 'react-konva
 import type Konva from 'konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import {
-  BOARD_HEIGHT, BOARD_WIDTH, HOLE_PITCH, HOLE_RADIUS, HOLE_SLEEVE_RADIUS, holeById, holes, isTwoPinComponent,
+  BOARD_HEIGHT, BOARD_WIDTH, HOLE_PITCH, HOLE_RADIUS, HOLE_SLEEVE_RADIUS, defaultPlacement, holeById, holes, isTwoPinComponent, nearestHole,
 } from '@/domain/board'
+import { occupiedHoles } from '@/domain/validation'
 import type {
   BreadboardComponent, ComponentKind, ComponentPlacementOptions, ComponentVariant, DiodeVariant, Point, ResistorBandCount, TwoPinComponentKind,
 } from '@/domain/types'
@@ -51,7 +52,7 @@ const wireWidth = 5
 const selectedWireWidth = 6.5
 
 function componentName(kind: ComponentKind): string {
-  return ({ resistor: 'R', capacitor: 'C', led: 'LED', diode: 'D', switch: '开关', button: '按键', npn: 'NPN', pnp: 'PNP' })[kind]
+  return ({ resistor: 'R', capacitor: 'C', led: 'LED', diode: 'D', switch: '开关', button: '按键', npn: 'NPN', pnp: 'PNP', 'seven-segment': '数码管' })[kind]
 }
 
 const uprightComponentKinds = new Set<ComponentKind>(['capacitor', 'led', 'npn', 'pnp'])
@@ -473,6 +474,137 @@ function TransistorBody({ points, selected, kind }: { points: Point[]; selected:
   )
 }
 
+function mixSegmentColor(brightness: number): string {
+  const amount = Math.min(1, Math.max(0, brightness))
+  const off = [239, 238, 230]
+  const on = [255, 47, 35]
+  const channels = off.map((value, index) => Math.round(value + ((on[index] ?? value) - value) * amount))
+  return `rgb(${channels.join(', ')})`
+}
+
+function SevenSegmentBody({
+  points,
+  selected,
+  brightness = [],
+}: {
+  points: Point[]
+  selected: boolean
+  brightness?: number[]
+}) {
+  if (points.length !== 10) return null
+  const topLeft = points[9]
+  const topRight = points[5]
+  const bottomLeft = points[0]
+  const bottomRight = points[4]
+  if (!topLeft || !topRight || !bottomLeft || !bottomRight) return null
+
+  const center = {
+    x: (topLeft.x + topRight.x + bottomLeft.x + bottomRight.x) / 4,
+    y: (topLeft.y + topRight.y + bottomLeft.y + bottomRight.y) / 4,
+  }
+  const bodyWidth = Math.abs(topRight.x - topLeft.x) + 8
+  const bodyHeight = Math.abs(bottomLeft.y - topLeft.y) - 6
+  const bodyTop = center.y - bodyHeight / 2
+  const bodyBottom = center.y + bodyHeight / 2
+  const segmentRowOffset = 35
+  // Leave a 4px gap between the upper/lower side tips and clearance at each bevel.
+  const verticalHalfLength = segmentRowOffset / 2 - 2
+  const segmentFill = (index: number) => mixSegmentColor(brightness[index] ?? 0)
+  const segmentGlow = (index: number) => Math.min(1, Math.max(0, brightness[index] ?? 0))
+  const horizontal = (index: number, y: number) => (
+    <Line
+      key={index}
+      points={[-18, y, -13, y - 5, 13, y - 5, 18, y, 13, y + 5, -13, y + 5]}
+      closed
+      fill={segmentFill(index)}
+      shadowColor="#ff3026"
+      shadowBlur={segmentGlow(index) * 12}
+      shadowOpacity={segmentGlow(index) * 0.85}
+      perfectDrawEnabled={false}
+    />
+  )
+  const vertical = (index: number, x: number, y: number) => (
+    <Line
+      key={index}
+      points={[
+        x, y - verticalHalfLength,
+        x + 5, y - verticalHalfLength + 5,
+        x + 5, y + verticalHalfLength - 5,
+        x, y + verticalHalfLength,
+        x - 5, y + verticalHalfLength - 5,
+        x - 5, y - verticalHalfLength + 5,
+      ]}
+      closed
+      fill={segmentFill(index)}
+      shadowColor="#ff3026"
+      shadowBlur={segmentGlow(index) * 12}
+      shadowOpacity={segmentGlow(index) * 0.85}
+      perfectDrawEnabled={false}
+    />
+  )
+
+  return (
+    <Group>
+      {points.map((point, index) => {
+        const topPin = index >= 5
+        return (
+          <Group key={index}>
+            <Line
+              points={[point.x, point.y, point.x, topPin ? bodyTop : bodyBottom]}
+              stroke="#4f5652"
+              strokeWidth={5}
+              lineCap="round"
+              shadowColor="#000"
+              shadowBlur={3}
+              shadowOpacity={0.35}
+            />
+            <Line
+              points={[point.x, point.y, point.x, topPin ? bodyTop : bodyBottom]}
+              stroke="#c5cbc7"
+              strokeWidth={2.2}
+              lineCap="round"
+            />
+          </Group>
+        )
+      })}
+      <Group x={center.x} y={center.y}>
+        <Rect
+          x={-bodyWidth / 2}
+          y={-bodyHeight / 2}
+          width={bodyWidth}
+          height={bodyHeight}
+          cornerRadius={4}
+          fill="#080a09"
+          stroke={selected ? '#f5b83b' : '#343a36'}
+          strokeWidth={selected ? 2.2 : 1.2}
+          shadowColor="#000"
+          shadowBlur={9}
+          shadowOpacity={0.48}
+          shadowOffsetY={5}
+        />
+        <Rect x={-bodyWidth / 2 + 5} y={-bodyHeight / 2 + 5} width={bodyWidth - 10} height={bodyHeight - 10} cornerRadius={2} stroke="#171c19" strokeWidth={1} />
+        {horizontal(0, -segmentRowOffset)}
+        {vertical(1, 21, -segmentRowOffset / 2)}
+        {vertical(2, 21, segmentRowOffset / 2)}
+        {horizontal(3, segmentRowOffset)}
+        {vertical(4, -21, segmentRowOffset / 2)}
+        {vertical(5, -21, -segmentRowOffset / 2)}
+        {horizontal(6, 0)}
+        <Circle
+          x={32}
+          y={segmentRowOffset - 1}
+          radius={5}
+          fill={segmentFill(7)}
+          shadowColor="#ff3026"
+          shadowBlur={segmentGlow(7) * 12}
+          shadowOpacity={segmentGlow(7) * 0.85}
+          perfectDrawEnabled={false}
+        />
+      </Group>
+    </Group>
+  )
+}
+
 interface SelectionDragPreview {
   leaderId: string
   delta: Point
@@ -502,7 +634,7 @@ function ComponentShape({
     ? points.map((point, index) => index === pinPreview.index ? pinPreview.point : point)
     : points
   const selected = selectedIds.includes(component.id)
-  const showHandles = selected && selectedIds.length === 1
+  const showHandles = selected && selectedIds.length === 1 && component.kind !== 'seven-segment'
   const previewOffset = selected && selectionDrag?.leaderId !== component.id ? selectionDrag?.delta : undefined
   const first = points[0]
   const isButton = component.kind === 'button'
@@ -587,6 +719,7 @@ function ComponentShape({
           />
         ) : null}
         {component.kind === 'npn' || component.kind === 'pnp' ? <TransistorBody points={renderedPoints} selected={selected} kind={component.kind} /> : null}
+        {component.kind === 'seven-segment' ? <SevenSegmentBody points={renderedPoints} selected={selected} brightness={reading?.segmentBrightness} /> : null}
       </Group>
       {showHandles ? renderedPoints.map((point, index) => (
         <Circle
@@ -659,6 +792,16 @@ export function BreadboardCanvas() {
     ? { x: pendingStart.x + (pointer.x < pendingStart.x ? -2 : 2) * HOLE_PITCH, y: pendingStart.y }
     : pointer
   const renderedComponents = useMemo(() => orderComponentsForRendering(document.components), [document.components])
+  const sevenSegmentPreviewPoints = useMemo(() => {
+    if (activeTool !== 'seven-segment' || !pointer) return null
+    const occupied = occupiedHoles(document)
+    const anchor = nearestHole(pointer, 20, occupied)
+    if (!anchor) return null
+    const pins = defaultPlacement(activeTool, anchor, occupied)
+    if (!pins) return null
+    const resolved = pins.map((pin) => holeById.get(pin)).filter((hole): hole is NonNullable<typeof hole> => Boolean(hole))
+    return resolved.length === 10 ? resolved : null
+  }, [activeTool, document, pointer])
 
   useEffect(() => {
     const container = containerRef.current
@@ -1044,6 +1187,15 @@ export function BreadboardCanvas() {
                 onSelectionDrag={setSelectionDrag}
               />
             ))}
+
+            {sevenSegmentPreviewPoints ? (
+              <Group opacity={0.72} listening={false}>
+                <SevenSegmentBody points={sevenSegmentPreviewPoints} selected />
+                {sevenSegmentPreviewPoints.map((point, index) => (
+                  <Circle key={index} x={point.x} y={point.y} radius={5.5} stroke="#f5b83b" strokeWidth={1.8} />
+                ))}
+              </Group>
+            ) : null}
 
             {pendingStart && pendingEnd ? (
               activeTool !== 'wire' && activeTool !== 'select' && isTwoPinComponent(activeTool) ? (

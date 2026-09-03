@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { buildCircuitJsNetlist } from '@/domain/netlist'
 import type { ComponentBinding } from '@/domain/netlist'
+import {
+  SEVEN_SEGMENT_COMMON_CORE_INDEX,
+  SEVEN_SEGMENT_COMMON_PHYSICAL_INDICES,
+  SEVEN_SEGMENT_CORE_TO_PHYSICAL_INDEX,
+  SEVEN_SEGMENT_MAX_BRIGHTNESS_CURRENT,
+} from '@/domain/sevenSegment'
 import type { BreadboardDocument, SimulationReading, SimulationStatus } from '@/domain/types'
 
 interface CircuitElementProxy {
@@ -67,8 +73,20 @@ function fallbackPostCurrents(element: CircuitElementProxy, postCount: number, t
     if (collector === undefined || base === undefined) throw new Error('Legacy CircuitJS did not expose transistor currents')
     return [base, collector, -base - collector]
   }
+  if (postCount > 2) throw new Error('Legacy CircuitJS did not expose multi-terminal currents')
   const current = element.getCurrent()
   return Array.from({ length: postCount }, (_, index) => index === 0 ? current : index === 1 ? -current : 0)
+}
+
+function sevenSegmentPhysicalValues(coreValues: number[]): number[] {
+  const physicalValues = Array.from({ length: 10 }, () => 0)
+  SEVEN_SEGMENT_CORE_TO_PHYSICAL_INDEX.forEach((physicalIndex, coreIndex) => {
+    physicalValues[physicalIndex] = coreValues[coreIndex] ?? 0
+  })
+  for (const physicalIndex of SEVEN_SEGMENT_COMMON_PHYSICAL_INDICES) {
+    physicalValues[physicalIndex] = coreValues[SEVEN_SEGMENT_COMMON_CORE_INDEX] ?? 0
+  }
+  return physicalValues
 }
 
 function ledBrightness(current: number, maxBrightnessCurrent: number): number {
@@ -139,6 +157,7 @@ export function CircuitJsEngine({ document, closedContacts, running, onReadings,
             }
             const postCount = element.getPostCount()
             const transistor = component.kind === 'npn' || component.kind === 'pnp'
+            const sevenSegment = component.kind === 'seven-segment'
             const corePinVoltages = Array.from({ length: postCount }, (_, index) => element.getVoltage(index))
             const corePinCurrents = element.getPostCurrent
               ? Array.from({ length: postCount }, (_, index) => element.getPostCurrent!(index))
@@ -148,22 +167,42 @@ export function CircuitJsEngine({ document, closedContacts, running, onReadings,
             }
             // CircuitJS exposes transistor posts as B-C-E. The breadboard stores
             // and displays its physical package pins from left to right as E-B-C.
-            const pinVoltages = transistor
+            const pinVoltages = sevenSegment
+              ? sevenSegmentPhysicalValues(corePinVoltages)
+              : transistor
               ? [corePinVoltages[2] ?? 0, corePinVoltages[0] ?? 0, corePinVoltages[1] ?? 0]
               : corePinVoltages
-            const pinCurrents = transistor
+            const pinCurrents = sevenSegment
+              ? sevenSegmentPhysicalValues(corePinCurrents)
+              : transistor
               ? [corePinCurrents[2] ?? 0, corePinCurrents[0] ?? 0, corePinCurrents[1] ?? 0]
               : corePinCurrents
-            const voltage = transistor
+            const commonVoltage = corePinVoltages[SEVEN_SEGMENT_COMMON_CORE_INDEX] ?? 0
+            const sevenSegmentDirection = component.variant === 'common-anode' ? -1 : 1
+            const voltage = sevenSegment
+              ? Math.max(0, ...corePinVoltages.slice(0, 8).map((value) => sevenSegmentDirection * (value - commonVoltage)))
+              : transistor
               ? (corePinVoltages[1] ?? 0) - (corePinVoltages[2] ?? 0)
               : element.getVoltageDiff()
-            const current = transistor ? (corePinCurrents[1] ?? 0) : element.getCurrent()
-            const power = element.getPower?.()
-              ?? corePinVoltages.reduce((sum, pinVoltage, index) => sum + pinVoltage * (corePinCurrents[index] ?? 0), 0)
+            const current = sevenSegment
+              ? Math.max(0, -sevenSegmentDirection * (corePinCurrents[SEVEN_SEGMENT_COMMON_CORE_INDEX] ?? 0))
+              : transistor ? (corePinCurrents[1] ?? 0) : element.getCurrent()
+            const terminalPower = corePinVoltages.reduce(
+              (sum, pinVoltage, index) => sum + pinVoltage * (corePinCurrents[index] ?? 0),
+              0,
+            )
+            const power = sevenSegment ? terminalPower : element.getPower?.() ?? terminalPower
             const brightness = component.kind === 'led'
               ? element.getBrightness?.() ?? ledBrightness(current, component.value)
               : undefined
-            if (![voltage, current, power].every(isStableSolverValue) || !Number.isFinite(brightness ?? 0)) {
+            const segmentBrightness = sevenSegment
+              ? corePinCurrents.slice(0, 8).map((segmentCurrent) => (
+                  ledBrightness(sevenSegmentDirection * segmentCurrent, SEVEN_SEGMENT_MAX_BRIGHTNESS_CURRENT)
+                ))
+              : undefined
+            if (![voltage, current, power].every(isStableSolverValue)
+                || !Number.isFinite(brightness ?? 0)
+                || segmentBrightness?.some((value) => !Number.isFinite(value))) {
               throw new Error('CircuitJS returned a divergent component reading')
             }
             result[componentId] = {
@@ -173,6 +212,7 @@ export function CircuitJsEngine({ document, closedContacts, running, onReadings,
               pinVoltages,
               pinCurrents,
               ...(brightness === undefined ? {} : { brightness: Math.min(1, Math.max(0, brightness)) }),
+              ...(segmentBrightness === undefined ? {} : { segmentBrightness }),
             }
           }
           if (Object.keys(result).length !== components.size) throw new Error('CircuitJS component binding is incomplete')

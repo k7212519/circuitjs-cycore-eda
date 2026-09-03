@@ -101,6 +101,54 @@ describe('connectivity validation and CircuitJS adapter', () => {
     }
   })
 
+  it('maps the ten physical display pins to one common-cathode SevenSegElm', () => {
+    const document = createEmptyDocument()
+    const physicalPins = [
+      't-1-1-20', 't-1-1-21', 't-1-1-22', 't-1-1-23', 't-1-1-24',
+      't-0-2-24', 't-0-2-23', 't-0-2-22', 't-0-2-21', 't-0-2-20',
+    ]
+    document.components.push({
+      id: 'display-1', kind: 'seven-segment', pins: physicalPins, rotation: 0,
+      value: 0.01, color: '#ef3d32', label: 'SC56-11EWA',
+    })
+    const connectivity = buildConnectivity(document)
+    const roots = Array.from(new Set(connectivity.rootForHole.values())).sort()
+    const pointFor = (pin: string) => {
+      const root = connectivity.rootForHole.get(pin)!
+      const index = roots.indexOf(root)
+      return `${80 + (index % 36) * 32} ${128 + Math.floor(index / 36) * 32}`
+    }
+    const result = buildCircuitJsNetlist(document)
+    const binding = result.componentBindings[0]!
+    expect(binding).toMatchObject({ componentId: 'display-1', expectedType: 'SevenSegElm' })
+    expect(result.circuit.split('\n')[binding.elementIndex + 1]).toBe('157 1600 480 1728 480 0 7 1 1')
+    const connectorLines = result.circuit.split('\n').slice(binding.elementIndex - 9, binding.elementIndex + 1)
+    const sourceOrder = [6, 5, 3, 1, 0, 8, 9, 4, 2, 7]
+    expect(connectorLines.map((line) => line.split(' ').slice(1, 3).join(' '))).toEqual(
+      sourceOrder.map((physicalIndex) => pointFor(physicalPins[physicalIndex]!)),
+    )
+    expect(connectorLines.slice(-2).map((line) => line.split(' ').slice(3, 5).join(' '))).toEqual(['1600 608', '1600 608'])
+  })
+
+  it('allows shared segment nets and unused pins on a seven-segment display', () => {
+    const document = createEmptyDocument()
+    document.components.push({
+      id: 'display-1', kind: 'seven-segment',
+      pins: [
+        't-1-1-20', 't-1-1-21', 't-1-1-22', 't-1-1-23', 't-1-1-24',
+        't-0-2-24', 't-0-2-23', 't-0-2-22', 't-0-2-21', 't-0-2-20',
+      ],
+      rotation: 0, value: 0.01,
+    })
+    document.wires.push(
+      { id: 'shared-ab', from: 't-0-0-23', to: 't-0-0-24', color: '#f00' },
+      { id: 'common-3', from: 't-1-0-22', to: 'rail-top-negative-0', color: '#000' },
+      { id: 'common-8', from: 't-0-0-22', to: 'rail-top-negative-1', color: '#000' },
+    )
+    expect(validateDocument(document).filter((issue) => issue.targetId === 'display-1')).toEqual([])
+    expect(buildCircuitJsNetlist(document).blocked).toBe(false)
+  })
+
   it('writes LED color and maximum brightness current into the CircuitJS LED', () => {
     const document = createEmptyDocument()
     document.components.push({

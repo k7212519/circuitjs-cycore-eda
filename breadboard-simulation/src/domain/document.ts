@@ -3,14 +3,25 @@ import type { BreadboardDocument } from './types'
 
 const componentSchema = z.object({
   id: z.string().min(1),
-  kind: z.enum(['resistor', 'capacitor', 'led', 'diode', 'switch', 'button', 'npn', 'pnp']),
-  pins: z.array(z.string()).min(2).max(3),
+  kind: z.enum(['resistor', 'capacitor', 'led', 'diode', 'switch', 'button', 'npn', 'pnp', 'seven-segment']),
+  pins: z.array(z.string()).min(2).max(10),
   rotation: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]),
   value: z.number().positive(),
   color: z.string().optional(),
   label: z.string().optional(),
   bandCount: z.union([z.literal(4), z.literal(5)]).optional(),
-  variant: z.enum(['ceramic', 'electrolytic', 'small-signal', 'rectifier', 'schottky']).optional(),
+  variant: z.enum(['ceramic', 'electrolytic', 'small-signal', 'rectifier', 'schottky', 'common-cathode', 'common-anode']).optional(),
+}).superRefine((component, context) => {
+  const expected = component.kind === 'seven-segment'
+    ? 10
+    : component.kind === 'npn' || component.kind === 'pnp' ? 3 : 2
+  if (component.pins.length !== expected) {
+    context.addIssue({
+      code: 'custom',
+      path: ['pins'],
+      message: `${component.kind} requires exactly ${expected} pins`,
+    })
+  }
 })
 
 const wireSchema = z.object({
