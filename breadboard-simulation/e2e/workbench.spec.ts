@@ -40,7 +40,18 @@ test('renders the 5V breadboard laboratory and drag-places a resistor', async ({
 test('offers retaining switch and momentary button options under the switch menu', async ({ page }) => {
   await page.goto('')
   const palette = page.getByLabel('元器件库')
+  expect(await palette.locator('.part-menu-trigger').evaluateAll((items) => items.map((item) => item.getAttribute('data-testid')))).toEqual([
+    'part-menu-switch',
+    'part-menu-led',
+    'part-menu-capacitor',
+    'part-menu-diode',
+    'part-menu-transistor',
+  ])
   await palette.getByTestId('part-menu-switch').click()
+  expect(await palette.locator('.part-subitem').evaluateAll((items) => items.map((item) => item.getAttribute('data-testid')))).toEqual([
+    'part-switch-button',
+    'part-switch-toggle',
+  ])
   await expect(palette.getByTestId('part-switch-toggle')).toContainText('开关')
   const button = palette.getByTestId('part-switch-button')
   await expect(button).toContainText('按键')

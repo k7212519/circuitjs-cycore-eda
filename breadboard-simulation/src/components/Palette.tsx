@@ -36,15 +36,8 @@ const menus: PartsMenu[] = [
   {
     id: 'switch', label: '开关', glyph: 'switch',
     children: [
-      { id: 'toggle', tool: 'switch', label: '开关', glyph: 'switch', options: { value: 1, label: '保持型开关' } },
       { id: 'button', tool: 'button', label: '按键', glyph: 'switch', options: { value: 1, label: '瞬时按键' } },
-    ],
-  },
-  {
-    id: 'capacitor', label: '电容', glyph: 'capacitor',
-    children: [
-      { id: 'ceramic', tool: 'capacitor', label: '瓷片电容', glyph: 'ceramic', options: { variant: 'ceramic', value: 100e-9, label: '100 nF' } },
-      { id: 'electrolytic', tool: 'capacitor', label: '电解电容', glyph: 'electrolytic', options: { variant: 'electrolytic', value: 10e-6, label: '10 µF' } },
+      { id: 'toggle', tool: 'switch', label: '开关', glyph: 'switch', options: { value: 1, label: '保持型开关' } },
     ],
   },
   {
@@ -53,6 +46,13 @@ const menus: PartsMenu[] = [
       { id: 'red', tool: 'led', label: '红色 LED', glyph: 'led', accent: '#ef3d32', options: { color: '#ef3d32', label: '红色 LED' } },
       { id: 'green', tool: 'led', label: '绿色 LED', glyph: 'led', accent: '#48b96b', options: { color: '#48b96b', label: '绿色 LED' } },
       { id: 'blue', tool: 'led', label: '蓝色 LED', glyph: 'led', accent: '#3f82d7', options: { color: '#3f82d7', label: '蓝色 LED' } },
+    ],
+  },
+  {
+    id: 'capacitor', label: '电容', glyph: 'capacitor',
+    children: [
+      { id: 'ceramic', tool: 'capacitor', label: '瓷片电容', glyph: 'ceramic', options: { variant: 'ceramic', value: 100e-9, label: '100 nF' } },
+      { id: 'electrolytic', tool: 'capacitor', label: '电解电容', glyph: 'electrolytic', options: { variant: 'electrolytic', value: 10e-6, label: '10 µF' } },
     ],
   },
   {
