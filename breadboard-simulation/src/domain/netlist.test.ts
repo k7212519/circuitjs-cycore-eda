@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createEmptyDocument } from './document'
 import { buildCircuitJsNetlist } from './netlist'
-import { validateDocument } from './validation'
+import { buildConnectivity, validateDocument } from './validation'
 
 describe('connectivity validation and CircuitJS adapter', () => {
   it('blocks a direct 5V to ground short', () => {
@@ -115,6 +115,31 @@ describe('connectivity validation and CircuitJS adapter', () => {
     expect(Number(tokens.at(-3))).toBeCloseTo(185 / 255)
     expect(Number(tokens.at(-2))).toBeCloseTo(107 / 255)
     expect(Number(tokens.at(-1))).toBe(0.02)
+  })
+
+  it('maps physical E-B-C transistor pins to CircuitJS B-C-E nodes', () => {
+    const document = createEmptyDocument()
+    const physicalPins = ['t-0-0-20', 't-0-0-21', 't-0-0-22']
+    document.components.push({
+      id: 'q1', kind: 'npn', pins: physicalPins, rotation: 0, value: 100,
+    })
+    const connectivity = buildConnectivity(document)
+    const roots = Array.from(new Set(connectivity.rootForHole.values())).sort()
+    const pointFor = (pin: string) => {
+      const root = connectivity.rootForHole.get(pin)!
+      const index = roots.indexOf(root)
+      return { x: 80 + (index % 36) * 32, y: 128 + Math.floor(index / 36) * 32 }
+    }
+    const [emitterPoint, basePoint, collectorPoint] = physicalPins.map(pointFor)
+    const result = buildCircuitJsNetlist(document)
+    const binding = result.componentBindings[0]!
+    const transistorLineIndex = binding.elementIndex + 1
+    const connectorLines = result.circuit.split('\n').slice(transistorLineIndex - 3, transistorLineIndex)
+
+    expect(connectorLines[0]).toMatch(new RegExp(`^w ${basePoint!.x} ${basePoint!.y} `))
+    expect(connectorLines[1]).toMatch(new RegExp(`^w ${collectorPoint!.x} ${collectorPoint!.y} `))
+    expect(connectorLines[2]).toMatch(new RegExp(`^w ${emitterPoint!.x} ${emitterPoint!.y} `))
+    expect(result.circuit.split('\n')[transistorLineIndex]).toMatch(/^t /)
   })
 
   it('gives duplicate component types distinct stable element bindings', () => {

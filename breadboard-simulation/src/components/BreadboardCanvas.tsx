@@ -332,8 +332,8 @@ function PushButtonBody({
   points: Point[]
   selected: boolean
   pressed?: boolean
-  onKnobPress?: () => void
-  onKnobRelease?: () => void
+  onKnobPress?: (pointerId: number) => void
+  onKnobRelease?: (pointerId: number) => void
 }) {
   const frame = twoPinFrame(points, 'button')
   if (!frame) return null
@@ -366,13 +366,13 @@ function PushButtonBody({
           : [0, '#596161', 0.34, '#444b4b', 0.78, '#353b3b', 1, '#202525']}
         stroke={selected ? '#f5b83b' : '#171b1b'} strokeWidth={selected ? 1.7 : 1}
         shadowColor="#000" shadowBlur={pressed ? 1 : 3} shadowOpacity={0.4} shadowOffsetY={pressed ? 0.5 : 1.5}
-        onPointerDown={onKnobPress ? (event) => { event.cancelBubble = true; onKnobPress() } : undefined}
+        onPointerDown={onKnobPress ? (event) => { event.cancelBubble = true; onKnobPress(event.evt.pointerId) } : undefined}
         onPointerUp={onKnobRelease ? (event) => {
           if (!pressed) return
           event.cancelBubble = true
-          onKnobRelease()
+          onKnobRelease(event.evt.pointerId)
         } : undefined}
-        onPointerCancel={onKnobRelease ? (event) => { event.cancelBubble = true; onKnobRelease() } : undefined}
+        onPointerCancel={onKnobRelease ? (event) => { event.cancelBubble = true; onKnobRelease(event.evt.pointerId) } : undefined}
         onClick={onKnobPress ? (event) => { event.cancelBubble = true } : undefined}
         onTap={onKnobPress ? (event) => { event.cancelBubble = true } : undefined}
       />
@@ -488,6 +488,7 @@ function ComponentShape({
   onSelectionDrag: (preview: SelectionDragPreview | null) => void
 }) {
   const [pinPreview, setPinPreview] = useState<{ index: number; point: Point } | null>(null)
+  const activeButtonPointerRef = useRef<number | null>(null)
   const selectedIds = useWorkbenchStore((state) => state.selectedIds)
   const select = useWorkbenchStore((state) => state.select)
   const moveSelectionTo = useWorkbenchStore((state) => state.moveSelectionTo)
@@ -509,14 +510,22 @@ function ComponentShape({
 
   useEffect(() => {
     if (!isButton || !contactClosed) return
-    const release = () => setContactClosed(component.id, false)
+    const release = (event: PointerEvent) => {
+      if (activeButtonPointerRef.current !== event.pointerId) return
+      activeButtonPointerRef.current = null
+      setContactClosed(component.id, false)
+    }
+    const releaseOnBlur = () => {
+      activeButtonPointerRef.current = null
+      setContactClosed(component.id, false)
+    }
     window.addEventListener('pointerup', release)
     window.addEventListener('pointercancel', release)
-    window.addEventListener('blur', release)
+    window.addEventListener('blur', releaseOnBlur)
     return () => {
       window.removeEventListener('pointerup', release)
       window.removeEventListener('pointercancel', release)
-      window.removeEventListener('blur', release)
+      window.removeEventListener('blur', releaseOnBlur)
     }
   }, [component.id, contactClosed, isButton, setContactClosed])
 
@@ -543,7 +552,11 @@ function ComponentShape({
       }}
       onClick={(event) => { event.cancelBubble = true; if (isSwitch) toggleSwitch(component.id) }}
       onTap={(event) => { event.cancelBubble = true; if (isSwitch) toggleSwitch(component.id) }}
-      onDragStart={() => { if (isButton) setContactClosed(component.id, false) }}
+      onDragStart={() => {
+        if (!isButton) return
+        activeButtonPointerRef.current = null
+        setContactClosed(component.id, false)
+      }}
       onDragMove={(event) => {
         event.cancelBubble = true
         onSelectionDrag({ leaderId: component.id, delta: event.target.position() })
@@ -561,8 +574,16 @@ function ComponentShape({
             points={renderedPoints}
             selected={selected}
             pressed={contactClosed}
-            onKnobPress={() => setContactClosed(component.id, true)}
-            onKnobRelease={() => setContactClosed(component.id, false)}
+            onKnobPress={(pointerId) => {
+              if (activeButtonPointerRef.current !== null && activeButtonPointerRef.current !== pointerId) return
+              activeButtonPointerRef.current = pointerId
+              setContactClosed(component.id, true)
+            }}
+            onKnobRelease={(pointerId) => {
+              if (activeButtonPointerRef.current !== pointerId) return
+              activeButtonPointerRef.current = null
+              setContactClosed(component.id, false)
+            }}
           />
         ) : null}
         {component.kind === 'npn' || component.kind === 'pnp' ? <TransistorBody points={renderedPoints} selected={selected} kind={component.kind} /> : null}

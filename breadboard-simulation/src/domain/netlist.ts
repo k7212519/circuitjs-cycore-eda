@@ -87,14 +87,19 @@ export function buildCircuitJsNetlist(
 
     const origin = { x: 80 + (index % 12) * 96, y: 480 + Math.floor(index / 12) * 80 }
     if (component.kind === 'npn' || component.kind === 'pnp') {
+      // Breadboard transistor pins are stored in physical left-to-right E-B-C
+      // order. CircuitJS TransistorElm requires node order B-C-E.
+      const emitterPin = pinPoints[0] as XY
+      const basePin = pinPoints[1] as XY
+      const collectorPin = pinPoints[2] as XY
       const base = origin
       const body = { x: origin.x + 32, y: origin.y }
       const pnp = component.kind === 'pnp' ? -1 : 1
       const collector = { x: body.x, y: body.y - 16 * pnp }
       const emitter = { x: body.x, y: body.y + 16 * pnp }
-      wireTo(pinPoints[0] as XY, base)
-      wireTo(pinPoints[1] as XY, collector)
-      wireTo(pinPoints[2] as XY, emitter)
+      wireTo(basePin, base)
+      wireTo(collectorPin, collector)
+      wireTo(emitterPin, emitter)
       const elementIndex = addElement(`t ${base.x} ${base.y} ${body.x} ${body.y} 0 ${pnp} 0 0 ${component.value} default`)
       componentBindings.push({ componentId: component.id, elementIndex, expectedType: circuitElementType(component) })
     } else {

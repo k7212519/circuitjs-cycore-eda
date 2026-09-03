@@ -118,6 +118,57 @@ test('keeps the button knob independent and marquee-selects movable objects', as
   await expect(board).toHaveAttribute('data-selected-count', '0')
 })
 
+test('keeps one momentary button closed when another pointer is released', async ({ page }) => {
+  await page.goto('')
+  await page.waitForLoadState('networkidle')
+  const board = page.getByTestId('breadboard-canvas')
+  const canvas = page.locator('.canvas-shell canvas').first()
+  const box = await canvas.boundingBox()
+  expect(box).not.toBeNull()
+  if (!box) return
+
+  const toScreen = async (x: number, y: number) => {
+    const transform = (await board.getAttribute('data-board-transform'))!
+    const [offsetX, offsetY, scale] = transform.split(',').map(Number)
+    return { x: box.x + offsetX! + x * scale!, y: box.y + offsetY! + y * scale! }
+  }
+  const dragWorld = async (from: [number, number], to: [number, number]) => {
+    const start = await toScreen(...from)
+    const end = await toScreen(...to)
+    await page.mouse.move(start.x, start.y)
+    await page.mouse.down()
+    await page.mouse.move(end.x, end.y, { steps: 4 })
+    await page.mouse.up()
+  }
+  const chooseButton = async () => {
+    const palette = page.getByLabel('元器件库')
+    const button = palette.getByTestId('part-switch-button')
+    if (!await button.isVisible()) await palette.getByTestId('part-menu-switch').click()
+    await button.click()
+  }
+
+  await chooseButton()
+  await dragWorld([216, 103], [252, 103])
+  await chooseButton()
+  await dragWorld([288, 103], [324, 103])
+
+  const firstButtonBase = await toScreen(246, 115)
+  await page.mouse.click(firstButtonBase.x, firstButtonBase.y)
+  const firstKnob = await toScreen(234, 103)
+  await page.mouse.move(firstKnob.x, firstKnob.y)
+  await page.mouse.down()
+  const inspector = page.getByLabel('属性与测量')
+  await expect(inspector.getByText('按键已闭合')).toBeVisible()
+
+  await page.evaluate(() => {
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 99 }))
+  })
+  await expect(inspector.getByText('按键已闭合')).toBeVisible()
+
+  await page.mouse.up()
+  await expect(inspector.getByText('触点常开')).toBeVisible()
+})
+
 test('chooses component subtypes from the left menu without duplicate right-side selectors', async ({ page }) => {
   await page.goto('')
   await page.waitForLoadState('networkidle')

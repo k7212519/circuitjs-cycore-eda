@@ -45,6 +45,13 @@ const unitScales: Readonly<Record<string, number>> = {
   m: 1e-3, '': 1, k: 1e3, M: 1e6, G: 1e9,
 }
 
+// CircuitJS can return finite but astronomically large values while a nonlinear
+// circuit is diverging (for example, driving a BJT base directly from an ideal
+// 5 V source). Treat those values as a solver failure instead of rendering
+// unrelated LEDs at full brightness.
+const MAX_ABS_SOLVER_READING = 1e12
+const isStableSolverValue = (value: number) => Number.isFinite(value) && Math.abs(value) <= MAX_ABS_SOLVER_READING
+
 function infoValue(element: CircuitElementProxy, label: string): number | undefined {
   const line = element.getInfo?.().find((item) => item.startsWith(`${label} =`))
   const match = line?.match(/=\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s*([pnuµμmkMG]?)/)
@@ -131,25 +138,33 @@ export function CircuitJsEngine({ document, closedContacts, running, onReadings,
               throw new Error('CircuitJS component binding is stale, duplicated, or has changed type')
             }
             const postCount = element.getPostCount()
-            const pinVoltages = Array.from({ length: postCount }, (_, index) => element.getVoltage(index))
             const transistor = component.kind === 'npn' || component.kind === 'pnp'
-            const pinCurrents = element.getPostCurrent
+            const corePinVoltages = Array.from({ length: postCount }, (_, index) => element.getVoltage(index))
+            const corePinCurrents = element.getPostCurrent
               ? Array.from({ length: postCount }, (_, index) => element.getPostCurrent!(index))
               : fallbackPostCurrents(element, postCount, transistor)
-            if ([...pinVoltages, ...pinCurrents].some((value) => !Number.isFinite(value))) {
-              throw new Error('CircuitJS returned a non-finite terminal reading')
+            if ([...corePinVoltages, ...corePinCurrents].some((value) => !isStableSolverValue(value))) {
+              throw new Error('CircuitJS returned a divergent terminal reading')
             }
+            // CircuitJS exposes transistor posts as B-C-E. The breadboard stores
+            // and displays its physical package pins from left to right as E-B-C.
+            const pinVoltages = transistor
+              ? [corePinVoltages[2] ?? 0, corePinVoltages[0] ?? 0, corePinVoltages[1] ?? 0]
+              : corePinVoltages
+            const pinCurrents = transistor
+              ? [corePinCurrents[2] ?? 0, corePinCurrents[0] ?? 0, corePinCurrents[1] ?? 0]
+              : corePinCurrents
             const voltage = transistor
-              ? (pinVoltages[1] ?? 0) - (pinVoltages[2] ?? 0)
+              ? (corePinVoltages[1] ?? 0) - (corePinVoltages[2] ?? 0)
               : element.getVoltageDiff()
-            const current = transistor ? (pinCurrents[1] ?? 0) : element.getCurrent()
+            const current = transistor ? (corePinCurrents[1] ?? 0) : element.getCurrent()
             const power = element.getPower?.()
-              ?? pinVoltages.reduce((sum, pinVoltage, index) => sum + pinVoltage * (pinCurrents[index] ?? 0), 0)
+              ?? corePinVoltages.reduce((sum, pinVoltage, index) => sum + pinVoltage * (corePinCurrents[index] ?? 0), 0)
             const brightness = component.kind === 'led'
               ? element.getBrightness?.() ?? ledBrightness(current, component.value)
               : undefined
-            if (![voltage, current, power, brightness ?? 0].every(Number.isFinite)) {
-              throw new Error('CircuitJS returned a non-finite component reading')
+            if (![voltage, current, power].every(isStableSolverValue) || !Number.isFinite(brightness ?? 0)) {
+              throw new Error('CircuitJS returned a divergent component reading')
             }
             result[componentId] = {
               voltage,

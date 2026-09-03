@@ -103,6 +103,7 @@ describe('dual 830 trimmed breadboard', () => {
     expect(nearestHole({ x: anchor.x + 3, y: anchor.y - 2 }, 10)?.id).toBe(anchor.id)
     expect(defaultPlacement('resistor', anchor, new Set())).toEqual(['t-1-2-20', 't-1-2-25'])
     expect(defaultPlacement('button', anchor, new Set())).toEqual(['t-1-2-20', 't-1-2-22'])
+    // Transistor package pins are stored in physical left-to-right E-B-C order.
     expect(defaultPlacement('npn', anchor, new Set())).toEqual(['t-1-2-20', 't-1-2-21', 't-1-2-22'])
   })
 })

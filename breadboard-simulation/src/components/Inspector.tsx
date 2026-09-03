@@ -29,7 +29,7 @@ function numericValue(raw: string): number {
 }
 
 function pinName(kind: ComponentKind, index: number): string {
-  if (kind === 'npn' || kind === 'pnp') return ['B', 'C', 'E'][index] ?? `P${index + 1}`
+  if (kind === 'npn' || kind === 'pnp') return ['E', 'B', 'C'][index] ?? `P${index + 1}`
   return `P${index + 1}`
 }
 

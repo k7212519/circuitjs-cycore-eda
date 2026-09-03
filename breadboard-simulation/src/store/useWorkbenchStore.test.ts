@@ -134,6 +134,21 @@ describe('workbench history and placement', () => {
     expect(useWorkbenchStore.getState().closedContacts[component.id]).toBeUndefined()
   })
 
+  it('keeps the runtime contact state of multiple momentary buttons independent', () => {
+    useWorkbenchStore.getState().componentAt('button', holeById.get('t-0-0-10')!)
+    useWorkbenchStore.getState().componentAt('button', holeById.get('t-0-0-12')!)
+    useWorkbenchStore.getState().setActiveTool('button')
+    useWorkbenchStore.getState().componentAt('button', holeById.get('t-0-0-20')!)
+    useWorkbenchStore.getState().componentAt('button', holeById.get('t-0-0-22')!)
+    const [first, second] = useWorkbenchStore.getState().document.components
+
+    useWorkbenchStore.getState().setContactClosed(first!.id, true)
+    useWorkbenchStore.getState().setContactClosed(second!.id, true)
+    useWorkbenchStore.getState().setContactClosed(first!.id, false)
+
+    expect(useWorkbenchStore.getState().closedContacts).toEqual({ [second!.id]: true })
+  })
+
   it('toggles a retaining switch without dirtying the document or adding history', () => {
     const start = holeById.get('t-3-1-10')!
     const end = holeById.get('t-3-1-15')!

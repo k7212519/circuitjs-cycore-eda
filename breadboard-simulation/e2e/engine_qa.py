@@ -87,14 +87,14 @@ with sync_playwright() as playwright:
         "boardId": "dual-830-trimmed-v1",
         "projectName": "NPN 端口验收",
         "components": [
-            {"id": "rb", "kind": "resistor", "pins": ["t-0-0-2", "t-0-0-7"], "rotation": 0, "value": 100000},
-            {"id": "rc", "kind": "resistor", "pins": ["t-0-0-3", "t-0-0-12"], "rotation": 0, "value": 1000},
+            {"id": "rb", "kind": "resistor", "pins": ["t-0-0-2", "t-0-0-12"], "rotation": 0, "value": 100000},
+            {"id": "rc", "kind": "resistor", "pins": ["t-0-0-3", "t-0-0-17"], "rotation": 0, "value": 1000},
             {"id": "q1", "kind": "npn", "pins": ["t-0-1-7", "t-0-1-12", "t-0-1-17"], "rotation": 0, "value": 100},
         ],
         "wires": [
             {"id": "vbase", "from": "rail-top-positive-1", "to": "t-0-1-2", "color": "#e4523d"},
             {"id": "vcollector", "from": "rail-top-positive-2", "to": "t-0-1-3", "color": "#e4523d"},
-            {"id": "ground", "from": "t-0-2-17", "to": "rail-top-negative-1", "color": "#232a28"},
+            {"id": "ground", "from": "t-0-2-7", "to": "rail-top-negative-1", "color": "#232a28"},
         ],
         "viewport": {"x": 0, "y": 0, "scale": 1},
     }
@@ -113,9 +113,87 @@ with sync_playwright() as playwright:
     assert transistor["power"] > 0
     transistor_context.close()
 
+    multi_button_document = {
+        "schemaVersion": 1,
+        "boardId": "dual-830-trimmed-v1",
+        "projectName": "双按键隔离验收",
+        "components": [
+            {"id": "left-led", "kind": "led", "pins": ["t-0-4-12", "t-0-4-13"], "rotation": 0, "value": 0.01, "color": "#ef3d32"},
+            {"id": "left-r", "kind": "resistor", "pins": ["t-0-3-13", "t-0-3-18"], "rotation": 0, "value": 10},
+            {"id": "left-c", "kind": "capacitor", "pins": ["t-0-2-18", "t-0-2-20"], "rotation": 0, "value": 0.00001, "variant": "electrolytic"},
+            {"id": "q1", "kind": "npn", "pins": ["t-0-3-29", "t-0-3-30", "t-0-3-31"], "rotation": 0, "value": 100},
+            {"id": "right-led", "kind": "led", "pins": ["t-0-4-32", "t-0-4-31"], "rotation": 0, "value": 0.01, "color": "#ef3d32"},
+            {"id": "right-r", "kind": "resistor", "pins": ["rail-top-positive-25", "t-0-2-32"], "rotation": 0, "value": 1000},
+            {"id": "right-button", "kind": "button", "pins": ["t-0-1-34", "t-0-1-36"], "rotation": 0, "value": 1},
+            {"id": "left-button", "kind": "button", "pins": ["t-0-3-20", "t-0-3-22"], "rotation": 0, "value": 1},
+        ],
+        "wires": [
+            {"id": "left-v", "from": "rail-top-positive-9", "to": "t-0-1-12", "color": "#e4523d"},
+            {"id": "left-g", "from": "t-0-0-22", "to": "rail-top-negative-17", "color": "#e4523d"},
+            {"id": "q-g", "from": "t-0-0-29", "to": "rail-top-negative-23", "color": "#e4523d"},
+            {"id": "q-b", "from": "t-0-0-30", "to": "t-0-0-34", "color": "#e4523d"},
+            {"id": "button-v", "from": "t-0-0-36", "to": "rail-top-positive-29", "color": "#e4523d"},
+        ],
+        "viewport": {"x": 0, "y": 0, "scale": 1},
+    }
+    divergent_context, divergent_page = open_workbench(browser, multi_button_document)
+    canvas = divergent_page.locator(".canvas-shell canvas").first
+    box = canvas.bounding_box()
+    transform = divergent_page.get_by_test_id("breadboard-canvas").get_attribute("data-board-transform")
+    assert box is not None and transform is not None
+    offset_x, offset_y, scale = [float(value) for value in transform.split(",")]
+    right_button_x = box["x"] + offset_x + (36 + 35 * 18) * scale
+    right_button_y = box["y"] + offset_y + (103 + 18) * scale
+    divergent_page.mouse.move(right_button_x, right_button_y)
+    divergent_page.mouse.down()
+    divergent_page.wait_for_timeout(700)
+    assert divergent_page.locator(".engine-pill span").inner_text() == "电路异常"
+    divergent_page.mouse.up()
+    divergent_context.close()
+
+    stable_button_document = json.loads(json.dumps(multi_button_document))
+    stable_button_document["components"].insert(6, {
+        "id": "base-r", "kind": "resistor", "pins": ["t-0-0-30", "t-0-0-34"],
+        "rotation": 0, "value": 10000,
+    })
+    stable_button_document["wires"] = [wire for wire in stable_button_document["wires"] if wire["id"] != "q-b"]
+    buttons_context, buttons_page = open_workbench(browser, stable_button_document)
+    canvas = buttons_page.locator(".canvas-shell canvas").first
+    box = canvas.bounding_box()
+    transform = buttons_page.get_by_test_id("breadboard-canvas").get_attribute("data-board-transform")
+    assert box is not None and transform is not None
+    offset_x, offset_y, scale = [float(value) for value in transform.split(",")]
+    right_button_x = box["x"] + offset_x + (36 + 35 * 18) * scale
+    right_button_y = box["y"] + offset_y + (103 + 18) * scale
+    buttons_page.mouse.move(right_button_x, right_button_y)
+    buttons_page.mouse.down()
+    buttons_page.wait_for_timeout(700)
+    button_readings = buttons_page.locator("iframe").evaluate("""frame => {
+      const elements = frame.contentWindow.CircuitJS1.getElements();
+      const read = id => {
+        const element = elements.find(candidate => candidate.getExternalId() === id);
+        return element ? { type: element.getType(), current: element.getCurrent(), brightness: element.getBrightness() } : null;
+      };
+      return {
+        leftLed: read('left-led'),
+        rightLed: read('right-led'),
+        leftButton: read('left-button'),
+        rightButton: read('right-button'),
+      };
+    }""")
+    buttons_page.mouse.up()
+    assert button_readings["leftLed"] is not None and button_readings["rightLed"] is not None
+    assert button_readings["leftButton"] is not None and button_readings["rightButton"] is not None
+    assert button_readings["leftLed"]["brightness"] == 0, button_readings
+    assert button_readings["rightLed"]["brightness"] > 0, button_readings
+    assert abs(button_readings["leftButton"]["current"]) < 1e-9, button_readings
+    assert abs(button_readings["rightButton"]["current"]) > 1e-9, button_readings
+    buttons_context.close()
+
     print(
         f"CircuitJS bindings verified; LED forward={led_current:.6f} A, "
-        f"reverse={reverse_reading['current']:.3e} A, transistor terminal sum={sum(transistor['currents']):.3e} A",
+        f"reverse={reverse_reading['current']:.3e} A, transistor terminal sum={sum(transistor['currents']):.3e} A, "
+        f"dual-button LED brightness={button_readings['leftLed']['brightness']:.3f}/{button_readings['rightLed']['brightness']:.3f}",
         flush=True,
     )
     browser.close()
