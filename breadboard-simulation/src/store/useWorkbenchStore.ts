@@ -1,6 +1,6 @@
 import { create } from 'zustand'
-import { defaultPlacement, holeById, isTwoPinComponent, isValidButtonPinPair, nearestHole, sevenSegmentPlacementFromLowerPin } from '@/domain/board'
-import { createEmptyDocument, parseDocument } from '@/domain/document'
+import { defaultPlacement, holeById, isLegacyCd4017Footprint, isRigidModule, isTwoPinComponent, isValidButtonPinPair, legacyCd4017PlacementFromLowerPin, nearestHole, rigidModulePlacementFromLowerPin } from '@/domain/board'
+import { compactCd4017Footprints, createEmptyDocument, parseDocument } from '@/domain/document'
 import { occupiedHoles, validateDocument } from '@/domain/validation'
 import type {
   BreadboardComponent,
@@ -28,6 +28,7 @@ const defaults: Record<ComponentKind, ComponentPlacementOptions> = {
   npn: { value: 100, label: '2N3904' },
   pnp: { value: 100, label: '2N3906' },
   'seven-segment': { value: 0.01, color: '#ef3d32', label: 'SC56-11EWA', variant: 'common-cathode' },
+  cd4017: { value: 1, label: 'CD4017' },
 }
 
 interface WorkbenchState {
@@ -83,6 +84,7 @@ function withDocument(
 ): Partial<WorkbenchState> {
   const next = clone(state.document)
   mutate(next)
+  compactCd4017Footprints(next)
   return {
     document: next,
     dirty: true,
@@ -147,7 +149,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
   placeAt: (kind, point) => {
     const state = get()
     const occupied = occupiedHoles(state.document)
-    const anchor = nearestHole(point, 20, occupied)
+    const anchor = nearestHole(point, 20, isRigidModule(kind) ? new Set() : occupied)
     if (!anchor) return false
     const pins = defaultPlacement(kind, anchor, occupied)
     if (!pins) return false
@@ -231,10 +233,12 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
     const component = state.document.components.find((item) => item.id === componentId)
     if (!component) return false
     const occupied = occupiedHoles(state.document, componentId)
-    const anchor = nearestHole(point, 24, occupied)
+    const anchor = nearestHole(point, 24, isRigidModule(component.kind) ? new Set() : occupied)
     if (!anchor) return false
-    if (component.kind === 'seven-segment') {
-      const pins = sevenSegmentPlacementFromLowerPin(anchor, occupied)
+    if (isRigidModule(component.kind)) {
+      const pins = component.kind === 'cd4017' && isLegacyCd4017Footprint(component.pins)
+        ? legacyCd4017PlacementFromLowerPin(anchor, occupied)
+        : rigidModulePlacementFromLowerPin(component.kind, anchor, occupied)
       if (!pins) return false
       set(withDocument(state, (document) => {
         const target = document.components.find((item) => item.id === componentId)
@@ -272,7 +276,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
     const state = get()
     const component = state.document.components.find((item) => item.id === componentId)
     if (!component) return false
-    if (component.kind === 'seven-segment') return false
+    if (isRigidModule(component.kind)) return false
     const occupied = occupiedHoles(state.document, componentId)
     component.pins.forEach((pin, index) => { if (index !== pinIndex) occupied.add(pin) })
     const hole = nearestHole(point, 24, component.kind === 'button' ? new Set() : occupied)
@@ -353,7 +357,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
     if (!sourceAnchor) return false
 
     const occupied = occupiedHolesExcept(state.document, selected)
-    const targetAnchor = nearestHole(point, 24, occupied)
+    const targetAnchor = nearestHole(point, 24, anchorComponent && isRigidModule(anchorComponent.kind) ? new Set() : occupied)
     if (!targetAnchor || targetAnchor.id === sourceAnchor.id) return false
     const offset = { x: targetAnchor.x - sourceAnchor.x, y: targetAnchor.y - sourceAnchor.y }
     const reserved = new Set(occupied)
@@ -377,8 +381,10 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
         const [first, second] = resolved
         if (!first || !second || !isValidButtonPinPair(first, second)) return false
       }
-      if (component.kind === 'seven-segment') {
-        const expected = sevenSegmentPlacementFromLowerPin(resolved[0]!, occupied)
+      if (isRigidModule(component.kind)) {
+        const expected = component.kind === 'cd4017' && isLegacyCd4017Footprint(component.pins)
+          ? legacyCd4017PlacementFromLowerPin(resolved[0]!, occupied)
+          : rigidModulePlacementFromLowerPin(component.kind, resolved[0]!, occupied)
         if (!expected || expected.some((pin, index) => pin !== resolved[index]?.id)) return false
       }
       componentPins.set(component.id, resolved.map((target) => target.id))
@@ -454,7 +460,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
     if (state.selectedIds.length !== 1) return
     const component = state.document.components.find((item) => item.id === state.selectedIds[0])
     if (!component) return
-    if (component.kind === 'button' || component.kind === 'seven-segment') return
+    if (component.kind === 'button' || isRigidModule(component.kind)) return
     const points = component.pins.map((pin) => holeById.get(pin)).filter(Boolean)
     if (points.length !== component.pins.length || !points[0]) return
     const occupied = occupiedHoles(state.document, component.id)

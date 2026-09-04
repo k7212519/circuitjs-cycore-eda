@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { buildCircuitJsNetlist } from '@/domain/netlist'
-import type { ComponentBinding } from '@/domain/netlist'
+import type { ComponentBinding, NetlistBuildResult } from '@/domain/netlist'
+import { cd4017PhysicalValues } from '@/domain/cd4017'
 import {
   SEVEN_SEGMENT_COMMON_CORE_INDEX,
   SEVEN_SEGMENT_COMMON_PHYSICAL_INDICES,
@@ -25,10 +26,13 @@ interface CircuitElementProxy {
 interface CircuitJsProxy {
   importCircuit(circuit: string, subcircuitsOnly: boolean): void
   setSimRunning(running: boolean): void
+  isRunning(): boolean
+  setExtVoltage?(name: string, voltage: number): void
   bindElement?(index: number, externalId: string, expectedType: string): boolean
   getElements(): CircuitElementProxy[]
   onupdate?: () => void
   onanalyze?: () => void
+  ontimestep?: () => void
 }
 
 declare global {
@@ -94,17 +98,31 @@ function ledBrightness(current: number, maxBrightnessCurrent: number): number {
   return Math.min(1, Math.max(0, ratio > 0 ? 1 + 0.2 * Math.log(ratio) : 0))
 }
 
+function syncLiveContacts(simulator: CircuitJsProxy, controls: NetlistBuildResult['contactControls'], contacts: Readonly<Record<string, boolean>>) {
+  if (controls.length === 0) return
+  if (!simulator.setExtVoltage) throw new Error('CircuitJS external-voltage API is required for live clock contacts')
+  for (const control of controls) simulator.setExtVoltage(control.sourceName, contacts[control.componentId] ? 5 : 0)
+}
+
+const noContacts: Readonly<Record<string, boolean>> = {}
+
 export function CircuitJsEngine({ document, closedContacts, running, onReadings, onStatus }: Props) {
   const frameRef = useRef<HTMLIFrameElement>(null)
   const [connected, setConnected] = useState(false)
   const simulatorRef = useRef<CircuitJsProxy | null>(null)
   const latestDocumentRef = useRef(document)
   const importedDocumentRef = useRef(document)
+  const importedNetlistKeyRef = useRef('')
+  const closedContactsRef = useRef(closedContacts)
   const runningRef = useRef(running)
   const mappingReadyRef = useRef(false)
+  const readingsReadyRef = useRef(false)
   const bindingsRef = useRef<ComponentBinding[]>([])
   const warnedLegacyBridgeRef = useRef(false)
-  const netlist = useMemo(() => buildCircuitJsNetlist(document, closedContacts), [closedContacts, document])
+  const liveContacts = document.components.some((component) => component.kind === 'cd4017')
+  const serializedContacts = liveContacts ? noContacts : closedContacts
+  const netlist = useMemo(() => buildCircuitJsNetlist(document, serializedContacts), [serializedContacts, document])
+  const netlistKey = useMemo(() => JSON.stringify([netlist.circuit, netlist.componentBindings]), [netlist])
   const disabled = import.meta.env.VITE_DISABLE_ENGINE === 'true'
   const src = import.meta.env.VITE_CIRCUITJS_URL
     || (import.meta.env.DEV
@@ -134,10 +152,21 @@ export function CircuitJsEngine({ document, closedContacts, running, onReadings,
       if (!simulator) return
       simulatorRef.current = simulator
       setConnected(true)
-      simulator.onanalyze = () => onStatus(runningRef.current ? 'running' : 'paused')
+      simulator.onanalyze = () => {
+        readingsReadyRef.current = false
+        onStatus(runningRef.current ? 'running' : 'paused')
+      }
+      // onupdate is also called for paint-only frames, before the first solve.
+      // In particular, AnalogSwitchElm initializes its resistance in doStep(),
+      // so a startup current can be 0/0 until an accepted timestep has completed.
+      simulator.ontimestep = () => { readingsReadyRef.current = true }
       simulator.onupdate = () => {
         if (!mappingReadyRef.current) return
         try {
+          if (runningRef.current && !simulator.isRunning()) {
+            throw new Error('CircuitJS solver stopped before producing valid readings')
+          }
+          if (!readingsReadyRef.current) return
           const elements = simulator.getElements()
           const components = new Map(latestDocumentRef.current.components.map((component) => [component.id, component]))
           const result: Record<string, SimulationReading> = {}
@@ -158,40 +187,48 @@ export function CircuitJsEngine({ document, closedContacts, running, onReadings,
             const postCount = element.getPostCount()
             const transistor = component.kind === 'npn' || component.kind === 'pnp'
             const sevenSegment = component.kind === 'seven-segment'
+            const cd4017 = component.kind === 'cd4017'
             const corePinVoltages = Array.from({ length: postCount }, (_, index) => element.getVoltage(index))
             const corePinCurrents = element.getPostCurrent
               ? Array.from({ length: postCount }, (_, index) => element.getPostCurrent!(index))
               : fallbackPostCurrents(element, postCount, transistor)
             if ([...corePinVoltages, ...corePinCurrents].some((value) => !isStableSolverValue(value))) {
-              throw new Error('CircuitJS returned a divergent terminal reading')
+              throw new Error(`CircuitJS returned a divergent terminal reading: ${binding.expectedType} (${componentId}); core voltages=[${corePinVoltages.join(', ')}]; core currents=[${corePinCurrents.join(', ')}]`)
             }
             // CircuitJS exposes transistor posts as B-C-E. The breadboard stores
             // and displays its physical package pins from left to right as E-B-C.
             const pinVoltages = sevenSegment
               ? sevenSegmentPhysicalValues(corePinVoltages)
+              : cd4017
+              ? cd4017PhysicalValues(corePinVoltages)
               : transistor
               ? [corePinVoltages[2] ?? 0, corePinVoltages[0] ?? 0, corePinVoltages[1] ?? 0]
-              : corePinVoltages
+              : corePinVoltages.slice(0, component.pins.length)
             const pinCurrents = sevenSegment
               ? sevenSegmentPhysicalValues(corePinCurrents)
+              : cd4017
+              ? cd4017PhysicalValues(corePinCurrents)
               : transistor
               ? [corePinCurrents[2] ?? 0, corePinCurrents[0] ?? 0, corePinCurrents[1] ?? 0]
-              : corePinCurrents
+              : corePinCurrents.slice(0, component.pins.length)
             const commonVoltage = corePinVoltages[SEVEN_SEGMENT_COMMON_CORE_INDEX] ?? 0
             const sevenSegmentDirection = component.variant === 'common-anode' ? -1 : 1
             const voltage = sevenSegment
               ? Math.max(0, ...corePinVoltages.slice(0, 8).map((value) => sevenSegmentDirection * (value - commonVoltage)))
+              : cd4017
+              ? (pinVoltages[15] ?? 0) - (pinVoltages[7] ?? 0)
               : transistor
               ? (corePinVoltages[1] ?? 0) - (corePinVoltages[2] ?? 0)
               : element.getVoltageDiff()
             const current = sevenSegment
               ? Math.max(0, -sevenSegmentDirection * (corePinCurrents[SEVEN_SEGMENT_COMMON_CORE_INDEX] ?? 0))
+              : cd4017 ? (pinCurrents[15] ?? 0)
               : transistor ? (corePinCurrents[1] ?? 0) : element.getCurrent()
             const terminalPower = corePinVoltages.reduce(
               (sum, pinVoltage, index) => sum + pinVoltage * (corePinCurrents[index] ?? 0),
               0,
             )
-            const power = sevenSegment ? terminalPower : element.getPower?.() ?? terminalPower
+            const power = sevenSegment || cd4017 ? terminalPower : element.getPower?.() ?? terminalPower
             const brightness = component.kind === 'led'
               ? element.getBrightness?.() ?? ledBrightness(current, component.value)
               : undefined
@@ -232,20 +269,47 @@ export function CircuitJsEngine({ document, closedContacts, running, onReadings,
   }
 
   useEffect(() => {
+    closedContactsRef.current = closedContacts
+    const simulator = simulatorRef.current
+    if (!simulator || !mappingReadyRef.current) return
+    try {
+      syncLiveContacts(simulator, netlist.contactControls, closedContacts)
+    } catch (cause) {
+      console.error('CircuitJS live contact update failed', cause)
+      mappingReadyRef.current = false
+      simulator.setSimRunning(false)
+      onStatus('error')
+    }
+  }, [closedContacts, netlist, connected, onStatus])
+
+  useEffect(() => {
     const simulator = simulatorRef.current
     if (!simulator) return
-    mappingReadyRef.current = false
     if (netlist.blocked) {
+      mappingReadyRef.current = false
+      readingsReadyRef.current = false
       simulator.setSimRunning(false)
       onReadings({})
       onStatus('error')
       return
     }
+    if (mappingReadyRef.current && importedNetlistKeyRef.current === netlistKey) {
+      // Pause/resume, viewport changes and live contacts must not reset the chip.
+      latestDocumentRef.current = document
+      importedDocumentRef.current = document
+      simulator.setSimRunning(running)
+      onStatus(running ? 'running' : 'paused')
+      return
+    }
+    mappingReadyRef.current = false
     const documentChanged = importedDocumentRef.current !== document
     importedDocumentRef.current = document
     const timer = window.setTimeout(() => {
       try {
+        readingsReadyRef.current = false
+        onReadings({})
         simulator.importCircuit(netlist.circuit, false)
+        syncLiveContacts(simulator, netlist.contactControls, closedContactsRef.current)
         const elements = simulator.getElements()
         const indices = new Set<number>()
         const componentIds = new Set<string>()
@@ -278,6 +342,7 @@ export function CircuitJsEngine({ document, closedContacts, running, onReadings,
         }
         latestDocumentRef.current = document
         bindingsRef.current = netlist.componentBindings
+        importedNetlistKeyRef.current = netlistKey
         mappingReadyRef.current = true
         simulator.setSimRunning(running)
         onStatus(running ? 'running' : 'paused')
@@ -290,7 +355,7 @@ export function CircuitJsEngine({ document, closedContacts, running, onReadings,
       }
     }, documentChanged ? 140 : 0)
     return () => window.clearTimeout(timer)
-  }, [connected, document, netlist, onReadings, onStatus, running])
+  }, [connected, document, netlist, netlistKey, onReadings, onStatus, running])
 
   if (disabled) return null
   return <iframe ref={frameRef} onLoad={connect} className="circuit-engine-frame" title="CircuitJS 求解引擎" src={src} />

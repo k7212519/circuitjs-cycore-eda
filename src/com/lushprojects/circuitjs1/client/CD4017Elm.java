@@ -2,7 +2,8 @@
  * CD4017 十进制计数器/分配器芯片
  * 具有10个输出（Q0~Q9），每来一个时钟脉冲，输出依次置高
  * 具有进位输出（CO）、时钟使能（EN，低有效）、复位（R，高有效）
- * 参考: https://www.ariat-tech.tw/blog/Your-Guide-into-CD4017-IC.html
+ * 参考: https://www.ti.com/product/CD4017B
+ * 功能级供电近似，不模拟 CMOS 驱动曲线、传播延迟或输入保护二极管。
  */
 package com.lushprojects.circuitjs1.client;
 
@@ -13,6 +14,19 @@ class CD4017Elm extends ChipElm {
     private int counter; // 0~9
     private boolean lastClock;
     private boolean lastReset;
+    private static final int VDD = 0;
+    private static final int VSS = 3;
+    private static final double MIN_SUPPLY = 3;
+    private static final double R_ON = 20;
+    private static final double R_OFF = 1e10;
+    private static final double R_SUPPLY = 1e6;
+    private boolean powered;
+    // Trial state is derived from the last accepted time step, never from another
+    // Newton iteration. Only stepFinished commits it (also safe on step retries).
+    private int nextCounter;
+    private boolean nextClock;
+    private boolean nextReset;
+    private boolean nextPowered;
     
     /**
      * 在芯片下方绘制芯片型号标签
@@ -56,12 +70,12 @@ class CD4017Elm extends ChipElm {
         pins = new Pin[16];
 
         // 左侧引脚: 16, 14, 12, 8, 13, 15
-        pins[0] = new Pin(0, SIDE_W, usePinNames() ? "VCC" : "16"); // VCC
+        pins[0] = new Pin(0, SIDE_W, usePinNames() ? "VDD" : "16"); // VDD
         pins[1] = new Pin(1, SIDE_W, usePinNames() ? "CLK" : "14"); // CLK
         pins[2] = new Pin(2, SIDE_W, usePinNames() ? "CO" : "12");  // CO
-        pins[3] = new Pin(3, SIDE_W, usePinNames() ? "GND" : "8");  // GND
-        pins[4] = new Pin(4, SIDE_W, usePinNames() ? "EN" : "13");  // EN
-        pins[5] = new Pin(5, SIDE_W, usePinNames() ? "R" : "15");   // R
+        pins[3] = new Pin(3, SIDE_W, usePinNames() ? "VSS" : "8");  // VSS
+        pins[4] = new Pin(4, SIDE_W, usePinNames() ? "INH" : "13"); // inhibit, high active
+        pins[5] = new Pin(5, SIDE_W, usePinNames() ? "RESET" : "15");
 
         // 右侧引脚: 3, 2, 4, 7, 10, 1, 5, 6, 9, 11
         pins[6] = new Pin(0, SIDE_E, usePinNames() ? "Q0" : "3");
@@ -86,34 +100,119 @@ class CD4017Elm extends ChipElm {
     @Override
     int getPostCount() { return 16; }
     @Override
-    int getVoltageSourceCount() { return 11; } // Q0~Q9+CO
+    int getVoltageSourceCount() { return 0; }
+
+    @Override
+    boolean nonLinear() { return true; }
+
+    // This chip's logic level comes from VDD/VSS, not the generic editor value.
+    // ChipElm still reads/writes the legacy custom-voltage field for dump compatibility.
+    @Override
+    boolean isDigitalChip() { return false; }
+
+    @Override
+    double getThreshold() { return volts[VSS] + getVoltageDiff() / 2; }
+
+    @Override
+    void stamp() {
+        sim.stampResistor(nodes[VDD], nodes[VSS], R_SUPPLY);
+        for (int i = 0; i < getPostCount(); i++) {
+            if (isPowerOrOutput(i)) sim.stampNonLinear(nodes[i]);
+        }
+    }
 
     @Override
     void execute() {
-        boolean clk = pins[1].value;
-        boolean en = !pins[4].value; // EN为低有效
-        boolean rst = pins[5].value;
-
-        // 复位优先
-        if (rst) {
-            counter = 0;
-        } else if (en && !lastClock && clk) { // 时钟上升沿且使能
-            counter = (counter + 1) % 10;
+        boolean wasTrialPowered = nextPowered;
+        nextPowered = getVoltageDiff() >= MIN_SUPPLY;
+        if (nextPowered != wasTrialPowered) sim.converged = false;
+        double threshold = getThreshold();
+        for (int i = 0; i < getPostCount(); i++) {
+            if (!pins[i].output) pins[i].value = nextPowered && volts[i] > threshold;
         }
-        lastClock = clk;
-        lastReset = rst;
-        // Q0~Q9输出
+        nextClock = pins[1].value;
+        nextReset = pins[5].value;
+        nextCounter = counter;
+        if (!nextPowered || !powered || nextReset) {
+            nextCounter = 0;
+        } else if (!pins[4].value && !lastClock && nextClock) {
+            nextCounter = (counter + 1) % 10;
+        }
+        // On power-up, sampling nextClock without counting avoids a false edge.
         for (int i = 0; i < 10; i++) {
-            int pinIdx = getQPinIndex(i);
-            writeOutput(pinIdx, counter == i);
+            setTrialOutput(i + 6, nextPowered && nextCounter == i);
         }
-        // CO输出：Q0~Q4输出高时CO高，Q5~Q9输出高时CO低
-        writeOutput(2, counter < 5);
+        setTrialOutput(2, nextPowered && nextCounter < 5);
     }
 
-    private int getQPinIndex(int n) {
-        // Q0~Q9: pins[6~15]
-        return n + 6;
+    private void setTrialOutput(int pin, boolean high) {
+        if (pins[pin].value != high) sim.converged = false;
+        writeOutput(pin, high);
+    }
+
+    private double outputResistance(int pin, boolean toVdd) {
+        return nextPowered && pins[pin].value == toVdd ? R_ON : R_OFF;
+    }
+
+    @Override
+    void doStep() {
+        execute();
+        for (int i = 0; i < getPostCount(); i++) {
+            if (!pins[i].output) continue;
+            sim.stampResistor(nodes[i], nodes[VDD], outputResistance(i, true));
+            sim.stampResistor(nodes[i], nodes[VSS], outputResistance(i, false));
+        }
+    }
+
+    @Override
+    void stepFinished() {
+        counter = nextCounter;
+        lastClock = nextClock;
+        lastReset = nextReset;
+        powered = nextPowered;
+    }
+
+    @Override
+    void calculateCurrent() {
+        for (int i = 0; i < getPostCount(); i++) pins[i].current = 0;
+        double supplyCurrent = getVoltageDiff() / R_SUPPLY;
+        // ChipElm stores current INTO the circuit node, opposite to the bridge's
+        // getPostCurrent (positive flowing into the component).
+        pins[VDD].current = -supplyCurrent;
+        pins[VSS].current = supplyCurrent;
+        for (int i = 0; i < getPostCount(); i++) {
+            if (!pins[i].output) continue;
+            double toVdd = (volts[i] - volts[VDD]) / outputResistance(i, true);
+            double toVss = (volts[i] - volts[VSS]) / outputResistance(i, false);
+            pins[i].current = -toVdd - toVss;
+            pins[VDD].current += toVdd;
+            pins[VSS].current += toVss;
+        }
+        current = -pins[VDD].current;
+    }
+
+    @Override
+    double getVoltageDiff() { return volts[VDD] - volts[VSS]; }
+
+    @Override
+    double getPower() {
+        double power = 0;
+        for (int i = 0; i < getPostCount(); i++) power -= volts[i] * pins[i].current;
+        return power;
+    }
+
+    private boolean isPowerOrOutput(int pin) {
+        return pin == VDD || pin == VSS || pins[pin].output;
+    }
+
+    @Override
+    boolean getConnection(int n1, int n2) {
+        return n1 != n2 && isPowerOrOutput(n1) && isPowerOrOutput(n2);
+    }
+
+    @Override
+    boolean hasGroundConnection(int n) {
+        return false;
     }
 
     @Override
@@ -127,15 +226,22 @@ class CD4017Elm extends ChipElm {
         counter = 0;
         lastClock = false;
         lastReset = false;
+        powered = nextPowered = false;
+        nextCounter = 0;
+        nextClock = nextReset = false;
+        calculateCurrent();
     }
 
     void getInfo(String arr[]) {
         super.getInfo(arr);
         arr[0] = "CD4017 十进制计数器";
-        arr[1] = "计数: " + counter;
+        arr[1] = powered ? "计数: " + counter : "未供电 / 欠压：输出高阻";
         arr[2] = "CLK = " + (pins[1].value ? "高" : "低");
-        arr[3] = "EN = " + (pins[4].value ? "高" : "低") + " R = " + (pins[5].value ? "高" : "低");
+        arr[3] = "INH = " + (pins[4].value ? "高" : "低") + " RESET = " + (pins[5].value ? "高" : "低");
         arr[4] = "CO = " + (pins[2].value ? "高" : "低");
+        arr[5] = "VDD - VSS = " + getVoltageText(getVoltageDiff());
+        arr[6] = "IDD = " + getCurrentText(getCurrent());
+        arr[7] = "P = " + getUnitText(getPower(), "W");
     }
 
     @Override

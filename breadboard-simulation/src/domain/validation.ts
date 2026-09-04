@@ -1,4 +1,5 @@
-import { holeById } from './board'
+import { holeById, isLegacyCd4017Footprint, isRigidModule } from './board'
+import { CD4017_PHYSICAL_PIN_NAMES, CD4017_REQUIRED_PHYSICAL_INDICES } from './cd4017'
 import type { BreadboardDocument, ValidationIssue } from './types'
 
 class DisjointSet {
@@ -87,7 +88,7 @@ export function validateDocument(document: BreadboardDocument): ValidationIssue[
   ].map((node) => connectivity.rootForNode.get(node)).filter((root): root is string => Boolean(root)))
   for (const component of document.components) {
     const roots = component.pins.map((pin) => connectivity.rootForHole.get(pin)).filter(Boolean)
-    if (component.kind !== 'seven-segment' && new Set(roots).size !== roots.length) {
+    if (!isRigidModule(component.kind) && new Set(roots).size !== roots.length) {
       issues.push({
         level: 'error',
         code: 'SAME_NODE',
@@ -103,7 +104,30 @@ export function validateDocument(document: BreadboardDocument): ValidationIssue[
         targetId: component.id,
       })
     }
-    if (component.kind !== 'seven-segment' && roots.some((root) => root && !suppliedRoots.has(root) && (attachmentCount.get(root) ?? 0) < 2)) {
+    if (component.kind === 'cd4017') {
+      if (isLegacyCd4017Footprint(component.pins)) {
+        issues.push({
+          level: 'warning',
+          code: 'OCCUPIED_HOLE',
+          message: 'CD4017 仍使用旧脚距；新脚距所需孔位被占用，请腾出相邻孔位或整体移动芯片后更新。',
+          targetId: component.id,
+        })
+      }
+      const missingPins = CD4017_REQUIRED_PHYSICAL_INDICES.filter((index) => {
+        const root = connectivity.rootForHole.get(component.pins[index]!)
+        // Tying several chip inputs together alone does not supply a logic level.
+        const ownAttachments = component.pins.filter((pin) => connectivity.rootForHole.get(pin) === root).length
+        return !root || (!suppliedRoots.has(root) && (attachmentCount.get(root) ?? 0) <= ownAttachments)
+      })
+      if (missingPins.length > 0) {
+        issues.push({
+          level: 'warning',
+          code: 'FLOATING_PIN',
+          message: `CD4017 请连接 ${missingPins.map((index) => `${index + 1} 脚 ${CD4017_PHYSICAL_PIN_NAMES[index]}`).join('、')}；INH 低电平允许计数，RESET 高电平复位。`,
+          targetId: component.id,
+        })
+      }
+    } else if (!isRigidModule(component.kind) && roots.some((root) => root && !suppliedRoots.has(root) && (attachmentCount.get(root) ?? 0) < 2)) {
       issues.push({
         level: 'warning',
         code: 'FLOATING_PIN',

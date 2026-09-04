@@ -1,11 +1,12 @@
 import { AlertTriangle, Cable, Gauge, RotateCw, Settings2, Trash2 } from 'lucide-react'
-import { boardPointLabel } from '@/domain/board'
+import { boardPointLabel, isRigidModule } from '@/domain/board'
+import { CD4017_PHYSICAL_PIN_NAMES } from '@/domain/cd4017'
 import { SEVEN_SEGMENT_PHYSICAL_PIN_NAMES } from '@/domain/sevenSegment'
 import type { ComponentKind, ComponentPlacementOptions, ResistorBandCount, ToolKind } from '@/domain/types'
 import { useWorkbenchStore } from '@/store/useWorkbenchStore'
 
 const names = {
-  resistor: '电阻', capacitor: '电容', led: '发光二极管', diode: '二极管', switch: '开关', button: '按键', npn: 'NPN 三极管', pnp: 'PNP 三极管', 'seven-segment': '数码管',
+  resistor: '电阻', capacitor: '电容', led: '发光二极管', diode: '二极管', switch: '开关', button: '按键', npn: 'NPN 三极管', pnp: 'PNP 三极管', 'seven-segment': '数码管', cd4017: 'CD4017',
 }
 const toolNames: Record<Exclude<ToolKind, 'select' | 'pan'>, string> = { wire: '导线', ...names }
 const wireColors = ['#f28c28', '#e8b83f', '#277fbc', '#4a9b65']
@@ -30,6 +31,7 @@ function numericValue(raw: string): number {
 }
 
 function pinName(kind: ComponentKind, index: number, variant?: ComponentPlacementOptions['variant']): string {
+  if (kind === 'cd4017') return `${index + 1} · ${CD4017_PHYSICAL_PIN_NAMES[index] ?? '?'}`
   if (kind === 'npn' || kind === 'pnp') return ['E', 'B', 'C'][index] ?? `P${index + 1}`
   if (kind === 'seven-segment') {
     const segment = (index === 2 || index === 7) && variant === 'common-anode'
@@ -38,6 +40,18 @@ function pinName(kind: ComponentKind, index: number, variant?: ComponentPlacemen
     return `P${index + 1} · ${segment}`
   }
   return `P${index + 1}`
+}
+
+function Cd4017Spec() {
+  return (
+    <div className="fixed-component-spec chip-spec">
+      <span>CD4017 · 16 PINS</span>
+      <strong>十进制计数器 / 脉冲分配器</strong>
+      <small>16 脚 VDD 接 +5V，8 脚 VSS 接 GND。14 脚 CLK 上升沿计数；13 脚 INH 低电平允许计数；15 脚 RESET 高电平复位。</small>
+      <small>Q0–Q9 依次输出，CO 在 Q0–Q4 时为高。上电从 Q0 开始；供电低于 3V 时输出高阻。LED 需外接限流电阻。</small>
+      <small>固定 8×2 脚位，可跨 A–B、B–C、C–D。左下角为 1 脚，封装只能整体移动。</small>
+    </div>
+  )
 }
 
 function PlacementInspector({ tool }: { tool: Exclude<ToolKind, 'select' | 'pan'> }) {
@@ -80,8 +94,10 @@ function PlacementInspector({ tool }: { tool: Exclude<ToolKind, 'select' | 'pan'
           <span className={`placement-icon ${tool === 'wire' ? 'is-wire' : ''}`}>
             {tool === 'wire' ? <Cable size={21} /> : tool.toUpperCase()}
           </span>
-          <div><strong>{placementName}</strong><small>{tool === 'seven-segment' ? 'SC56-11EWA · 红色 · 固定 10 脚封装' : '类型已在左侧选定，参数将应用到下一个元件'}</small></div>
+          <div><strong>{placementName}</strong><small>{tool === 'cd4017' ? '十进制计数器 · 固定 16 脚模块' : tool === 'seven-segment' ? 'SC56-11EWA · 红色 · 固定 10 脚封装' : '类型已在左侧选定，参数将应用到下一个元件'}</small></div>
         </div>
+
+        {tool === 'cd4017' ? <Cd4017Spec /> : null}
 
         {tool === 'seven-segment' ? (
           <>
@@ -167,7 +183,7 @@ function PlacementInspector({ tool }: { tool: Exclude<ToolKind, 'select' | 'pan'
 
         <div className="placement-guide">
           <Settings2 size={16} />
-          <div><strong>参数已就绪</strong><span>{tool === 'wire' || tool === 'resistor' || tool === 'capacitor' || tool === 'led' || tool === 'diode' || tool === 'switch' || tool === 'button' ? '从起点孔拖到终点孔完成放置' : tool === 'seven-segment' ? '在跨槽封装预览处单击完成放置' : '在目标孔位单击完成放置'}</span></div>
+          <div><strong>参数已就绪</strong><span>{tool === 'wire' || tool === 'resistor' || tool === 'capacitor' || tool === 'led' || tool === 'diode' || tool === 'switch' || tool === 'button' ? '从起点孔拖到终点孔完成放置' : isRigidModule(tool) ? '在跨槽封装预览处单击完成放置' : '在目标孔位单击完成放置'}</span></div>
         </div>
       </div>
     </aside>
@@ -248,7 +264,7 @@ export function Inspector() {
             <div><strong>{component.kind === 'capacitor' ? component.variant === 'electrolytic' ? '电解电容' : '瓷片电容' : names[component.kind]}</strong><small>{component.label}</small></div>
           </div>
 
-          {component.kind === 'seven-segment' ? (
+          {component.kind === 'cd4017' ? <Cd4017Spec /> : component.kind === 'seven-segment' ? (
             <>
               <div className="option-group">
                 <div className="option-label"><span>公共端类型</span><code>{component.variant === 'common-anode' ? 'COMMON ANODE' : 'COMMON CATHODE'}</code></div>
@@ -293,7 +309,7 @@ export function Inspector() {
             </label>
           ) : null}
 
-          <div className="pin-table">
+          <div className={`pin-table ${component.kind === 'cd4017' ? 'chip-pin-table' : ''}`}>
             <div className="section-label">PIN MAP</div>
             {component.pins.map((pin, index) => (
               <div className="pin-row" key={pin}>
@@ -307,13 +323,13 @@ export function Inspector() {
           </div>
 
           <div className="meter-grid">
-            <div className="meter-card"><span>{component.kind === 'npn' || component.kind === 'pnp' ? 'VCE' : component.kind === 'seven-segment' ? 'MAX VF' : 'VOLTAGE'}</span><strong>{formatEngineering(reading?.voltage ?? 0, 'V')}</strong></div>
-            <div className="meter-card"><span>{component.kind === 'npn' || component.kind === 'pnp' ? 'IC' : component.kind === 'seven-segment' ? 'COM CURRENT' : 'CURRENT'}</span><strong>{formatEngineering(reading?.current ?? 0, 'A')}</strong></div>
+            <div className="meter-card"><span>{component.kind === 'cd4017' ? 'VDD − VSS' : component.kind === 'npn' || component.kind === 'pnp' ? 'VCE' : component.kind === 'seven-segment' ? 'MAX VF' : 'VOLTAGE'}</span><strong>{formatEngineering(reading?.voltage ?? 0, 'V')}</strong></div>
+            <div className="meter-card"><span>{component.kind === 'cd4017' ? 'IDD' : component.kind === 'npn' || component.kind === 'pnp' ? 'IC' : component.kind === 'seven-segment' ? 'COM CURRENT' : 'CURRENT'}</span><strong>{formatEngineering(reading?.current ?? 0, 'A')}</strong></div>
             <div className="meter-card wide"><span>POWER</span><strong>{formatEngineering(reading?.power ?? 0, 'W')}</strong></div>
           </div>
 
-          <div className={`object-actions ${component.kind === 'button' || component.kind === 'seven-segment' ? 'is-single' : ''}`}>
-            {component.kind !== 'button' && component.kind !== 'seven-segment' ? <button type="button" onClick={rotateSelected}><RotateCw size={15} />旋转 90°</button> : null}
+          <div className={`object-actions ${component.kind === 'button' || isRigidModule(component.kind) ? 'is-single' : ''}`}>
+            {component.kind !== 'button' && !isRigidModule(component.kind) ? <button type="button" onClick={rotateSelected}><RotateCw size={15} />旋转 90°</button> : null}
             <button type="button" className="danger" onClick={deleteSelected}><Trash2 size={15} />删除</button>
           </div>
         </div>

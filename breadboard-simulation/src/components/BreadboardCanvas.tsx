@@ -4,13 +4,14 @@ import { Circle, Group, Layer, Line, Path, Rect, Stage, Text } from 'react-konva
 import type Konva from 'konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import {
-  BOARD_HEIGHT, BOARD_WIDTH, HOLE_PITCH, HOLE_RADIUS, HOLE_SLEEVE_RADIUS, defaultPlacement, holeById, holes, isTwoPinComponent, nearestHole,
+  BOARD_HEIGHT, BOARD_WIDTH, HOLE_PITCH, HOLE_RADIUS, HOLE_SLEEVE_RADIUS, defaultPinCount, defaultPlacement, holeById, holes, isRigidModule, isTwoPinComponent, nearestHole,
 } from '@/domain/board'
 import { occupiedHoles } from '@/domain/validation'
 import type {
   BreadboardComponent, ComponentKind, ComponentPlacementOptions, ComponentVariant, DiodeVariant, Point, ResistorBandCount, TwoPinComponentKind,
 } from '@/domain/types'
 import { useWorkbenchStore } from '@/store/useWorkbenchStore'
+import { Cd4017Body } from './Cd4017Body'
 
 const terminalHoles = holes.filter((hole) => hole.region === 'terminal')
 const railHoles = holes.filter((hole) => hole.region === 'rail')
@@ -55,7 +56,7 @@ const minViewportScale = 0.25
 const maxViewportScale = 3.5
 
 function componentName(kind: ComponentKind): string {
-  return ({ resistor: 'R', capacitor: 'C', led: 'LED', diode: 'D', switch: '开关', button: '按键', npn: 'NPN', pnp: 'PNP', 'seven-segment': '数码管' })[kind]
+  return ({ resistor: 'R', capacitor: 'C', led: 'LED', diode: 'D', switch: '开关', button: '按键', npn: 'NPN', pnp: 'PNP', 'seven-segment': '数码管', cd4017: 'CD4017' })[kind]
 }
 
 const uprightComponentKinds = new Set<ComponentKind>(['capacitor', 'led', 'npn', 'pnp'])
@@ -244,17 +245,17 @@ function CapacitorBody({ points, selected, variant = 'ceramic' }: { points: Poin
 function mutedLedColor(color: string): string {
   const source = color.replace('#', '')
   const hex = source.length === 3 ? source.split('').map((digit) => digit.repeat(2)).join('') : source
-  if (!/^[0-9a-f]{6}$/i.test(hex)) return '#747b77'
+  if (!/^[0-9a-f]{6}$/i.test(hex)) return '#4b504d'
   const value = Number.parseInt(hex, 16)
   const channels = [(value >> 16) & 255, (value >> 8) & 255, value & 255]
   const gray = channels[0]! * 0.299 + channels[1]! * 0.587 + channels[2]! * 0.114
-  return `#${channels.map((channel) => Math.round(channel * 0.22 + gray * 0.78).toString(16).padStart(2, '0')).join('')}`
+  return `#${channels.map((channel) => Math.round((channel * 0.08 + gray * 0.92) * 0.62).toString(16).padStart(2, '0')).join('')}`
 }
 
 function blendLedColor(color: string, brightness: number): string {
   const lit = color.replace('#', '')
   const muted = mutedLedColor(color).replace('#', '')
-  if (!/^[0-9a-f]{6}$/i.test(lit) || !/^[0-9a-f]{6}$/i.test(muted)) return '#747b77'
+  if (!/^[0-9a-f]{6}$/i.test(lit) || !/^[0-9a-f]{6}$/i.test(muted)) return '#4b504d'
   const channel = (source: string, index: number) => Number.parseInt(source.slice(index * 2, index * 2 + 2), 16)
   return `#${[0, 1, 2].map((index) => Math.round(
     channel(muted, index) + (channel(lit, index) - channel(muted, index)) * brightness,
@@ -266,7 +267,7 @@ function LedBody({ points, selected, color, brightness }: { points: Point[]; sel
   if (!frame) return null
   const lampColor = color ?? '#ef3d32'
   const intensity = Math.min(1, Math.max(0, brightness))
-  const glow = intensity * 24
+  const glow = intensity * 42
   const bodyColor = blendLedColor(lampColor, intensity)
   return (
     <Group x={frame.mid.x} y={frame.mid.y} rotation={frame.angle}>
@@ -279,8 +280,8 @@ function LedBody({ points, selected, color, brightness }: { points: Point[]; sel
           stroke={selected ? '#f5b83b' : '#38413d'} strokeWidth={selected ? 2 : 1}
           shadowColor={lampColor} shadowBlur={glow} shadowOpacity={intensity * 0.95}
         />
-        <Path data="M -10 -44 C -10 -50 -7 -54 -3 -55" stroke="#fff" strokeWidth={2.2} opacity={0.52} lineCap="round" />
-        <Line points={[-10, -18, 10, -18]} stroke="#edf2ef" strokeWidth={1} opacity={0.55} />
+        <Path data="M -10 -44 C -10 -50 -7 -54 -3 -55" stroke="#fff" strokeWidth={2.2} opacity={0.18 + intensity * 0.34} lineCap="round" />
+        <Line points={[-10, -18, 10, -18]} stroke="#edf2ef" strokeWidth={1} opacity={0.3 + intensity * 0.25} />
         <Text
           x={-HOLE_PITCH / 2 - 7} y={-35} width={14} align="center" text="+"
           fontSize={14} fontStyle="bold" fontFamily="monospace"
@@ -641,7 +642,7 @@ function ComponentShape({
     ? points.map((point, index) => index === pinPreview.index ? pinPreview.point : point)
     : points
   const selected = selectedIds.includes(component.id)
-  const showHandles = selected && selectedIds.length === 1 && component.kind !== 'seven-segment' && activeTool !== 'pan'
+  const showHandles = selected && selectedIds.length === 1 && !isRigidModule(component.kind) && activeTool !== 'pan'
   const previewOffset = selected && selectionDrag?.leaderId !== component.id ? selectionDrag?.delta : undefined
   const first = points[0]
   const isButton = component.kind === 'button'
@@ -728,6 +729,7 @@ function ComponentShape({
         ) : null}
         {component.kind === 'npn' || component.kind === 'pnp' ? <TransistorBody points={renderedPoints} selected={selected} kind={component.kind} /> : null}
         {component.kind === 'seven-segment' ? <SevenSegmentBody points={renderedPoints} selected={selected} brightness={reading?.segmentBrightness} /> : null}
+        {component.kind === 'cd4017' ? <Cd4017Body points={renderedPoints} selected={selected} /> : null}
       </Group>
       {showHandles ? renderedPoints.map((point, index) => (
         <Circle
@@ -807,15 +809,15 @@ export function BreadboardCanvas({ isFullscreen, onToggleFullscreen }: {
     ? { x: pendingStart.x + (pointer.x < pendingStart.x ? -2 : 2) * HOLE_PITCH, y: pendingStart.y }
     : pointer
   const renderedComponents = useMemo(() => orderComponentsForRendering(document.components), [document.components])
-  const sevenSegmentPreviewPoints = useMemo(() => {
-    if (activeTool !== 'seven-segment' || !pointer) return null
+  const modulePreviewPoints = useMemo(() => {
+    if (activeTool === 'wire' || activeTool === 'select' || activeTool === 'pan' || !isRigidModule(activeTool) || !pointer) return null
     const occupied = occupiedHoles(document)
-    const anchor = nearestHole(pointer, 20, occupied)
+    const anchor = nearestHole(pointer, 20)
     if (!anchor) return null
     const pins = defaultPlacement(activeTool, anchor, occupied)
     if (!pins) return null
     const resolved = pins.map((pin) => holeById.get(pin)).filter((hole): hole is NonNullable<typeof hole> => Boolean(hole))
-    return resolved.length === 10 ? resolved : null
+    return resolved.length === defaultPinCount(activeTool) ? resolved : null
   }, [activeTool, document, pointer])
 
   useEffect(() => {
@@ -1218,8 +1220,7 @@ export function BreadboardCanvas({ isFullscreen, onToggleFullscreen }: {
               const selected = selectedIds.includes(wire.id)
               const showHandles = selected && selectedIds.length === 1 && activeTool !== 'pan'
               const previewOffset = selected && selectionDrag?.leaderId !== wire.id ? selectionDrag?.delta : undefined
-              const lift = Math.min(35, Math.abs(renderedTo.x - renderedFrom.x) * 0.08 + Math.abs(renderedTo.y - renderedFrom.y) * 0.04)
-              const points = [renderedFrom.x, renderedFrom.y, (renderedFrom.x + renderedTo.x) / 2, (renderedFrom.y + renderedTo.y) / 2 - lift, renderedTo.x, renderedTo.y]
+              const points = [renderedFrom.x, renderedFrom.y, renderedTo.x, renderedTo.y]
               const finishWireMove = (event: KonvaEventObject<DragEvent>) => {
                 event.cancelBubble = true
                 const delta = event.target.position()
@@ -1246,10 +1247,9 @@ export function BreadboardCanvas({ isFullscreen, onToggleFullscreen }: {
                   onDragEnd={finishWireMove}
                 >
                   <Group name="selection-bounds">
-                    <Line points={points} tension={0.45} stroke="#070b09" strokeWidth={selected ? 10 : 8} opacity={0.36} lineCap="round" />
+                    <Line points={points} stroke="#070b09" strokeWidth={selected ? 10 : 8} opacity={0.36} lineCap="round" />
                     <Line
                       points={points}
-                      tension={0.45}
                       stroke={wire.color}
                       strokeWidth={selected ? selectedWireWidth : wireWidth}
                       lineCap="round"
@@ -1301,10 +1301,10 @@ export function BreadboardCanvas({ isFullscreen, onToggleFullscreen }: {
               />
             ))}
 
-            {sevenSegmentPreviewPoints ? (
+            {modulePreviewPoints ? (
               <Group opacity={0.72} listening={false}>
-                <SevenSegmentBody points={sevenSegmentPreviewPoints} selected />
-                {sevenSegmentPreviewPoints.map((point, index) => (
+                {activeTool === 'cd4017' ? <Cd4017Body points={modulePreviewPoints} selected /> : <SevenSegmentBody points={modulePreviewPoints} selected />}
+                {modulePreviewPoints.map((point, index) => (
                   <Circle key={index} x={point.x} y={point.y} radius={5.5} stroke="#f5b83b" strokeWidth={1.8} />
                 ))}
               </Group>

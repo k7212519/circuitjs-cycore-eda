@@ -1,4 +1,5 @@
 import { holeById } from './board'
+import { CD4017_CORE_TO_PHYSICAL_INDEX } from './cd4017'
 import { buildConnectivity, validateDocument } from './validation'
 import {
   SEVEN_SEGMENT_COMMON_PHYSICAL_INDICES,
@@ -15,6 +16,7 @@ export interface ComponentBinding {
 export interface NetlistBuildResult {
   circuit: string
   componentBindings: ComponentBinding[]
+  contactControls: { componentId: string; sourceName: string }[]
   blocked: boolean
 }
 
@@ -31,6 +33,7 @@ export function circuitElementType(component: Pick<BreadboardComponent, 'kind' |
     case 'npn':
     case 'pnp': return 'TransistorElm'
     case 'seven-segment': return 'SevenSegElm'
+    case 'cd4017': return 'CD4017Elm'
   }
 }
 
@@ -46,7 +49,7 @@ export function buildCircuitJsNetlist(
 ): NetlistBuildResult {
   const issues = validateDocument(document)
   if (issues.some((issue) => issue.level === 'error')) {
-    return { circuit: '', componentBindings: [], blocked: true }
+    return { circuit: '', componentBindings: [], contactControls: [], blocked: true }
   }
 
   const connectivity = buildConnectivity(document)
@@ -83,6 +86,8 @@ export function buildCircuitJsNetlist(
   }
 
   const componentBindings: ComponentBinding[] = []
+  const contactControls: NetlistBuildResult['contactControls'] = []
+  const liveContacts = document.components.some((component) => component.kind === 'cd4017')
   document.components.forEach((component, index) => {
     const pinPoints = component.pins.map((pin) => {
       const root = connectivity.rootForHole.get(pin)
@@ -119,6 +124,21 @@ export function buildCircuitJsNetlist(
       componentBindings.push({
         componentId: component.id,
         elementIndex: addElement(`157 ${displayOrigin.x} ${displayOrigin.y} ${displayOrigin.x + 128} ${displayOrigin.y} 0 7 1 ${diodeDirection}`),
+        expectedType: circuitElementType(component),
+      })
+    } else if (component.kind === 'cd4017') {
+      // Keep the tall 16-post chip separate from the display and discrete layouts.
+      // CD4017Elm uses six west posts and ten east posts, spaced by 32px.
+      const chipOrigin = { x: 3000 + (index % 4) * 256, y: 480 + Math.floor(index / 4) * 384 }
+      CD4017_CORE_TO_PHYSICAL_INDEX.forEach((physicalIndex, coreIndex) => {
+        wireTo(pinPoints[physicalIndex] as XY, {
+          x: chipOrigin.x + (coreIndex < 6 ? 0 : 128),
+          y: chipOrigin.y + (coreIndex < 6 ? coreIndex : coreIndex - 6) * 32,
+        })
+      })
+      componentBindings.push({
+        componentId: component.id,
+        elementIndex: addElement(`4017 ${chipOrigin.x} ${chipOrigin.y} ${chipOrigin.x + 128} ${chipOrigin.y} 2 0 false false`),
         expectedType: circuitElementType(component),
       })
     } else if (component.kind === 'npn' || component.kind === 'pnp') {
@@ -176,6 +196,20 @@ export function buildCircuitJsNetlist(
           break
         case 'switch':
         case 'button':
+          if (liveContacts) {
+            // Reuse the existing external-voltage API for live contacts, so a
+            // manual clock edge does not re-import and reset the counter circuit.
+            const control = { x: origin.x + 32, y: origin.y + 16 }
+            const sourceName = `bb-contact-${index}`
+            addElement(`418 ${control.x} ${control.y} ${control.x} ${control.y + 32} 0 0 40 5 0 0 0.5 ${sourceName}`)
+            componentBindings.push({
+              componentId: component.id,
+              elementIndex: addElement(`159 ${origin.x} ${origin.y} ${end.x} ${end.y} 0 0.001 1e10 2.5`),
+              expectedType: 'AnalogSwitchElm',
+            })
+            contactControls.push({ componentId: component.id, sourceName })
+            break
+          }
           // CircuitJS switch position: 0 = closed, 1 = open. The workbench owns
           // the momentary interaction, so the imported switch itself is not toggled.
           componentBindings.push({
@@ -188,7 +222,7 @@ export function buildCircuitJsNetlist(
     }
   })
 
-  return { circuit: lines.join('\n'), componentBindings, blocked: false }
+  return { circuit: lines.join('\n'), componentBindings, contactControls, blocked: false }
 }
 
 export function netForHole(document: BreadboardDocument, holeId: string): string | undefined {

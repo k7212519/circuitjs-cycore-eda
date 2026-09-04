@@ -3,7 +3,7 @@ import { ChevronDown } from 'lucide-react'
 import type { ComponentKind, ComponentPlacementOptions, ToolKind } from '@/domain/types'
 import { useWorkbenchStore } from '@/store/useWorkbenchStore'
 
-type GlyphKind = 'wire' | 'resistor' | 'capacitor' | 'ceramic' | 'electrolytic' | 'led' | 'diode' | 'switch' | 'transistor' | 'npn' | 'pnp' | 'seven-segment'
+type GlyphKind = 'wire' | 'resistor' | 'capacitor' | 'ceramic' | 'electrolytic' | 'led' | 'diode' | 'switch' | 'transistor' | 'npn' | 'pnp' | 'seven-segment' | 'chip'
 
 interface DirectItem {
   kind: 'wire' | 'resistor'
@@ -85,6 +85,12 @@ const menus: PartsMenu[] = [
       { id: 'pnp', tool: 'pnp', label: 'PNP 三极管', glyph: 'pnp', options: { value: 100, label: '2N3906' } },
     ],
   },
+  {
+    id: 'chip', label: '芯片', glyph: 'chip',
+    children: [
+      { id: 'cd4017', tool: 'cd4017', label: 'CD4017', glyph: 'chip', options: { value: 1, label: 'CD4017' } },
+    ],
+  },
 ]
 
 function CircuitGlyph({ kind, color }: { kind: GlyphKind; color?: string }) {
@@ -107,6 +113,8 @@ function CircuitGlyph({ kind, color }: { kind: GlyphKind; color?: string }) {
     shape = <><path d="M2 15h4M18 15h4" /><circle cx="7" cy="15" r="1.8" /><circle cx="17" cy="15" r="1.8" /><path d="M8.5 13.8 16 7" /></>
   } else if (kind === 'seven-segment') {
     shape = <path d="M9 4h6M7 6v4M17 6v4M9 12h6M7 14v4M17 14v4M9 20h6" />
+  } else if (kind === 'chip') {
+    shape = <><rect x="4" y="7" width="16" height="10" rx="1.5" /><path d="M7 4v3M12 4v3M17 4v3M7 17v3M12 17v3M17 17v3" /><circle cx="7.5" cy="13.5" r=".7" fill="currentColor" stroke="none" /></>
   } else {
     shape = <path d="M5 12h5M10 5v14M10 9l7-4M10 15l7 4" />
   }
