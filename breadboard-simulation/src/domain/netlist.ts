@@ -1,5 +1,6 @@
 import { holeById } from './board'
 import { CD4017_CORE_TO_PHYSICAL_INDEX } from './cd4017'
+import { CD4026_CORE_POST_LAYOUT } from './cd4026'
 import { buildConnectivity, validateDocument } from './validation'
 import {
   SEVEN_SEGMENT_COMMON_PHYSICAL_INDICES,
@@ -34,6 +35,8 @@ export function circuitElementType(component: Pick<BreadboardComponent, 'kind' |
     case 'pnp': return 'TransistorElm'
     case 'seven-segment': return 'SevenSegElm'
     case 'cd4017': return 'CD4017Elm'
+    case 'cd4026': return 'CD4026Elm'
+    case 'esp32-s3': return '' // Visual-only board; never exported to CircuitJS.
   }
 }
 
@@ -87,8 +90,8 @@ export function buildCircuitJsNetlist(
 
   const componentBindings: ComponentBinding[] = []
   const contactControls: NetlistBuildResult['contactControls'] = []
-  const liveContacts = document.components.some((component) => component.kind === 'cd4017')
-  document.components.forEach((component, index) => {
+  const liveContacts = document.components.some((component) => component.kind === 'cd4017' || component.kind === 'cd4026')
+  document.components.filter((component) => component.kind !== 'esp32-s3').forEach((component, index) => {
     const pinPoints = component.pins.map((pin) => {
       const root = connectivity.rootForHole.get(pin)
       return root ? points.get(root) : undefined
@@ -139,6 +142,21 @@ export function buildCircuitJsNetlist(
       componentBindings.push({
         componentId: component.id,
         elementIndex: addElement(`4017 ${chipOrigin.x} ${chipOrigin.y} ${chipOrigin.x + 128} ${chipOrigin.y} 2 0 false false`),
+        expectedType: circuitElementType(component),
+      })
+    } else if (component.kind === 'cd4026') {
+      // CD4026Elm keeps its core terminals in physical 1–16 order, while the
+      // drawing distributes them between two eight-position sides.
+      const chipOrigin = { x: 4200 + (index % 4) * 256, y: 480 + Math.floor(index / 4) * 320 }
+      CD4026_CORE_POST_LAYOUT.forEach((layout, physicalIndex) => {
+        wireTo(pinPoints[physicalIndex] as XY, {
+          x: chipOrigin.x + (layout.side === 'right' ? 128 : 0),
+          y: chipOrigin.y + layout.position * 32,
+        })
+      })
+      componentBindings.push({
+        componentId: component.id,
+        elementIndex: addElement(`4026 ${chipOrigin.x} ${chipOrigin.y} ${chipOrigin.x + 112} ${chipOrigin.y} 0 0 false false false true`),
         expectedType: circuitElementType(component),
       })
     } else if (component.kind === 'npn' || component.kind === 'pnp') {

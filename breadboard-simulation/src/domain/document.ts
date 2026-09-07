@@ -1,12 +1,12 @@
 import { z } from 'zod'
-import { defaultPinCount, holeById, isLegacyCd4017Footprint, rigidModulePlacementFromLowerPin } from './board'
+import { halfTurnPins, defaultPinCount, holeById, isLegacyCd4017Footprint, rigidModulePlacementFromLowerPin } from './board'
 import { occupiedHoles } from './validation'
 import type { BreadboardDocument } from './types'
 
 const componentSchema = z.object({
   id: z.string().min(1),
-  kind: z.enum(['resistor', 'capacitor', 'led', 'diode', 'switch', 'button', 'npn', 'pnp', 'seven-segment', 'cd4017']),
-  pins: z.array(z.string()).min(2).max(16),
+  kind: z.enum(['resistor', 'capacitor', 'led', 'diode', 'switch', 'button', 'npn', 'pnp', 'seven-segment', 'cd4017', 'cd4026', 'esp32-s3']),
+  pins: z.array(z.string()).min(2).max(44),
   rotation: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]),
   value: z.number().positive(),
   color: z.string().optional(),
@@ -58,6 +58,7 @@ export function createEmptyDocument(projectName = '未命名实验'): Breadboard
 export function parseDocument(value: unknown): BreadboardDocument {
   const document = breadboardDocumentSchema.parse(value) as BreadboardDocument
   compactCd4017Footprints(document)
+  expandEsp32S3Footprints(document)
   return document
 }
 
@@ -66,14 +67,15 @@ export function parseDocument(value: unknown): BreadboardDocument {
 export function compactCd4017Footprints(document: BreadboardDocument): void {
   for (const component of document.components) {
     if (component.kind !== 'cd4017' || !isLegacyCd4017Footprint(component.pins)) continue
-    const anchor = holeById.get(component.pins[0]!)!
+    const canonical = component.rotation === 180 ? halfTurnPins(component.pins) : component.pins
+    const anchor = holeById.get(canonical[0]!)!
     const occupied = occupiedHoles(document, component.id)
     const lowerAnchorAbove = holeById.get(`t-${anchor.zone}-${(anchor.row ?? 0) - 1}-${anchor.column}`)
     for (const candidate of [anchor, lowerAnchorAbove]) {
       if (!candidate) continue
       const pins = rigidModulePlacementFromLowerPin('cd4017', candidate, occupied)
-      if (!pins || pins.some((pin, index) => holeById.get(pin)?.nodeId !== holeById.get(component.pins[index]!)?.nodeId)) continue
-      component.pins = pins
+      if (!pins || pins.some((pin, index) => holeById.get(pin)?.nodeId !== holeById.get(canonical[index]!)?.nodeId)) continue
+      component.pins = component.rotation === 180 ? halfTurnPins(pins) : pins
       break
     }
   }
@@ -81,4 +83,20 @@ export function compactCd4017Footprints(document: BreadboardDocument): void {
 
 export function serializeDocument(document: BreadboardDocument): string {
   return JSON.stringify(breadboardDocumentSchema.parse(document))
+}
+
+export function expandEsp32S3Footprints(document: BreadboardDocument): void {
+  for (const component of document.components) {
+    if (component.kind !== 'esp32-s3') continue
+    const canonical = component.rotation === 180 ? halfTurnPins(component.pins) : component.pins
+    const first = holeById.get(canonical[0] ?? '')
+    const upper = holeById.get(canonical[43] ?? '')
+    if (first && upper && Math.abs(first.y - upper.y - 182) <= 2) continue
+    if (!first || !upper || first.zone !== (upper.zone ?? -2) + 1) continue
+    const lower = holeById.get(`t-${first.zone}-4-${first.column}`)
+    const pins = lower ? rigidModulePlacementFromLowerPin('esp32-s3', lower, occupiedHoles(document, component.id)) : null
+    if (pins && pins.every((pin, index) => holeById.get(pin)?.nodeId === holeById.get(canonical[index]!)?.nodeId)) {
+      component.pins = component.rotation === 180 ? halfTurnPins(pins) : pins
+    }
+  }
 }

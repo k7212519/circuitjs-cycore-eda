@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { defaultPlacement, holeById, isLegacyCd4017Footprint, isRigidModule, isTwoPinComponent, isValidButtonPinPair, legacyCd4017PlacementFromLowerPin, nearestHole, rigidModulePlacementFromLowerPin } from '@/domain/board'
+import { halfTurnPins, defaultPlacement, holeById, isLegacyCd4017Footprint, isRigidModule, isTwoPinComponent, isValidButtonPinPair, legacyCd4017PlacementFromLowerPin, nearestHole, rigidModulePlacementFromLowerPin } from '@/domain/board'
 import { compactCd4017Footprints, createEmptyDocument, parseDocument } from '@/domain/document'
 import { occupiedHoles, validateDocument } from '@/domain/validation'
 import type {
@@ -19,7 +19,7 @@ const clone = (document: BreadboardDocument): BreadboardDocument => structuredCl
 const id = (prefix: string) => `${prefix}-${crypto.randomUUID()}`
 
 const defaults: Record<ComponentKind, ComponentPlacementOptions> = {
-  resistor: { value: 1000, label: '1 kΩ', bandCount: 4 },
+  resistor: { value: 500, label: '500 Ω', bandCount: 4 },
   capacitor: { value: 100e-9, label: '100 nF', variant: 'ceramic' },
   led: { value: 0.01, color: '#ef3d32', label: '红色 LED' },
   diode: { value: 1, label: '1N4148', variant: 'small-signal' },
@@ -29,6 +29,8 @@ const defaults: Record<ComponentKind, ComponentPlacementOptions> = {
   pnp: { value: 100, label: '2N3906' },
   'seven-segment': { value: 0.01, color: '#ef3d32', label: 'SC56-11EWA', variant: 'common-cathode' },
   cd4017: { value: 1, label: 'CD4017' },
+  cd4026: { value: 1, label: 'CD4026' },
+  'esp32-s3': { value: 1, label: 'ESP32-S3-WROOM-1-N16R8' },
 }
 
 interface WorkbenchState {
@@ -39,6 +41,8 @@ interface WorkbenchState {
   activeTool: ToolKind
   wireStart: string | null
   componentStart: string | null
+  placementRotation: 0 | 180
+  rotatePlacement: () => void
   wireColor: string
   placementOptions: Record<ComponentKind, ComponentPlacementOptions>
   past: BreadboardDocument[]
@@ -127,6 +131,8 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
   activeTool: 'select',
   wireStart: null,
   componentStart: null,
+  placementRotation: 0,
+  rotatePlacement: () => set((state) => ({ placementRotation: state.placementRotation === 0 ? 180 : 0 })),
   wireColor: '#f28c28',
   placementOptions: structuredClone(defaults),
   past: [],
@@ -139,6 +145,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
 
   setActiveTool: (activeTool) => set((state) => ({
     activeTool,
+    placementRotation: activeTool === state.activeTool ? state.placementRotation : 0,
     selectedIds: activeTool === 'select' || activeTool === 'pan' ? state.selectedIds : [],
     wireStart: activeTool === 'wire' ? state.wireStart : null,
     componentStart: activeTool === state.activeTool && activeTool !== 'select'
@@ -151,13 +158,14 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
     const occupied = occupiedHoles(state.document)
     const anchor = nearestHole(point, 20, isRigidModule(kind) ? new Set() : occupied)
     if (!anchor) return false
-    const pins = defaultPlacement(kind, anchor, occupied)
+    const footprint = defaultPlacement(kind, anchor, occupied)
+    const pins = footprint && isRigidModule(kind) && state.placementRotation === 180 ? halfTurnPins(footprint) : footprint
     if (!pins) return false
     const component: BreadboardComponent = {
       id: id(kind),
       kind,
       pins,
-      rotation: 0,
+      rotation: isRigidModule(kind) ? state.placementRotation : 0,
       ...state.placementOptions[kind],
     }
     set({
@@ -237,8 +245,8 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
     if (!anchor) return false
     if (isRigidModule(component.kind)) {
       const pins = component.kind === 'cd4017' && isLegacyCd4017Footprint(component.pins)
-        ? legacyCd4017PlacementFromLowerPin(anchor, occupied)
-        : rigidModulePlacementFromLowerPin(component.kind, anchor, occupied)
+        ? legacyCd4017PlacementFromLowerPin(anchor, occupied, component.rotation)
+        : rigidModulePlacementFromLowerPin(component.kind, anchor, occupied, component.rotation)
       if (!pins) return false
       set(withDocument(state, (document) => {
         const target = document.components.find((item) => item.id === componentId)
@@ -359,6 +367,9 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
     const occupied = occupiedHolesExcept(state.document, selected)
     const targetAnchor = nearestHole(point, 24, anchorComponent && isRigidModule(anchorComponent.kind) ? new Set() : occupied)
     if (!targetAnchor || targetAnchor.id === sourceAnchor.id) return false
+    if (selectedIds.length === 1 && anchorComponent?.kind === 'esp32-s3') {
+      return get().moveComponentTo(anchorId, point)
+    }
     const offset = { x: targetAnchor.x - sourceAnchor.x, y: targetAnchor.y - sourceAnchor.y }
     const reserved = new Set(occupied)
     const resolveTarget = (pin: string) => {
@@ -383,8 +394,8 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
       }
       if (isRigidModule(component.kind)) {
         const expected = component.kind === 'cd4017' && isLegacyCd4017Footprint(component.pins)
-          ? legacyCd4017PlacementFromLowerPin(resolved[0]!, occupied)
-          : rigidModulePlacementFromLowerPin(component.kind, resolved[0]!, occupied)
+          ? legacyCd4017PlacementFromLowerPin(resolved[0]!, occupied, component.rotation)
+          : rigidModulePlacementFromLowerPin(component.kind, resolved[0]!, occupied, component.rotation)
         if (!expected || expected.some((pin, index) => pin !== resolved[index]?.id)) return false
       }
       componentPins.set(component.id, resolved.map((target) => target.id))
@@ -460,7 +471,15 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
     if (state.selectedIds.length !== 1) return
     const component = state.document.components.find((item) => item.id === state.selectedIds[0])
     if (!component) return
-    if (component.kind === 'button' || isRigidModule(component.kind)) return
+    if (isRigidModule(component.kind)) {
+      set(withDocument(state, (document) => {
+        const target = document.components.find((item) => item.id === component.id)!
+        target.pins = halfTurnPins(target.pins)
+        target.rotation = target.rotation === 180 ? 0 : 180
+      }))
+      return
+    }
+    if (component.kind === 'button') return
     const points = component.pins.map((pin) => holeById.get(pin)).filter(Boolean)
     if (points.length !== component.pins.length || !points[0]) return
     const occupied = occupiedHoles(state.document, component.id)

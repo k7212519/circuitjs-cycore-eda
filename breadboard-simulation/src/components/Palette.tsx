@@ -89,6 +89,8 @@ const menus: PartsMenu[] = [
     id: 'chip', label: '芯片', glyph: 'chip',
     children: [
       { id: 'cd4017', tool: 'cd4017', label: 'CD4017', glyph: 'chip', options: { value: 1, label: 'CD4017' } },
+      { id: 'cd4026', tool: 'cd4026', label: 'CD4026', glyph: 'chip', options: { value: 1, label: 'CD4026' } },
+      { id: 'esp32-s3', tool: 'esp32-s3', label: 'ESP32-S3模型', glyph: 'chip', options: { value: 1, label: 'ESP32-S3-WROOM-1-N16R8' } },
     ],
   },
 ]

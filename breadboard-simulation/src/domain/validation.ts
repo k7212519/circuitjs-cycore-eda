@@ -1,5 +1,6 @@
 import { holeById, isLegacyCd4017Footprint, isRigidModule } from './board'
 import { CD4017_PHYSICAL_PIN_NAMES, CD4017_REQUIRED_PHYSICAL_INDICES } from './cd4017'
+import { CD4026_PHYSICAL_PIN_NAMES, CD4026_REQUIRED_PHYSICAL_INDICES } from './cd4026'
 import type { BreadboardDocument, ValidationIssue } from './types'
 
 class DisjointSet {
@@ -78,6 +79,7 @@ export function validateDocument(document: BreadboardDocument): ValidationIssue[
   const connectivity = buildConnectivity(document)
   const attachmentCount = new Map<string, number>()
   for (const component of document.components) {
+    if (component.kind === 'esp32-s3') continue
     for (const pin of component.pins) {
       const root = connectivity.rootForHole.get(pin)
       if (root) attachmentCount.set(root, (attachmentCount.get(root) ?? 0) + 1)
@@ -124,6 +126,20 @@ export function validateDocument(document: BreadboardDocument): ValidationIssue[
           level: 'warning',
           code: 'FLOATING_PIN',
           message: `CD4017 请连接 ${missingPins.map((index) => `${index + 1} 脚 ${CD4017_PHYSICAL_PIN_NAMES[index]}`).join('、')}；INH 低电平允许计数，RESET 高电平复位。`,
+          targetId: component.id,
+        })
+      }
+    } else if (component.kind === 'cd4026') {
+      const missingPins = CD4026_REQUIRED_PHYSICAL_INDICES.filter((index) => {
+        const root = connectivity.rootForHole.get(component.pins[index]!)
+        const ownAttachments = component.pins.filter((pin) => connectivity.rootForHole.get(pin) === root).length
+        return !root || (!suppliedRoots.has(root) && (attachmentCount.get(root) ?? 0) <= ownAttachments)
+      })
+      if (missingPins.length > 0) {
+        issues.push({
+          level: 'warning',
+          code: 'FLOATING_PIN',
+          message: `CD4026 请连接 ${missingPins.map((index) => `${index + 1} 脚 ${CD4026_PHYSICAL_PIN_NAMES[index]}`).join('、')}；INH 低电平允许计数，DEI 高电平开启显示，RESET 复位。`,
           targetId: component.id,
         })
       }

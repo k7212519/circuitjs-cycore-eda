@@ -119,7 +119,7 @@ export function CircuitJsEngine({ document, closedContacts, running, onReadings,
   const readingsReadyRef = useRef(false)
   const bindingsRef = useRef<ComponentBinding[]>([])
   const warnedLegacyBridgeRef = useRef(false)
-  const liveContacts = document.components.some((component) => component.kind === 'cd4017')
+  const liveContacts = document.components.some((component) => component.kind === 'cd4017' || component.kind === 'cd4026')
   const serializedContacts = liveContacts ? noContacts : closedContacts
   const netlist = useMemo(() => buildCircuitJsNetlist(document, serializedContacts), [serializedContacts, document])
   const netlistKey = useMemo(() => JSON.stringify([netlist.circuit, netlist.componentBindings]), [netlist])
@@ -188,6 +188,7 @@ export function CircuitJsEngine({ document, closedContacts, running, onReadings,
             const transistor = component.kind === 'npn' || component.kind === 'pnp'
             const sevenSegment = component.kind === 'seven-segment'
             const cd4017 = component.kind === 'cd4017'
+            const cd4026 = component.kind === 'cd4026'
             const corePinVoltages = Array.from({ length: postCount }, (_, index) => element.getVoltage(index))
             const corePinCurrents = element.getPostCurrent
               ? Array.from({ length: postCount }, (_, index) => element.getPostCurrent!(index))
@@ -215,20 +216,20 @@ export function CircuitJsEngine({ document, closedContacts, running, onReadings,
             const sevenSegmentDirection = component.variant === 'common-anode' ? -1 : 1
             const voltage = sevenSegment
               ? Math.max(0, ...corePinVoltages.slice(0, 8).map((value) => sevenSegmentDirection * (value - commonVoltage)))
-              : cd4017
+              : cd4017 || cd4026
               ? (pinVoltages[15] ?? 0) - (pinVoltages[7] ?? 0)
               : transistor
               ? (corePinVoltages[1] ?? 0) - (corePinVoltages[2] ?? 0)
               : element.getVoltageDiff()
             const current = sevenSegment
               ? Math.max(0, -sevenSegmentDirection * (corePinCurrents[SEVEN_SEGMENT_COMMON_CORE_INDEX] ?? 0))
-              : cd4017 ? (pinCurrents[15] ?? 0)
+              : cd4017 || cd4026 ? (pinCurrents[15] ?? 0)
               : transistor ? (corePinCurrents[1] ?? 0) : element.getCurrent()
             const terminalPower = corePinVoltages.reduce(
               (sum, pinVoltage, index) => sum + pinVoltage * (corePinCurrents[index] ?? 0),
               0,
             )
-            const power = sevenSegment || cd4017 ? terminalPower : element.getPower?.() ?? terminalPower
+            const power = sevenSegment || cd4017 || cd4026 ? terminalPower : element.getPower?.() ?? terminalPower
             const brightness = component.kind === 'led'
               ? element.getBrightness?.() ?? ledBrightness(current, component.value)
               : undefined

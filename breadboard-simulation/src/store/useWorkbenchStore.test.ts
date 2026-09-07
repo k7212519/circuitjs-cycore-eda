@@ -71,7 +71,7 @@ describe('workbench history and placement', () => {
     ])
   })
 
-  it('places and moves the seven-segment display as a rigid non-rotating package', () => {
+  it('places and moves the seven-segment display as a rigid package with reversible half turns', () => {
     const anchor = holeById.get('t-1-1-20')!
     expect(useWorkbenchStore.getState().placeAt('seven-segment', anchor)).toBe(true)
     const component = useWorkbenchStore.getState().document.components[0]!
@@ -82,7 +82,9 @@ describe('workbench history and placement', () => {
     ])
     expect(useWorkbenchStore.getState().movePinTo(component.id, 0, holeById.get('t-1-1-30')!)).toBe(false)
     useWorkbenchStore.getState().rotateSelected()
-    expect(useWorkbenchStore.getState().document.components[0]?.rotation).toBe(0)
+    expect(useWorkbenchStore.getState().document.components[0]?.rotation).toBe(180)
+    useWorkbenchStore.getState().rotateSelected()
+    expect(useWorkbenchStore.getState().document.components[0]?.pins).toEqual(component.pins)
     expect(useWorkbenchStore.getState().moveSelectionTo(component.id, holeById.get('t-3-1-30')!)).toBe(true)
     expect(useWorkbenchStore.getState().document.components[0]?.pins[0]).toBe('t-3-1-30')
     expect(useWorkbenchStore.getState().moveSelectionTo(component.id, holeById.get('t-2-1-30')!)).toBe(true)

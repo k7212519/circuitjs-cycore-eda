@@ -1,17 +1,18 @@
+import { Esp32S3Body } from './Esp32S3Body'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Maximize2, Minimize2, Move, MousePointer2, Redo2, Undo2, ZoomIn, ZoomOut } from 'lucide-react'
 import { Circle, Group, Layer, Line, Path, Rect, Stage, Text } from 'react-konva'
 import type Konva from 'konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import {
-  BOARD_HEIGHT, BOARD_WIDTH, HOLE_PITCH, HOLE_RADIUS, HOLE_SLEEVE_RADIUS, defaultPinCount, defaultPlacement, holeById, holes, isRigidModule, isTwoPinComponent, nearestHole,
+  BOARD_HEIGHT, BOARD_WIDTH, HOLE_PITCH, HOLE_RADIUS, HOLE_SLEEVE_RADIUS, defaultPinCount, defaultPlacement, halfTurnPins, holeById, holes, isRigidModule, isTwoPinComponent, nearestHole,
 } from '@/domain/board'
 import { occupiedHoles } from '@/domain/validation'
 import type {
   BreadboardComponent, ComponentKind, ComponentPlacementOptions, ComponentVariant, DiodeVariant, Point, ResistorBandCount, TwoPinComponentKind,
 } from '@/domain/types'
 import { useWorkbenchStore } from '@/store/useWorkbenchStore'
-import { Cd4017Body } from './Cd4017Body'
+import { Cd4017Body, Cd4026Body } from './Cd4017Body'
 
 const terminalHoles = holes.filter((hole) => hole.region === 'terminal')
 const railHoles = holes.filter((hole) => hole.region === 'rail')
@@ -56,7 +57,7 @@ const minViewportScale = 0.25
 const maxViewportScale = 3.5
 
 function componentName(kind: ComponentKind): string {
-  return ({ resistor: 'R', capacitor: 'C', led: 'LED', diode: 'D', switch: '开关', button: '按键', npn: 'NPN', pnp: 'PNP', 'seven-segment': '数码管', cd4017: 'CD4017' })[kind]
+  return ({ resistor: 'R', capacitor: 'C', led: 'LED', diode: 'D', switch: '开关', button: '按键', npn: 'NPN', pnp: 'PNP', 'seven-segment': '数码管', cd4017: 'CD4017', cd4026: 'CD4026', 'esp32-s3': 'ESP32-S3模型' })[kind]
 }
 
 const uprightComponentKinds = new Set<ComponentKind>(['capacitor', 'led', 'npn', 'pnp'])
@@ -172,7 +173,7 @@ function UprightPinLeads({ length, slots, attachY }: { length: number; slots: [n
   )
 }
 
-function ResistorBody({ points, selected, value = 1000, bandCount = 4 }: { points: Point[]; selected: boolean; value?: number; bandCount?: ResistorBandCount }) {
+function ResistorBody({ points, selected, value = 500, bandCount = 4 }: { points: Point[]; selected: boolean; value?: number; bandCount?: ResistorBandCount }) {
   const frame = twoPinFrame(points, 'resistor')
   if (!frame) return null
   const bandPositions = bandCount === 5 ? [-15, -9, -3, 5, 14] : [-13, -5, 4, 14]
@@ -486,6 +487,21 @@ function mixSegmentColor(brightness: number): string {
   return `rgb(${channels.join(', ')})`
 }
 
+function RigidModuleBody({ kind, points, rotation, selected, brightness }: {
+  kind: ComponentKind; points: Point[]; rotation: number; selected: boolean; brightness?: number[]
+}) {
+  const cx = (Math.min(...points.map((p) => p.x)) + Math.max(...points.map((p) => p.x))) / 2
+  const cy = (Math.min(...points.map((p) => p.y)) + Math.max(...points.map((p) => p.y))) / 2
+  const rotated = rotation === 180
+  const canonical = rotated ? points.map((p) => ({ x: 2 * cx - p.x, y: 2 * cy - p.y })) : points
+  return <Group x={cx} y={cy} offsetX={cx} offsetY={cy} rotation={rotated ? 180 : 0}>
+    {kind === 'esp32-s3' ? <Esp32S3Body points={canonical} selected={selected} />
+      : kind === 'seven-segment' ? <SevenSegmentBody points={canonical} selected={selected} brightness={brightness} />
+        : kind === 'cd4026' ? <Cd4026Body points={canonical} selected={selected} />
+          : <Cd4017Body points={canonical} selected={selected} />}
+  </Group>
+}
+
 function SevenSegmentBody({
   points,
   selected,
@@ -728,8 +744,7 @@ function ComponentShape({
           />
         ) : null}
         {component.kind === 'npn' || component.kind === 'pnp' ? <TransistorBody points={renderedPoints} selected={selected} kind={component.kind} /> : null}
-        {component.kind === 'seven-segment' ? <SevenSegmentBody points={renderedPoints} selected={selected} brightness={reading?.segmentBrightness} /> : null}
-        {component.kind === 'cd4017' ? <Cd4017Body points={renderedPoints} selected={selected} /> : null}
+        {isRigidModule(component.kind) ? <RigidModuleBody kind={component.kind} points={renderedPoints} rotation={component.rotation} selected={selected} brightness={reading?.segmentBrightness} /> : null}
       </Group>
       {showHandles ? renderedPoints.map((point, index) => (
         <Circle
@@ -787,6 +802,7 @@ export function BreadboardCanvas({ isFullscreen, onToggleFullscreen }: {
   const wireStart = useWorkbenchStore((state) => state.wireStart)
   const componentStart = useWorkbenchStore((state) => state.componentStart)
   const placementOptions = useWorkbenchStore((state) => state.placementOptions)
+  const placementRotation = useWorkbenchStore((state) => state.placementRotation)
   const selectedIds = useWorkbenchStore((state) => state.selectedIds)
   const setViewport = useWorkbenchStore((state) => state.setViewport)
   const setActiveTool = useWorkbenchStore((state) => state.setActiveTool)
@@ -814,11 +830,12 @@ export function BreadboardCanvas({ isFullscreen, onToggleFullscreen }: {
     const occupied = occupiedHoles(document)
     const anchor = nearestHole(pointer, 20)
     if (!anchor) return null
-    const pins = defaultPlacement(activeTool, anchor, occupied)
+    const footprint = defaultPlacement(activeTool, anchor, occupied)
+    const pins = footprint && placementRotation === 180 ? halfTurnPins(footprint) : footprint
     if (!pins) return null
     const resolved = pins.map((pin) => holeById.get(pin)).filter((hole): hole is NonNullable<typeof hole> => Boolean(hole))
     return resolved.length === defaultPinCount(activeTool) ? resolved : null
-  }, [activeTool, document, pointer])
+  }, [activeTool, document, pointer, placementRotation])
 
   useEffect(() => {
     const container = containerRef.current
@@ -1303,7 +1320,7 @@ export function BreadboardCanvas({ isFullscreen, onToggleFullscreen }: {
 
             {modulePreviewPoints ? (
               <Group opacity={0.72} listening={false}>
-                {activeTool === 'cd4017' ? <Cd4017Body points={modulePreviewPoints} selected /> : <SevenSegmentBody points={modulePreviewPoints} selected />}
+                <RigidModuleBody kind={activeTool as ComponentKind} points={modulePreviewPoints} rotation={placementRotation} selected />
                 {modulePreviewPoints.map((point, index) => (
                   <Circle key={index} x={point.x} y={point.y} radius={5.5} stroke="#f5b83b" strokeWidth={1.8} />
                 ))}

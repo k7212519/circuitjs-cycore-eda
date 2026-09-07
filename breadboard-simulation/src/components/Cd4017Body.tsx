@@ -5,7 +5,13 @@ import logoSvg from '../../imgs/logo.svg?raw'
 // Reuse the brand's actual vector contours, recolored as PCB silkscreen.
 const logoPaths = Array.from(logoSvg.matchAll(/<path\b[^>]*\bd="([^"]+)"/g), (match) => match[1]!)
 
-export function Cd4017Body({ points, selected }: { points: Point[]; selected: boolean }) {
+interface ChipModuleBodyProps {
+  points: Point[]
+  selected: boolean
+  model: 'CD4017' | 'CD4026'
+}
+
+export function ChipModuleBody({ points, selected, model }: ChipModuleBodyProps) {
   const bottomLeft = points[0]
   const bottomRight = points[7]
   const topLeft = points[15]
@@ -47,7 +53,7 @@ export function Cd4017Body({ points, selected }: { points: Point[]; selected: bo
       <Rect x={-64} y={-chipHalfHeight} width={93} height={chipHalfHeight * 2} cornerRadius={3} fill="#111613" stroke="#070b08" strokeWidth={1.2} shadowColor="#000" shadowBlur={3} shadowOffsetY={2} shadowOpacity={0.35} />
       <Line points={[-61, -chipHalfHeight + 3, 26, -chipHalfHeight + 3]} stroke="#424943" strokeWidth={1} />
       <Circle x={-58} y={chipHalfHeight - 7} radius={2.1} fill="#9b9f91" />
-      <Text x={-51} y={-4} width={70} text="CD4017" fontFamily="monospace" fontSize={10} letterSpacing={0.7} fill="#d6dacd" align="center" />
+      <Text x={-51} y={-4} width={70} text={model} fontFamily="monospace" fontSize={10} letterSpacing={0.7} fill="#d6dacd" align="center" />
 
       <Group x={35} y={-18} scaleX={0.56} scaleY={0.56} listening={false}>
         {logoPaths.map((data, index) => <Path key={index} data={data} fill="#dde2d5" />)}
@@ -86,4 +92,12 @@ export function Cd4017Body({ points, selected }: { points: Point[]; selected: bo
       </Group>
     </Group>
   )
+}
+
+export function Cd4017Body(props: Omit<ChipModuleBodyProps, 'model'>) {
+  return <ChipModuleBody {...props} model="CD4017" />
+}
+
+export function Cd4026Body(props: Omit<ChipModuleBodyProps, 'model'>) {
+  return <ChipModuleBody {...props} model="CD4026" />
 }

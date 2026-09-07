@@ -77,7 +77,8 @@ export function nearestHole(point: Point, maxDistance = 16, excluded = new Set<s
 }
 
 export function defaultPinCount(kind: ComponentKind): number {
-  if (kind === 'cd4017') return 16
+  if (kind === 'esp32-s3') return 44
+  if (kind === 'cd4017' || kind === 'cd4026') return 16
   if (kind === 'seven-segment') return 10
   return kind === 'npn' || kind === 'pnp' ? 3 : 2
 }
@@ -86,12 +87,32 @@ export function isTwoPinComponent(kind: ComponentKind): kind is TwoPinComponentK
   return defaultPinCount(kind) === 2
 }
 
-export function isRigidModule(kind: ComponentKind): kind is 'seven-segment' | 'cd4017' {
-  return kind === 'seven-segment' || kind === 'cd4017'
+export type RigidModuleKind = Extract<ComponentKind, 'seven-segment' | 'cd4017' | 'cd4026' | 'esp32-s3'>
+
+export function isRigidModule(kind: ComponentKind): kind is RigidModuleKind {
+  return kind === 'seven-segment' || kind === 'cd4017' || kind === 'cd4026' || kind === 'esp32-s3'
 }
 
 export function defaultPlacement(kind: ComponentKind, anchor: Hole, occupied: Set<string>): string[] | null {
-  if (isRigidModule(kind)) return dualRowPlacement(anchor, occupied, defaultPinCount(kind) / 2, kind === 'cd4017' ? 2 : 1)
+  if (kind === 'esp32-s3') {
+    if (anchor.region !== 'terminal' || anchor.zone === undefined || anchor.row === undefined) return null
+    // Match either header to the pointer, including footprints spanning two gaps.
+    const candidates: { pins: string[]; distance: number }[] = []
+    for (let zone = 1; zone < 4; zone += 1) {
+      for (let row = 0; row < 5; row += 1) {
+        const lower = holeById.get(`t-${zone}-${row}-${anchor.column}`)!
+        const pins = esp32S3PlacementFromPin(lower, new Set())
+        if (!pins) continue
+        const upper = holeById.get(pins[43]!)!
+        candidates.push({ pins, distance: Math.min(Math.abs(anchor.y - lower.y), Math.abs(anchor.y - upper.y)) })
+      }
+    }
+    candidates.sort((a, b) => a.distance - b.distance)
+    const chosen = candidates[0]?.pins
+    if (chosen) return chosen.some((pin) => occupied.has(pin)) ? null : chosen
+    return null
+  }
+  if (isRigidModule(kind)) return dualRowPlacement(anchor, occupied, defaultPinCount(kind) / 2, kind === 'seven-segment' ? 1 : 2)
   const count = defaultPinCount(kind)
   const candidates: string[][] = []
 
@@ -143,15 +164,51 @@ export function sevenSegmentPlacementFromLowerPin(anchor: Hole, occupied: Set<st
   return dualRowPlacementFromLowerPin(anchor, occupied, 5)
 }
 
-export function rigidModulePlacementFromLowerPin(kind: 'seven-segment' | 'cd4017', anchor: Hole, occupied: Set<string>): string[] | null {
-  return dualRowPlacementFromLowerPin(anchor, occupied, defaultPinCount(kind) / 2, kind === 'cd4017' ? 2 : 1)
+export function halfTurnPins<T>(pins: T[]): T[] {
+  const half = pins.length / 2
+  return [...pins.slice(half), ...pins.slice(0, half)]
 }
 
-export function legacyCd4017PlacementFromLowerPin(anchor: Hole, occupied: Set<string>): string[] | null {
-  return dualRowPlacementFromLowerPin(anchor, occupied, 8)
+export function rigidModulePlacementFromLowerPin(kind: RigidModuleKind, anchor: Hole, occupied: Set<string>, rotation = 0): string[] | null {
+  if (kind === 'esp32-s3') return esp32S3PlacementFromPin(anchor, occupied, rotation)
+  const rowPins = defaultPinCount(kind) / 2
+  const rowOffset = kind === 'seven-segment' ? 1 : 2
+  const lowerAnchor = rotation === 180
+    ? holeById.get(`t-${(anchor.zone ?? -2) + 1}-${(anchor.row ?? -1) - rowOffset}-${anchor.column - rowPins + 1}`)
+    : anchor
+  if (!lowerAnchor) return null
+  const pins = dualRowPlacementFromLowerPin(lowerAnchor, occupied, rowPins, rowOffset)
+  return pins && rotation === 180 ? halfTurnPins(pins) : pins
+}
+
+// A second gap adds 2px because the board's 56px gaps are not whole 18px pitches.
+// Snap to real terminal holes rather than stretching or inventing attachment points.
+function esp32S3PlacementFromPin(anchor: Hole, occupied: Set<string>, rotation = 0): string[] | null {
+  if (anchor.region !== 'terminal') return null
+  const opposite = holes.find((hole) => hole.region === 'terminal'
+    && hole.column === anchor.column
+    && Math.abs(hole.y - (anchor.y + (rotation === 180 ? 182 : -182))) <= 2)
+  if (!opposite) return null
+  const lower = rotation === 180 ? opposite : anchor
+  const upper = rotation === 180 ? anchor : opposite
+  const column = anchor.column - (rotation === 180 ? 21 : 0)
+  const bottomPins = Array.from({ length: 22 }, (_, index) => `t-${lower.zone}-${lower.row}-${column + index}`)
+  const topPins = Array.from({ length: 22 }, (_, index) => `t-${upper.zone}-${upper.row}-${column + index}`).reverse()
+  const pins = [...bottomPins, ...topPins]
+  if (pins.some((pin) => !holeById.has(pin) || occupied.has(pin))) return null
+  return rotation === 180 ? halfTurnPins(pins) : pins
+}
+
+export function legacyCd4017PlacementFromLowerPin(anchor: Hole, occupied: Set<string>, rotation = 0): string[] | null {
+  const lower = rotation === 180
+    ? holeById.get(`t-${(anchor.zone ?? -2) + 1}-${(anchor.row ?? -1) - 1}-${anchor.column - 7}`)
+    : anchor
+  const pins = lower ? dualRowPlacementFromLowerPin(lower, occupied, 8) : null
+  return pins && rotation === 180 ? halfTurnPins(pins) : pins
 }
 
 export function isLegacyCd4017Footprint(pins: string[]): boolean {
+  if (pins.length === 16 && (holeById.get(pins[0]!)?.y ?? Infinity) < (holeById.get(pins[8]!)?.y ?? -Infinity)) pins = halfTurnPins(pins)
   const anchor = holeById.get(pins[0] ?? '')
   const expected = anchor ? legacyCd4017PlacementFromLowerPin(anchor, new Set()) : null
   return pins.length === 16 && expected !== null && expected.every((pin, index) => pin === pins[index])
@@ -159,12 +216,12 @@ export function isLegacyCd4017Footprint(pins: string[]): boolean {
 
 function dualRowPlacementFromLowerPin(anchor: Hole, occupied: Set<string>, rowPins: number, upperRowOffset = 1): string[] | null {
   if (anchor.region !== 'terminal' || anchor.zone === undefined || anchor.row === undefined) return null
-  if (anchor.zone < 1 || anchor.zone > 3 || anchor.row < 0 || anchor.row + upperRowOffset > 4 || anchor.column + rowPins - 1 >= 63) return null
+  if (anchor.zone < 1 || anchor.zone > 3 || anchor.row < 0 || anchor.row > 4 || anchor.row + upperRowOffset < 0 || anchor.row + upperRowOffset > 4 || anchor.column + rowPins - 1 >= 63) return null
 
   // Every adjacent zone pair has the same spacing, including the B-C board join.
   const { zone, row, column } = anchor
   const lower = Array.from({ length: rowPins }, (_, offset) => `t-${zone}-${row}-${column + offset}`)
-  // CD4017 uses a 92px row span, one 18px hole pitch less than the display.
+  // 16-pin chip modules use a 92px row span, one 18px hole pitch less than the display.
   const upper = Array.from({ length: rowPins }, (_, offset) => `t-${zone - 1}-${row + upperRowOffset}-${column + offset}`)
   // Physical numbering runs left-to-right below, then right-to-left above.
   const pins = [...lower, ...upper.reverse()]

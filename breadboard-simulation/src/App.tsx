@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, LoaderCircle } from 'lucide-react'
 import { BreadboardCanvas } from '@/components/BreadboardCanvas'
@@ -13,8 +13,27 @@ import { CircuitJsEngine } from '@/services/CircuitJsEngine'
 import { useWorkbenchStore } from '@/store/useWorkbenchStore'
 
 const DRAFT_KEY = 'cycore_breadboard_draft_v1'
+const WORKSPACE_KEY = 'cycore_breadboard_workspace_v1'
 const THEME_KEY = 'darkMode'
 type Theme = 'dark' | 'light'
+
+interface PersistedWorkspace {
+  projectId: number | null
+  document: unknown
+  dirty?: boolean
+}
+
+function persistCurrentWorkspace(): void {
+  const state = useWorkbenchStore.getState()
+  const payload = JSON.stringify({
+    projectId: state.projectId,
+    document: JSON.parse(serializeDocument(state.document)),
+    dirty: state.dirty,
+  } satisfies PersistedWorkspace)
+  localStorage.setItem(WORKSPACE_KEY, payload)
+  if (state.dirty) localStorage.setItem(DRAFT_KEY, payload)
+  else localStorage.removeItem(DRAFT_KEY)
+}
 
 export default function App() {
   const [theme, setTheme] = useState<Theme>(() => localStorage.getItem(THEME_KEY) === 'false' ? 'light' : 'dark')
@@ -25,6 +44,8 @@ export default function App() {
   const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false)
   const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(false)
   const [fullscreenSnapshot, setFullscreenSnapshot] = useState<{ left: boolean; right: boolean } | null>(null)
+  const workspaceHydratedRef = useRef(false)
+  const restoredWorkspaceRef = useRef(false)
   const canvasFullscreen = fullscreenSnapshot !== null
   const queryClient = useQueryClient()
 
@@ -42,6 +63,7 @@ export default function App() {
 
   const document = useWorkbenchStore((state) => state.document)
   const projectId = useWorkbenchStore((state) => state.projectId)
+  const dirty = useWorkbenchStore((state) => state.dirty)
   const running = useWorkbenchStore((state) => state.running)
   const closedContacts = useWorkbenchStore((state) => state.closedContacts)
   const newProject = useWorkbenchStore((state) => state.newProject)
@@ -75,7 +97,11 @@ export default function App() {
     },
     onSuccess: () => {
       markSaved()
-      localStorage.removeItem(DRAFT_KEY)
+      try {
+        persistCurrentWorkspace()
+      } catch (cause) {
+        console.error('Breadboard workspace persistence failed after cloud save', cause)
+      }
       queryClient.invalidateQueries({ queryKey: ['breadboard-projects'] })
       setToast({ kind: 'ok', message: '项目已安全保存到云端' })
     },
@@ -95,28 +121,56 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (!authReady) return
     const draft = localStorage.getItem(DRAFT_KEY)
-    if (!draft) return
+    const workspace = draft ?? localStorage.getItem(WORKSPACE_KEY)
+    if (!workspace) {
+      workspaceHydratedRef.current = true
+      return
+    }
     try {
-      const parsed = JSON.parse(draft) as { projectId: number | null; document: unknown }
+      const parsed = JSON.parse(workspace) as PersistedWorkspace
       loadProject(parsed.projectId ?? 0, parseDocument(parsed.document))
       if (!parsed.projectId) useWorkbenchStore.setState({ projectId: null })
-      useWorkbenchStore.setState({ dirty: true })
-      queueMicrotask(() => setToast({ kind: 'ok', message: '已恢复上次未保存的本地草稿' }))
+      useWorkbenchStore.setState({ dirty: parsed.dirty ?? Boolean(draft) })
+      restoredWorkspaceRef.current = true
     } catch {
       localStorage.removeItem(DRAFT_KEY)
+      localStorage.removeItem(WORKSPACE_KEY)
+    } finally {
+      workspaceHydratedRef.current = true
     }
-  }, [authReady, loadProject])
+  }, [loadProject])
 
   useEffect(() => {
-    if (!authReady) return
+    if (!authReady || !restoredWorkspaceRef.current) return
+    restoredWorkspaceRef.current = false
+    queueMicrotask(() => setToast({ kind: 'ok', message: '已恢复上次的面包板工作区' }))
+  }, [authReady])
+
+  useEffect(() => {
+    if (!workspaceHydratedRef.current) return
     const timer = window.setTimeout(() => {
-      const state = useWorkbenchStore.getState()
-      if (state.dirty) localStorage.setItem(DRAFT_KEY, JSON.stringify({ projectId: state.projectId, document: JSON.parse(serializeDocument(state.document)) }))
+      try {
+        persistCurrentWorkspace()
+      } catch (cause) {
+        console.error('Breadboard workspace persistence failed', cause)
+      }
     }, 350)
     return () => window.clearTimeout(timer)
-  }, [authReady, document])
+  }, [dirty, document, projectId])
+
+  useEffect(() => {
+    const persistBeforeLeaving = () => {
+      if (!workspaceHydratedRef.current) return
+      try {
+        persistCurrentWorkspace()
+      } catch (cause) {
+        console.error('Breadboard workspace persistence failed before page unload', cause)
+      }
+    }
+    window.addEventListener('pagehide', persistBeforeLeaving)
+    return () => window.removeEventListener('pagehide', persistBeforeLeaving)
+  }, [])
 
   useEffect(() => {
     if (!toast) return
@@ -127,7 +181,16 @@ export default function App() {
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement
-      if (target.matches('input, textarea')) return
+      if (target.matches('input, textarea, select') || target.isContentEditable) return
+      if (event.code === 'Space' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        const state = useWorkbenchStore.getState()
+        const tool = state.activeTool
+        if (tool === 'cd4017' || tool === 'cd4026' || tool === 'esp32-s3' || tool === 'seven-segment') {
+          event.preventDefault()
+          if (!event.repeat) state.rotatePlacement()
+          return
+        }
+      }
       if (event.key === 'Delete' || event.key === 'Backspace') deleteSelected()
       if (event.key === 'Escape') {
         setActiveTool('select')
