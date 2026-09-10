@@ -1,3 +1,4 @@
+import { simulationDocument } from '@/domain/simulation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { buildCircuitJsNetlist } from '@/domain/netlist'
 import type { ComponentBinding, NetlistBuildResult } from '@/domain/netlist'
@@ -106,7 +107,8 @@ function syncLiveContacts(simulator: CircuitJsProxy, controls: NetlistBuildResul
 
 const noContacts: Readonly<Record<string, boolean>> = {}
 
-export function CircuitJsEngine({ document, closedContacts, running, onReadings, onStatus }: Props) {
+export function CircuitJsEngine({ document: workspaceDocument, closedContacts, running, onReadings, onStatus }: Props) {
+  const document = useMemo(() => simulationDocument(workspaceDocument), [workspaceDocument])
   const frameRef = useRef<HTMLIFrameElement>(null)
   const [connected, setConnected] = useState(false)
   const simulatorRef = useRef<CircuitJsProxy | null>(null)
@@ -320,7 +322,7 @@ export function CircuitJsEngine({ document, closedContacts, running, onReadings,
           console.warn('CircuitJS legacy bridge detected; using verified element-index compatibility mode')
         }
         if (netlist.componentBindings.length !== document.components.length) {
-          throw new Error('Not every breadboard component has a CircuitJS binding')
+          throw new Error('Not every simulated component has a CircuitJS binding')
         }
         for (const binding of netlist.componentBindings) {
           if (indices.has(binding.elementIndex) || componentIds.has(binding.componentId)) {

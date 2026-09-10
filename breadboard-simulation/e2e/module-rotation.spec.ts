@@ -3,8 +3,8 @@ import { expect, test } from '@playwright/test'
 test('ESP32-S3 preview rotates with Space and persists the 44-pin model', async ({ page }) => {
   await page.goto('')
   await page.waitForLoadState('networkidle')
-  await page.getByTestId('part-menu-chip').click()
-  await page.getByTestId('part-chip-esp32-s3').click()
+  await page.getByTestId('part-menu-sensors').click()
+  await page.getByTestId('part-sensor-esp32-s3').click()
   await expect(page.getByLabel('放置选项').getByText('放置时按空格旋转 180°')).toBeVisible()
   const canvas = page.locator('.canvas-shell canvas').first()
   const box = (await canvas.boundingBox())!
@@ -16,9 +16,9 @@ test('ESP32-S3 preview rotates with Space and persists the 44-pin model', async 
   const inspector = page.getByLabel('属性与测量')
   await expect(inspector.locator('.pin-row')).toHaveCount(44)
   await expect(inspector.locator('.meter-grid')).toHaveCount(0)
-  await expect(inspector.locator('.pin-row').first()).toContainText('A2-32')
+  await expect(inspector.locator('.pin-row').first()).toContainText('B2-32')
   await inspector.getByRole('button', { name: '旋转 180°' }).click()
-  await expect(inspector.locator('.pin-row').first()).toContainText('B5-11')
+  await expect(inspector.locator('.pin-row').first()).toContainText('C5-11')
   await page.waitForFunction(() => JSON.parse(localStorage.getItem('cycore_breadboard_workspace_v1') || '{}').document?.components[0]?.rotation === 0)
   await page.reload()
   await page.waitForLoadState('networkidle')

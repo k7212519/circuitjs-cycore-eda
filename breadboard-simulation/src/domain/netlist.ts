@@ -1,3 +1,4 @@
+import { simulationDocument } from './simulation'
 import { holeById } from './board'
 import { CD4017_CORE_TO_PHYSICAL_INDEX } from './cd4017'
 import { CD4026_CORE_POST_LAYOUT } from './cd4026'
@@ -47,9 +48,10 @@ function ledRgb(color: string | undefined): [number, number, number] {
 }
 
 export function buildCircuitJsNetlist(
-  document: BreadboardDocument,
+  inputDocument: BreadboardDocument,
   closedContacts: Readonly<Record<string, boolean>> = {},
 ): NetlistBuildResult {
+  const document = simulationDocument(inputDocument)
   const issues = validateDocument(document)
   if (issues.some((issue) => issue.level === 'error')) {
     return { circuit: '', componentBindings: [], contactControls: [], blocked: true }
@@ -91,7 +93,7 @@ export function buildCircuitJsNetlist(
   const componentBindings: ComponentBinding[] = []
   const contactControls: NetlistBuildResult['contactControls'] = []
   const liveContacts = document.components.some((component) => component.kind === 'cd4017' || component.kind === 'cd4026')
-  document.components.filter((component) => component.kind !== 'esp32-s3').forEach((component, index) => {
+  document.components.forEach((component, index) => {
     const pinPoints = component.pins.map((pin) => {
       const root = connectivity.rootForHole.get(pin)
       return root ? points.get(root) : undefined

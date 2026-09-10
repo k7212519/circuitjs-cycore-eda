@@ -184,6 +184,7 @@ export default function App() {
       if (target.matches('input, textarea, select') || target.isContentEditable) return
       if (event.code === 'Space' && !event.ctrlKey && !event.metaKey && !event.altKey) {
         const state = useWorkbenchStore.getState()
+        if (state.activeSensor) { event.preventDefault(); if (!event.repeat) state.rotateSensorPlacement(); return }
         const tool = state.activeTool
         if (tool === 'cd4017' || tool === 'cd4026' || tool === 'esp32-s3' || tool === 'seven-segment') {
           event.preventDefault()
@@ -234,7 +235,7 @@ export default function App() {
       />
       <div className={`workspace-grid ${leftSidebarCollapsed ? 'is-left-collapsed' : ''} ${rightSidebarCollapsed ? 'is-right-collapsed' : ''}`}>
         <Palette />
-        <BreadboardCanvas isFullscreen={canvasFullscreen} onToggleFullscreen={toggleCanvasFullscreen} />
+        <BreadboardCanvas isDark={theme === 'dark'} isFullscreen={canvasFullscreen} onToggleFullscreen={toggleCanvasFullscreen} />
         <Inspector />
         <button
           type="button"

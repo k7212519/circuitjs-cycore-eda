@@ -1,3 +1,4 @@
+import { PALETTE_SENSOR_KINDS, SENSOR_MODELS } from '@/domain/sensors'
 import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import type { ComponentKind, ComponentPlacementOptions, ToolKind } from '@/domain/types'
@@ -32,6 +33,11 @@ const directItems: DirectItem[] = [
   { kind: 'wire', label: '导线', glyph: 'wire' },
   { kind: 'resistor', label: '电阻', glyph: 'resistor' },
 ]
+
+const esp32Model: MenuChild = {
+  id: 'esp32-s3', tool: 'esp32-s3', label: 'ESP32-S3模型', glyph: 'chip',
+  options: { value: 1, label: 'ESP32-S3-WROOM-1-N16R8' },
+}
 
 const menus: PartsMenu[] = [
   {
@@ -90,7 +96,6 @@ const menus: PartsMenu[] = [
     children: [
       { id: 'cd4017', tool: 'cd4017', label: 'CD4017', glyph: 'chip', options: { value: 1, label: 'CD4017' } },
       { id: 'cd4026', tool: 'cd4026', label: 'CD4026', glyph: 'chip', options: { value: 1, label: 'CD4026' } },
-      { id: 'esp32-s3', tool: 'esp32-s3', label: 'ESP32-S3模型', glyph: 'chip', options: { value: 1, label: 'ESP32-S3-WROOM-1-N16R8' } },
     ],
   },
 ]
@@ -125,6 +130,8 @@ function CircuitGlyph({ kind, color }: { kind: GlyphKind; color?: string }) {
 
 export function Palette() {
   const [openMenu, setOpenMenu] = useState<string | null>(null)
+  const activeSensor = useWorkbenchStore(s => s.activeSensor)
+  const chooseSensor = useWorkbenchStore(s => s.chooseSensor)
   const activeTool = useWorkbenchStore((state) => state.activeTool)
   const setActiveTool = useWorkbenchStore((state) => state.setActiveTool)
   const placementOptions = useWorkbenchStore((state) => state.placementOptions)
@@ -211,6 +218,19 @@ export function Palette() {
             </div>
           )
         })}
+        <div className={`parts-menu ${openMenu === 'sensors' ? 'is-open' : ''}`}>
+          <button type="button" className="part-card part-menu-trigger sensor-menu-trigger" aria-expanded={openMenu === 'sensors'} aria-controls="parts-submenu-sensors" data-testid="part-menu-sensors" onClick={() => setOpenMenu(openMenu === 'sensors' ? null : 'sensors')}>
+            <span className="part-icon"><CircuitGlyph kind="chip" /></span><span className="part-copy"><strong>芯片传感器模型</strong></span><ChevronDown size={15} />
+          </button>
+          {openMenu === 'sensors' && <div className="part-sublist" id="parts-submenu-sensors" role="group" aria-label="芯片传感器模型类型">
+            <button type="button" className={`part-subitem ${childIsActive(esp32Model) ? 'is-active' : ''}`} data-testid="part-sensor-esp32-s3" draggable onClick={() => chooseChild(esp32Model)} onDragStart={event => startDrag(event, esp32Model.tool, esp32Model)}>
+              <span className="subitem-mark"><CircuitGlyph kind={esp32Model.glyph} /></span><span><strong>{esp32Model.label}</strong></span>
+            </button>
+            {PALETTE_SENSOR_KINDS.map(kind => <button key={kind} type="button" className={`part-subitem ${activeSensor === kind ? 'is-active' : ''}`} data-testid={`part-sensor-${kind}`} draggable onClick={() => chooseSensor(kind)} onDragStart={event => { event.dataTransfer.setData('application/x-breadboard-sensor', kind); event.dataTransfer.effectAllowed = 'copy'; chooseSensor(kind) }}>
+              <span className="subitem-mark"><CircuitGlyph kind="chip" /></span><span><strong>{SENSOR_MODELS[kind].name}</strong></span>
+            </button>)}
+          </div>}
+        </div>
       </div>
     </aside>
   )

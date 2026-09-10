@@ -47,6 +47,8 @@ test('offers retaining switch and momentary button options under the switch menu
     'part-menu-capacitor',
     'part-menu-diode',
     'part-menu-transistor',
+    'part-menu-chip',
+    'part-menu-sensors',
   ])
   await palette.getByTestId('part-menu-switch').click()
   expect(await palette.locator('.part-subitem').evaluateAll((items) => items.map((item) => item.getAttribute('data-testid')))).toEqual([
@@ -135,6 +137,7 @@ test('keeps the button knob independent and marquee-selects movable objects', as
 
   await palette.getByTestId('part-wire').click()
   await dragWorld([216, 175], [306, 175])
+  await page.getByRole('button', { name: '选择模式', exact: true }).click()
   await dragWorld([390, 120], [430, 150])
   await expect(board).toHaveAttribute('data-selected-count', '0')
   await dragWorld([195, 80], [470, 190])
@@ -241,8 +244,8 @@ test('uses wheel zoom and middle-button pan without left-button panning', async 
   await page.waitForLoadState('networkidle')
   const board = page.getByTestId('breadboard-canvas')
   await expect(board).toHaveAttribute('data-board-interaction', 'wheel-zoom,middle-pan')
-  await expect(page.getByTitle('放大')).toHaveCount(0)
-  await expect(page.getByTitle('缩小')).toHaveCount(0)
+  await expect(page.getByTitle('放大')).toBeVisible()
+  await expect(page.getByTitle('缩小')).toBeVisible()
 
   const canvas = page.locator('.canvas-shell canvas').first()
   const before = await board.getAttribute('data-board-transform')
@@ -269,7 +272,7 @@ test('uses wheel zoom and middle-button pan without left-button panning', async 
   await expect.poll(() => board.getAttribute('data-board-transform')).not.toBe(afterZoom)
 
   await page.getByTestId('part-wire').click()
-  await expect(page.getByText('选择导线起点')).toBeVisible()
+  await expect(page.getByText('选择起点孔或模块引脚')).toBeVisible()
 })
 
 test('toggles and persists the color theme while reserving solver status width', async ({ page }) => {

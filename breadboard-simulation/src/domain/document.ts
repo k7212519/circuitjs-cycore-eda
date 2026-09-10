@@ -1,6 +1,8 @@
+import { SENSOR_KINDS, endpointPoint, endpointKey, sensorOutsideBoard } from './sensors'
 import { z } from 'zod'
 import { halfTurnPins, defaultPinCount, holeById, isLegacyCd4017Footprint, rigidModulePlacementFromLowerPin } from './board'
 import { occupiedHoles } from './validation'
+import type { SensorWire } from './sensors'
 import type { BreadboardDocument } from './types'
 
 const componentSchema = z.object({
@@ -31,12 +33,31 @@ const wireSchema = z.object({
   color: z.string().min(1),
 })
 
+const endpointSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('hole'), holeId: z.string().min(1) }),
+  z.object({ type: z.literal('sensor'), sensorId: z.string().min(1), pin: z.number().int().nonnegative() }),
+])
+const pointSchema = z.object({ x: z.number().finite(), y: z.number().finite() })
+const sensorWireSchema = z.union([
+  z.object({ id: z.string().min(1), from: endpointSchema, to: endpointSchema, color: z.string().min(1), waypoints: z.array(pointSchema).optional() }),
+  z.object({
+    id: z.string().min(1), source: z.object({ sensorId: z.string().min(1), pin: z.number().int().nonnegative() }),
+    holeId: z.string().min(1), color: z.string().min(1), lane: z.number().finite().optional(),
+  }),
+])
+
 export const breadboardDocumentSchema = z.object({
   schemaVersion: z.literal(1),
   boardId: z.literal('dual-830-trimmed-v1'),
   projectName: z.string().min(1).max(100),
   components: z.array(componentSchema),
   wires: z.array(wireSchema),
+  sensors: z.array(z.object({
+    id: z.string().min(1), kind: z.enum(SENSOR_KINDS),
+    position: z.object({ x: z.number().finite(), y: z.number().finite() }),
+    rotation: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]),
+  })).optional(),
+  sensorWires: z.array(sensorWireSchema).optional(),
   viewport: z.object({
     x: z.number(),
     y: z.number(),
@@ -56,7 +77,28 @@ export function createEmptyDocument(projectName = '未命名实验'): Breadboard
 }
 
 export function parseDocument(value: unknown): BreadboardDocument {
-  const document = breadboardDocumentSchema.parse(value) as BreadboardDocument
+  const parsed = breadboardDocumentSchema.parse(value)
+  const document: BreadboardDocument = { ...parsed, sensorWires: parsed.sensorWires?.map(wire => {
+    if ('from' in wire) return wire
+    const converted: SensorWire = { id: wire.id, from: { type: 'sensor', ...wire.source }, to: { type: 'hole', holeId: wire.holeId }, color: wire.color }
+    const sensor = parsed.sensors?.find(s => s.id === wire.source.sensorId)
+    const hole = holeById.get(wire.holeId)
+    if (wire.lane !== undefined && sensor && hole) converted.waypoints = [sensor.rotation % 180 === 0 ? { x: wire.lane, y: hole.y } : { x: hole.x, y: wire.lane }]
+    return converted
+  }) }
+  const ids = [...document.components, ...document.wires, ...(document.sensors ?? []), ...(document.sensorWires ?? [])].map(item => item.id)
+  if (new Set(ids).size !== ids.length) throw new Error('项目包含重复对象 ID')
+  for (const sensor of document.sensors ?? []) if (!sensorOutsideBoard(sensor)) throw new Error('外置模块必须位于面包板外')
+  const occupied = occupiedHoles({ ...document, sensorWires: [] })
+  for (const wire of document.sensorWires ?? []) {
+    if (wire.from.type === 'hole' && wire.to.type === 'hole') throw new Error('外置导线必须连接模块引脚')
+    for (const endpoint of [wire.from, wire.to]) {
+      if (!endpointPoint(document, endpoint)) throw new Error('传感器导线包含无效端点')
+      const key = endpointKey(endpoint)
+      if (occupied.has(key)) throw new Error('传感器导线端点已占用')
+      occupied.add(key)
+    }
+  }
   compactCd4017Footprints(document)
   expandEsp32S3Footprints(document)
   return document
@@ -82,7 +124,7 @@ export function compactCd4017Footprints(document: BreadboardDocument): void {
 }
 
 export function serializeDocument(document: BreadboardDocument): string {
-  return JSON.stringify(breadboardDocumentSchema.parse(document))
+  return JSON.stringify(parseDocument(document))
 }
 
 export function expandEsp32S3Footprints(document: BreadboardDocument): void {

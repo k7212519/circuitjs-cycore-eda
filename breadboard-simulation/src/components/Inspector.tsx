@@ -1,3 +1,4 @@
+import { SENSOR_MODELS, endpointLabel, endpointKey } from '@/domain/sensors'
 import { ESP32_S3_PINS } from '@/domain/esp32s3'
 import { AlertTriangle, Cable, Gauge, RotateCw, Settings2, Trash2 } from 'lucide-react'
 import { boardPointLabel, isRigidModule } from '@/domain/board'
@@ -105,7 +106,7 @@ function PlacementInspector({ tool }: { tool: Exclude<ToolKind, 'select' | 'pan'
       <div className="panel-heading">
         <span className="eyebrow">PLACE / 03</span>
         <h2>放置选项</h2>
-        <p>设置 {placementName} 参数，然后在面包板选择孔位。</p>
+        <p>设置 {placementName} 参数，然后选择孔位或模块引脚。</p>
       </div>
 
       <div className="placement-stack">
@@ -205,7 +206,7 @@ function PlacementInspector({ tool }: { tool: Exclude<ToolKind, 'select' | 'pan'
 
         <div className="placement-guide">
           <Settings2 size={16} />
-          <div><strong>参数已就绪</strong><span>{tool === 'wire' || tool === 'resistor' || tool === 'capacitor' || tool === 'led' || tool === 'diode' || tool === 'switch' || tool === 'button' ? '从起点孔拖到终点孔完成放置' : isRigidModule(tool) ? '在跨槽封装预览处单击完成放置' : '在目标孔位单击完成放置'}</span></div>
+          <div><strong>参数已就绪</strong><span>{tool === 'wire' ? '点击两端或拖动，连接孔位与模块引脚' : tool === 'resistor' || tool === 'capacitor' || tool === 'led' || tool === 'diode' || tool === 'switch' || tool === 'button' ? '从起点孔拖到终点孔完成放置' : isRigidModule(tool) ? '在跨槽封装预览处单击完成放置' : '在目标孔位单击完成放置'}</span></div>
         </div>
       </div>
     </aside>
@@ -224,6 +225,10 @@ function formatEngineering(value: number, unit: string): string {
 }
 
 export function Inspector() {
+  const activeSensor = useWorkbenchStore(s => s.activeSensor)
+  const sensorRotation = useWorkbenchStore(s => s.sensorRotation)
+  const rotateSensorPlacement = useWorkbenchStore(s => s.rotateSensorPlacement)
+  const updateSensorWire = useWorkbenchStore(s => s.updateSensorWire)
   const activeTool = useWorkbenchStore((state) => state.activeTool)
   const selectedIds = useWorkbenchStore((state) => state.selectedIds)
   const document = useWorkbenchStore((state) => state.document)
@@ -239,12 +244,39 @@ export function Inspector() {
   const wire = document.wires.find((item) => item.id === singleSelectedId)
   const selectedIssues = issues.filter((issue) => !issue.targetId || issue.targetId === singleSelectedId)
 
+  const sensor = document.sensors?.find(s => s.id === singleSelectedId)
+  const sensorWire = document.sensorWires?.find(w => w.id === singleSelectedId)
+  if (activeSensor || sensor) {
+    const model = SENSOR_MODELS[activeSensor ?? sensor!.kind]
+    return <aside className="inspector panel" aria-label={activeSensor ? '放置选项' : '属性与测量'}>
+      <div className="panel-heading"><span className="eyebrow">EXTERNAL MODULE</span><h2>{model.name}</h2><p>{model.model}</p></div>
+      <div className="property-stack"><div className="fixed-component-spec chip-spec sensor-spec"><strong>仅模型，不参与仿真</strong><small>{activeSensor ? '在面包板外单击或拖放。空格旋转 90°。' : '拖动模块可自由移动，导线保持连接。使用导线工具连接引脚。'}</small></div>
+        <button type="button" className="full-button" onClick={activeSensor ? rotateSensorPlacement : rotateSelected}><RotateCw size={15} />旋转 90° · {activeSensor ? sensorRotation : sensor!.rotation}°</button>
+        <div className="pin-table sensor-pin-table">{model.pins.map((name, pin) => {
+          const key = sensor ? endpointKey({ type: 'sensor', sensorId: sensor.id, pin }) : ''
+          const connection = document.sensorWires?.find(w => [w.from, w.to].some(e => endpointKey(e) === key))
+          const other = connection ? endpointKey(connection.from) === key ? connection.to : connection.from : null
+          return <div className="sensor-pin-row" key={name}><strong>{name}</strong><span>{other ? endpointLabel(document, other) : '未连接'}</span></div>
+        })}</div>
+        {sensor && <button type="button" className="danger full-button" onClick={deleteSelected}><Trash2 size={15} />删除模块及接线</button>}
+      </div>
+    </aside>
+  }
+  if (sensorWire) return <aside className="inspector panel" aria-label="属性与测量">
+    <div className="panel-heading"><h2>模块导线</h2><p>仅接线展示，不参与仿真</p></div>
+    <div className="property-stack"><div className="fixed-component-spec chip-spec sensor-spec"><strong>{endpointLabel(document, sensorWire.from)}</strong><small>连接到 {endpointLabel(document, sensorWire.to)}</small><small>拖动端点重新连接；拖动中间线段手柄调整路径。</small></div>
+      <label>导线颜色 <input aria-label="模块导线颜色" type="color" value={sensorWire.color} onChange={e => updateSensorWire(sensorWire.id, { color: e.target.value })} /></label>
+      <button type="button" className="full-button" onClick={() => updateSensorWire(sensorWire.id, { waypoints: undefined })}>恢复自动布线</button>
+      <button type="button" className="danger full-button" onClick={deleteSelected}><Trash2 size={15} />删除导线</button>
+    </div>
+  </aside>
+
   if (activeTool !== 'select' && activeTool !== 'pan') return <PlacementInspector tool={activeTool} />
 
   if (selectedIds.length > 1) {
     const selected = new Set(selectedIds)
-    const componentCount = document.components.filter((item) => selected.has(item.id)).length
-    const wireCount = document.wires.filter((item) => selected.has(item.id)).length
+    const componentCount = document.components.filter((item) => selected.has(item.id)).length + (document.sensors ?? []).filter(s => selected.has(s.id)).length
+    const wireCount = document.wires.filter((item) => selected.has(item.id)).length + (document.sensorWires ?? []).filter(w => selected.has(w.id)).length
     return (
       <aside className="inspector panel" aria-label="属性与测量">
         <div className="panel-heading">

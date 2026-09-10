@@ -503,3 +503,11 @@ button.danger { color: #ef7566; }.object-actions button.danger { border-color: #
   .part-card { min-height: 36px; }
   .meter-grid { grid-template-columns: 1fr; }.meter-card.wide { grid-column: auto; }
 }
+
+.sensor-pin-row { display: grid; grid-template-columns: 45px minmax(0, 1fr); gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 11px; line-height: 1.5; }
+.sensor-pin-row:last-child { border-bottom: 0; }
+.sensor-pin-row strong { color: var(--amber); font-family: monospace; }
+.sensor-pin-row span { color: var(--muted); overflow-wrap: anywhere; }
+.sensor-menu-trigger .part-copy strong { font-size: 12px; }
+
+.fixed-component-spec.sensor-spec { box-shadow: none; }

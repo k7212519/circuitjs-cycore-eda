@@ -1,3 +1,5 @@
+import { SensorLayer } from './SensorLayer'
+import { SENSOR_KINDS, SENSOR_MODELS, nearestSensorEndpoint, sensorBounds, sensorWireRoutes, type SensorKind } from '@/domain/sensors'
 import { Esp32S3Body } from './Esp32S3Body'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Maximize2, Minimize2, Move, MousePointer2, Redo2, Undo2, ZoomIn, ZoomOut } from 'lucide-react'
@@ -642,6 +644,7 @@ function ComponentShape({
   selectionDrag: SelectionDragPreview | null
   onSelectionDrag: (preview: SelectionDragPreview | null) => void
 }) {
+  const placingSensor = useWorkbenchStore(s => s.activeSensor)
   const [pinPreview, setPinPreview] = useState<{ index: number; point: Point } | null>(null)
   const activeButtonPointerRef = useRef<number | null>(null)
   const activeTool = useWorkbenchStore((state) => state.activeTool)
@@ -699,7 +702,7 @@ function ComponentShape({
     <Group
       id={component.id}
       name="selectable"
-      listening={activeTool !== 'wire' && activeTool !== 'pan'}
+      listening={activeTool !== 'wire' && activeTool !== 'pan' && !placingSensor}
       x={previewOffset?.x ?? 0}
       y={previewOffset?.y ?? 0}
       draggable
@@ -779,7 +782,8 @@ function ComponentShape({
   )
 }
 
-export function BreadboardCanvas({ isFullscreen, onToggleFullscreen }: {
+export function BreadboardCanvas({ isDark, isFullscreen, onToggleFullscreen }: {
+  isDark: boolean
   isFullscreen: boolean
   onToggleFullscreen: () => void
 }) {
@@ -789,6 +793,9 @@ export function BreadboardCanvas({ isFullscreen, onToggleFullscreen }: {
   const [size, setSize] = useState({ width: 0, height: 0 })
   const [pointer, setPointer] = useState<Point | null>(null)
   const [panning, setPanning] = useState(false)
+  const activeSensor = useWorkbenchStore(s => s.activeSensor)
+  const connectionStart = useWorkbenchStore(s => s.connectionStart)
+  const placeSensorAt = useWorkbenchStore(s => s.placeSensorAt)
   const [wireEndPreview, setWireEndPreview] = useState<{ wireId: string; end: 'from' | 'to'; point: Point } | null>(null)
   const [selectionDrag, setSelectionDrag] = useState<SelectionDragPreview | null>(null)
   const [marquee, setMarquee] = useState<{ start: Point; end: Point } | null>(null)
@@ -916,8 +923,9 @@ export function BreadboardCanvas({ isFullscreen, onToggleFullscreen }: {
       setPanning(true)
       return
     }
+    if (activeSensor) { placeSensorAt(activeSensor, world); return }
     if (activeTool === 'wire') {
-      const beginsGesture = !wireStart
+      const beginsGesture = !connectionStart
       if (wireAt(world) && beginsGesture) placementDragRef.current = { tool: 'wire', screen }
     } else if (activeTool !== 'select' && isTwoPinComponent(activeTool)) {
       const beginsGesture = !componentStart
@@ -1015,6 +1023,15 @@ export function BreadboardCanvas({ isFullscreen, onToggleFullscreen }: {
     setViewport({ x: screen.x - (screen.x - current.x) * ratio, y: screen.y - (screen.y - current.y) * ratio, scale })
   }
 
+  const showAll = () => {
+    const bounds = [{ x: 0, y: 0, width: BOARD_WIDTH, height: BOARD_HEIGHT }, ...(document.sensors ?? []).map(s => sensorBounds(s))]
+    for (const points of sensorWireRoutes(document).values()) for (const p of points) bounds.push({ ...p, width: 0, height: 0 })
+    const left = Math.min(...bounds.map(b => b.x)) - 32, top = Math.min(...bounds.map(b => b.y)) - 48
+    const right = Math.max(...bounds.map(b => b.x + b.width)) + 32, bottom = Math.max(...bounds.map(b => b.y + b.height)) + 48
+    const scale = Math.max(0.2, Math.min(maxViewportScale, (size.width - 32) / (right - left), (size.height - 100) / (bottom - top)))
+    setViewport({ scale, x: (size.width - (right + left) * scale) / 2, y: (size.height - (bottom + top) * scale) / 2 })
+  }
+
   const handleWheel = (event: KonvaEventObject<WheelEvent>) => {
     event.evt.preventDefault()
     const screen = stageRef.current?.getPointerPosition()
@@ -1044,6 +1061,12 @@ export function BreadboardCanvas({ isFullscreen, onToggleFullscreen }: {
 
   const handleDrop = (event: React.DragEvent) => {
     event.preventDefault()
+    const sensorKind = event.dataTransfer.getData('application/x-breadboard-sensor') as SensorKind
+    if (SENSOR_KINDS.includes(sensorKind) && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect()
+      placeSensorAt(sensorKind, toWorld({ x: event.clientX - rect.left, y: event.clientY - rect.top }))
+      return
+    }
     const kind = event.dataTransfer.getData('application/x-breadboard-component') as ComponentKind
     if (!kind || !containerRef.current) return
     const rect = containerRef.current.getBoundingClientRect()
@@ -1100,6 +1123,7 @@ export function BreadboardCanvas({ isFullscreen, onToggleFullscreen }: {
             <Redo2 size={17} aria-hidden="true" />
           </button>
         </div>
+        <button type="button" className="canvas-action-button" aria-label="显示全部" title="显示全部" onClick={showAll}><Maximize2 size={17} /></button>
         <div className="canvas-action-group" role="group" aria-label="缩放操作">
           <button type="button" className="canvas-action-button" aria-label="放大" title="放大" onClick={() => zoomAt({ x: size.width / 2, y: size.height / 2 }, 1.1)} disabled={viewport.scale >= maxViewportScale}>
             <ZoomIn size={17} aria-hidden="true" />
@@ -1250,7 +1274,7 @@ export function BreadboardCanvas({ isFullscreen, onToggleFullscreen }: {
                   key={wire.id}
                   id={wire.id}
                   name="selectable"
-                  listening={activeTool !== 'wire' && activeTool !== 'pan'}
+                  listening={activeTool !== 'wire' && activeTool !== 'pan' && !activeSensor}
                   x={previewOffset?.x ?? 0}
                   y={previewOffset?.y ?? 0}
                   draggable
@@ -1318,6 +1342,8 @@ export function BreadboardCanvas({ isFullscreen, onToggleFullscreen }: {
               />
             ))}
 
+            <SensorLayer isDark={isDark} pointer={pointer} selectionDrag={selectionDrag} onSelectionDrag={setSelectionDrag} />
+
             {modulePreviewPoints ? (
               <Group opacity={0.72} listening={false}>
                 <RigidModuleBody kind={activeTool as ComponentKind} points={modulePreviewPoints} rotation={placementRotation} selected />
@@ -1327,7 +1353,7 @@ export function BreadboardCanvas({ isFullscreen, onToggleFullscreen }: {
               </Group>
             ) : null}
 
-            {pendingStart && pendingEnd ? (
+            {pendingStart && pendingEnd && !(activeTool === 'wire' && (connectionStart?.type === 'sensor' || (pointer && nearestSensorEndpoint(document, pointer)))) ? (
               activeTool !== 'wire' && activeTool !== 'select' && activeTool !== 'pan' && isTwoPinComponent(activeTool) ? (
                 <Group opacity={0.78} listening={false}>
                   <TwoPinBody kind={activeTool} points={[pendingStart, pendingEnd]} selected options={placementOptions[activeTool]} />
@@ -1355,13 +1381,13 @@ export function BreadboardCanvas({ isFullscreen, onToggleFullscreen }: {
         </Layer>
         </Stage>
       ) : null}
-      {activeTool !== 'select' ? (
+      {activeTool !== 'select' || activeSensor ? (
         <div className="active-tool-toast">
-          <strong>{activeTool === 'pan'
+          <strong>{activeSensor ? `在面包板外放置 ${SENSOR_MODELS[activeSensor].name}` : activeTool === 'pan'
             ? '拖动画布'
             : activeTool === 'wire'
-            ? (wireStart ? '拖到导线终点孔' : '选择导线起点孔')
-            : isTwoPinComponent(activeTool)
+            ? (connectionStart ? '选择终点孔或模块引脚' : '选择起点孔或模块引脚')
+            : activeTool === 'select' ? '' : isTwoPinComponent(activeTool)
               ? (componentStart ? `拖到 ${componentName(activeTool)} 终点孔` : `选择 ${componentName(activeTool)} 起点孔`)
               : `放置 ${componentName(activeTool)}`}</strong>
           <span>ESC 退出工具</span>

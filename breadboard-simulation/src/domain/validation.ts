@@ -1,3 +1,5 @@
+import { isSimulationComponent } from './simulation'
+import { endpointKey } from './sensors'
 import { holeById, isLegacyCd4017Footprint, isRigidModule } from './board'
 import { CD4017_PHYSICAL_PIN_NAMES, CD4017_REQUIRED_PHYSICAL_INDICES } from './cd4017'
 import { CD4026_PHYSICAL_PIN_NAMES, CD4026_REQUIRED_PHYSICAL_INDICES } from './cd4026'
@@ -76,10 +78,15 @@ export function validateDocument(document: BreadboardDocument): ValidationIssue[
     occupy(wire.to, wire.id)
   }
 
+  for (const wire of document.sensorWires ?? []) {
+    occupy(endpointKey(wire.from), wire.id)
+    occupy(endpointKey(wire.to), wire.id)
+  }
+
   const connectivity = buildConnectivity(document)
   const attachmentCount = new Map<string, number>()
   for (const component of document.components) {
-    if (component.kind === 'esp32-s3') continue
+    if (!isSimulationComponent(component)) continue
     for (const pin of component.pins) {
       const root = connectivity.rootForHole.get(pin)
       if (root) attachmentCount.set(root, (attachmentCount.get(root) ?? 0) + 1)
@@ -89,6 +96,7 @@ export function validateDocument(document: BreadboardDocument): ValidationIssue[
     'rail-top-positive', 'rail-bottom-positive', 'rail-top-negative', 'rail-bottom-negative',
   ].map((node) => connectivity.rootForNode.get(node)).filter((root): root is string => Boolean(root)))
   for (const component of document.components) {
+    if (!isSimulationComponent(component)) continue
     const roots = component.pins.map((pin) => connectivity.rootForHole.get(pin)).filter(Boolean)
     if (!isRigidModule(component.kind) && new Set(roots).size !== roots.length) {
       issues.push({
@@ -178,6 +186,9 @@ export function occupiedHoles(document: BreadboardDocument, ignoreId?: string): 
       result.add(wire.from)
       result.add(wire.to)
     }
+  }
+  for (const wire of document.sensorWires ?? []) {
+    if (wire.id !== ignoreId) for (const endpoint of [wire.from, wire.to]) result.add(endpointKey(endpoint))
   }
   return result
 }

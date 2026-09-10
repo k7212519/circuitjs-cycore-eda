@@ -30,7 +30,7 @@ export function Esp32S3Body({ points, selected }: { points: Point[]; selected: b
       <Rect x={left + 2} y={centerY - 65} width={158} height={130} cornerRadius={4} stroke="#a2aaa5" strokeWidth={1.5} fillLinearGradientStartPoint={{ x: 0, y: 0 }} fillLinearGradientEndPoint={{ x: 158, y: 130 }} fillLinearGradientColorStops={[0, '#e0e3de', 0.45, '#b7bfbb', 1, '#8d9994']} />
       <Rect x={left + 6} y={centerY - 61} width={150} height={122} cornerRadius={3} stroke="#edf0e9" strokeWidth={0.6} />
       {/* Long two-row USB bridge package, to the right of the buttons. */}
-      <Group x={left + 298} y={centerY - 48}>
+      <Group x={left + 298} y={centerY - 48} scaleX={1.1} scaleY={1.1}>
         {[-1, 1].flatMap((side) => Array.from({ length: 8 }, (_, index) => (
           <Rect key={`${side}-${index}`} x={-26 + index * 7} y={side < 0 ? -17 : 10} width={4} height={7} cornerRadius={0.6} fill="#bac2ba" stroke="#7f8c81" strokeWidth={0.5} />
         )))}
@@ -38,12 +38,12 @@ export function Esp32S3Body({ points, selected }: { points: Point[]; selected: b
         <Line points={[-27, -8, 27, -8]} stroke="#354239" strokeWidth={1} />
         <Circle x={-25} y={6} radius={1.6} fill="#798778" />
       </Group>
-      {/* Larger reset and boot buttons sit side by side next to the shield. */}
+      {/* Reset and boot buttons stack vertically in the former LED area. */}
       {['RST', 'BOOT'].map((label, index) => (
-        <Group key={label} x={left + 193 + index * 44} y={centerY - 48}>
-          <Rect x={-14} y={-14} width={28} height={28} fill="#a8aea2" stroke="#070e09" cornerRadius={3} />
-          <Circle radius={9} fill="#242a25" stroke="#565e52" strokeWidth={1} />
-          <Text x={-18} y={-25} width={36} text={label} fontSize={7} align="center" fill="#d7dfce" />
+        <Group key={label} x={right - 86} y={centerY + 20 + index * 38} scaleX={1.1} scaleY={1.1}>
+          <Rect x={-15} y={-11} width={30} height={22} fill="#a8aea2" stroke="#070e09" cornerRadius={3} />
+          <Rect x={-9} y={-6} width={18} height={12} cornerRadius={6} fill="#f5f5ef" stroke="#d0d4ca" strokeWidth={1} />
+          <Text x={-42} y={-3.5} width={24} text={label} fontSize={7} align="right" fill="#d7dfce" />
         </Group>
       ))}
       {[-1, 1].map((side) => (
@@ -58,8 +58,18 @@ export function Esp32S3Body({ points, selected }: { points: Point[]; selected: b
         <Rect x={-9} y={-15} width={18} height={30} cornerRadius={2} fill="#dfb849" stroke="#b38c2f" strokeWidth={0.8} />
         <Line points={[-7, -10, 7, -10]} stroke="#876623" strokeWidth={2.5} />
       </Group>
+      {/* 1117 LDO, SOT-223: wide metal tab opposite three leads.
+          Package reference: https://www.ti.com/lit/ds/symlink/lm1117.pdf */}
+      <Group x={left + 193} y={centerY - 48} scaleX={1.1} scaleY={1.1}>
+        <Rect x={-11} y={-19} width={22} height={11} cornerRadius={1} fill="#bdc5bd" stroke="#859187" strokeWidth={0.7} />
+        {[-12, 0, 12].map((x) => (
+          <Rect key={x} x={x - 2.5} y={8} width={5} height={11} cornerRadius={0.6} fill="#bdc5bd" stroke="#859187" strokeWidth={0.7} />
+        ))}
+        <Rect x={-18} y={-10} width={36} height={20} cornerRadius={2} fill="#171d19" stroke="#59665b" strokeWidth={0.8} />
+        <Line points={[-15, -7, 15, -7]} stroke="#3c473f" strokeWidth={1} />
+      </Group>
       {/* White square RGB LED package in the lower-right area of the PCB. */}
-      <Group x={right - 158} y={centerY + 46} scaleX={1.4} scaleY={1.4}>
+      <Group x={right - 156} y={centerY + 46} scaleX={1.54} scaleY={1.54}>
         <Rect x={-12} y={-12} width={24} height={24} cornerRadius={2} fill="#f4f4ed" stroke="#b7c0b3" strokeWidth={1} />
         <Rect x={-8} y={-8} width={16} height={16} cornerRadius={1} fill="#e7e5d5" stroke="#d0d0bc" strokeWidth={0.8} />
         <Rect x={-5} y={-2} width={3} height={4} fill="#bd9590" />
