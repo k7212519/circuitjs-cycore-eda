@@ -511,3 +511,37 @@ button.danger { color: #ef7566; }.object-actions button.danger { border-color: #
 .sensor-menu-trigger .part-copy strong { font-size: 12px; }
 
 .fixed-component-spec.sensor-spec { box-shadow: none; }
+
+/* Temporary classroom ink shares the board transform, with its own input surface. */
+.annotation-surface { position: absolute; inset: 0; z-index: 3; touch-action: none; cursor: crosshair; }
+.annotation-surface.annotation-text { cursor: text; }
+.canvas-action-button[aria-pressed="true"] { color: var(--amber); background: var(--panel-2); border-color: var(--amber); position: relative; z-index: 1; }
+.annotation-toolbar {
+  position: absolute; bottom: 70px; left: 50%; transform: translateX(-50%); z-index: 5;
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px;
+  width: max-content; max-width: calc(100% - 24px); padding: 9px 12px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: 0 6px 22px rgba(0,0,0,.2); font-size: 12px;
+}
+.annotation-toolbar button, .annotation-text-editor button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  min-height: 34px; padding: 5px 8px; border: 1px solid transparent; border-radius: 5px;
+  color: inherit; background: transparent; cursor: pointer;
+}
+.annotation-toolbar button:hover:not(:disabled) { background: var(--panel-2); }
+.annotation-toolbar button[aria-pressed="true"] { color: var(--amber); border-color: var(--amber); background: var(--panel-2); }
+.annotation-toolbar button:disabled { opacity: .4; cursor: default; }
+.annotation-tool-choices, .annotation-colors { display: flex; align-items: center; gap: 4px; }
+.annotation-colors { gap: 7px; padding: 0 5px; }
+.annotation-toolbar .annotation-color { min-height: 22px; width: 22px; height: 22px; padding: 0; border-radius: 50%; border: 1px solid #808080; }
+.annotation-toolbar .annotation-color[aria-pressed="true"] { outline: 2px solid var(--amber); outline-offset: 3px; }
+.annotation-toolbar label { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.annotation-toolbar select { padding: 5px 2px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel-2); color: inherit; font: inherit; }
+.annotation-text-editor { position: absolute; z-index: 6; width: 280px; max-width: 100%; padding: 8px; background: var(--panel); border: 1px solid var(--amber); border-radius: 8px; box-shadow: 0 6px 22px rgba(0,0,0,.25); }
+.annotation-text-editor textarea { display: block; width: 100%; height: 125px; padding: 4px; resize: none; background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; font-family: sans-serif; line-height: 1.3; }
+.annotation-text-editor > div { display: flex; align-items: center; justify-content: space-between; gap: 5px; margin-top: 6px; }
+.annotation-text-editor span { color: var(--muted); font-size: 10px; }
+.annotation-text-editor button { color: var(--amber); border-color: var(--line); }
+.annotation-toolbar button:focus-visible, .annotation-text-editor button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+.annotation-surface.annotation-eraser { cursor: cell; }

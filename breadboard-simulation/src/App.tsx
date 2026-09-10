@@ -180,6 +180,7 @@ export default function App() {
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return
       const target = event.target as HTMLElement
       if (target.matches('input, textarea, select') || target.isContentEditable) return
       if (event.code === 'Space' && !event.ctrlKey && !event.metaKey && !event.altKey) {
@@ -192,14 +193,16 @@ export default function App() {
           return
         }
       }
-      if (event.key === 'Delete' || event.key === 'Backspace') deleteSelected()
+      if ((event.key === 'Delete' || event.key === 'Backspace') && !useWorkbenchStore.getState().annotationMode) deleteSelected()
       if (event.key === 'Escape') {
         setActiveTool('select')
         if (canvasFullscreen) toggleCanvasFullscreen()
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
         event.preventDefault()
-        if (event.shiftKey) redo()
+        const state = useWorkbenchStore.getState()
+        if (state.annotationMode) { if (event.shiftKey) state.redoAnnotation(); else state.undoAnnotation() }
+        else if (event.shiftKey) redo()
         else undo()
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {

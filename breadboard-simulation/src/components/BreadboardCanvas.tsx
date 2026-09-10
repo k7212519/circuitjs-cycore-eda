@@ -1,8 +1,10 @@
+import { AnnotationLayer, AnnotationToolbar } from './AnnotationTools'
+import { useAnnotationCanvas } from './useAnnotationCanvas'
 import { SensorLayer } from './SensorLayer'
 import { SENSOR_KINDS, SENSOR_MODELS, nearestSensorEndpoint, sensorBounds, sensorWireRoutes, type SensorKind } from '@/domain/sensors'
 import { Esp32S3Body } from './Esp32S3Body'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Maximize2, Minimize2, Move, MousePointer2, Redo2, Undo2, ZoomIn, ZoomOut } from 'lucide-react'
+import { Maximize2, Minimize2, Pencil, Move, MousePointer2, Redo2, Undo2, ZoomIn, ZoomOut } from 'lucide-react'
 import { Circle, Group, Layer, Line, Path, Rect, Stage, Text } from 'react-konva'
 import type Konva from 'konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
@@ -804,8 +806,12 @@ export function BreadboardCanvas({ isDark, isFullscreen, onToggleFullscreen }: {
   isFullscreen: boolean
   onToggleFullscreen: () => void
 }) {
-  const containerRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<Konva.Stage>(null)
+  const annotation = useAnnotationCanvas(stageRef)
+  const annotationMode = useWorkbenchStore(s => s.annotationMode)
+  const annotationCount = useWorkbenchStore(s => s.annotations.length)
+  const setAnnotationMode = useWorkbenchStore(s => s.setAnnotationMode)
+  const containerRef = useRef<HTMLDivElement>(null)
   const boardGroupRef = useRef<Konva.Group>(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
   const [pointer, setPointer] = useState<Point | null>(null)
@@ -837,10 +843,10 @@ export function BreadboardCanvas({ isDark, isFullscreen, onToggleFullscreen }: {
   const selectMany = useWorkbenchStore((state) => state.selectMany)
   const moveSelectionTo = useWorkbenchStore((state) => state.moveSelectionTo)
   const moveWireEndTo = useWorkbenchStore((state) => state.moveWireEndTo)
-  const undo = useWorkbenchStore((state) => state.undo)
-  const redo = useWorkbenchStore((state) => state.redo)
-  const canUndo = useWorkbenchStore((state) => state.past.length > 0)
-  const canRedo = useWorkbenchStore((state) => state.future.length > 0)
+  const undo = useWorkbenchStore((state) => state.annotationMode ? state.undoAnnotation : state.undo)
+  const redo = useWorkbenchStore((state) => state.annotationMode ? state.redoAnnotation : state.redo)
+  const canUndo = useWorkbenchStore((state) => (state.annotationMode ? state.annotationPast : state.past).length > 0)
+  const canRedo = useWorkbenchStore((state) => (state.annotationMode ? state.annotationFuture : state.future).length > 0)
 
   const viewport = document.viewport
   const pendingHoleId = activeTool === 'wire' ? wireStart : componentStart
@@ -871,6 +877,19 @@ export function BreadboardCanvas({ isDark, isFullscreen, onToggleFullscreen }: {
     observer.observe(container)
     return () => observer.disconnect()
   }, [])
+
+  useEffect(() => useWorkbenchStore.subscribe((state, previous) => {
+    if (state.annotationMode && !previous.annotationMode) {
+      marqueeRef.current = null
+      panRef.current = null
+      pinchRef.current = null
+      placementDragRef.current = null
+      setMarquee(null)
+      setSelectionDrag(null)
+      setWireEndPreview(null)
+      setPanning(false)
+    }
+  }), [])
 
   useEffect(() => {
     const cancelMarquee = (event: KeyboardEvent) => {
@@ -924,6 +943,7 @@ export function BreadboardCanvas({ isDark, isFullscreen, onToggleFullscreen }: {
   }
 
   const handleCanvasAction = (event: KonvaEventObject<PointerEvent>) => {
+    if (useWorkbenchStore.getState().annotationMode) return
     if (event.evt.button === 1) {
       event.evt.preventDefault()
       panRef.current = stageRef.current?.getPointerPosition() ?? null
@@ -1078,6 +1098,7 @@ export function BreadboardCanvas({ isDark, isFullscreen, onToggleFullscreen }: {
 
   const handleDrop = (event: React.DragEvent) => {
     event.preventDefault()
+    if (useWorkbenchStore.getState().annotationMode) return
     const sensorKind = event.dataTransfer.getData('application/x-breadboard-sensor') as SensorKind
     if (SENSOR_KINDS.includes(sensorKind) && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect()
@@ -1107,9 +1128,13 @@ export function BreadboardCanvas({ isDark, isFullscreen, onToggleFullscreen }: {
       data-testid="breadboard-canvas"
       data-board-interaction="wheel-zoom,middle-pan"
       data-board-transform={`${viewport.x.toFixed(3)},${viewport.y.toFixed(3)},${viewport.scale.toFixed(5)}`}
+      data-annotation-count={annotationCount}
+      data-annotation-mode={annotationMode}
       data-selected-count={selectedIds.length}
     >
       <div className="canvas-coordinate">X {Math.round(pointer?.x ?? 0).toString().padStart(4, '0')} / Y {Math.round(pointer?.y ?? 0).toString().padStart(4, '0')}</div>
+      {annotation.overlay}
+      {annotationMode && <AnnotationToolbar />}
       <div className="canvas-actions" role="group" aria-label="画布操作">
         <div className="canvas-action-group" role="group" aria-label="交互模式">
           <button
@@ -1141,29 +1166,38 @@ export function BreadboardCanvas({ isDark, isFullscreen, onToggleFullscreen }: {
             <Redo2 size={17} aria-hidden="true" />
           </button>
         </div>
-        <button type="button" className="canvas-action-button" aria-label="显示全部" title="显示全部" onClick={showAll}><Maximize2 size={17} /></button>
+        <button type="button" className="canvas-action-button" aria-label="显示全部" title="显示全部" onClick={showAll} disabled={annotation.editingText}><Maximize2 size={17} /></button>
         <div className="canvas-action-group" role="group" aria-label="缩放操作">
-          <button type="button" className="canvas-action-button" aria-label="放大" title="放大" onClick={() => zoomAt({ x: size.width / 2, y: size.height / 2 }, 1.1)} disabled={viewport.scale >= maxViewportScale}>
+          <button type="button" className="canvas-action-button" aria-label="放大" title="放大" onClick={() => zoomAt({ x: size.width / 2, y: size.height / 2 }, 1.1)} disabled={annotation.editingText || viewport.scale >= maxViewportScale}>
             <ZoomIn size={17} aria-hidden="true" />
           </button>
-          <button type="button" className="canvas-action-button" aria-label="缩小" title="缩小" onClick={() => zoomAt({ x: size.width / 2, y: size.height / 2 }, 1 / 1.1)} disabled={viewport.scale <= minViewportScale}>
+          <button type="button" className="canvas-action-button" aria-label="缩小" title="缩小" onClick={() => zoomAt({ x: size.width / 2, y: size.height / 2 }, 1 / 1.1)} disabled={annotation.editingText || viewport.scale <= minViewportScale}>
             <ZoomOut size={17} aria-hidden="true" />
           </button>
         </div>
-        <button
-          type="button"
-          className="canvas-action-button"
-          aria-label={isFullscreen ? '退出网页全屏' : '网页内全屏'}
-          title={isFullscreen ? '退出网页全屏（Esc）' : '网页内全屏'}
-          data-testid="canvas-fullscreen"
-          onClick={() => {
+        <div className="canvas-action-group" role="group" aria-label="标注与全屏">
+          <button type="button" className="canvas-action-button" aria-label="标注模式" title="标注模式" aria-pressed={annotationMode} data-testid="canvas-annotation-mode" onClick={() => {
             cancelPointerAction()
             pinchRef.current = null
-            onToggleFullscreen()
-          }}
-        >
-          {isFullscreen ? <Minimize2 size={17} aria-hidden="true" /> : <Maximize2 size={17} aria-hidden="true" />}
-        </button>
+            annotation.cancel()
+            setAnnotationMode(!annotationMode)
+          }}><Pencil size={17} aria-hidden="true" /></button>
+          <button
+            type="button"
+            className="canvas-action-button"
+            aria-label={isFullscreen ? '退出网页全屏' : '网页内全屏'}
+            title={isFullscreen ? '退出网页全屏（Esc）' : '网页内全屏'}
+            data-testid="canvas-fullscreen"
+            onClick={() => {
+              cancelPointerAction()
+              pinchRef.current = null
+              annotation.cancel()
+              onToggleFullscreen()
+            }}
+          >
+            {isFullscreen ? <Minimize2 size={17} aria-hidden="true" /> : <Maximize2 size={17} aria-hidden="true" />}
+          </button>
+        </div>
       </div>
       {size.width > 0 && size.height > 0 ? (
         <Stage
@@ -1179,7 +1213,7 @@ export function BreadboardCanvas({ isDark, isFullscreen, onToggleFullscreen }: {
           onTouchMove={handleTouchMove}
           onTouchEnd={() => { pinchRef.current = null }}
         >
-        <Layer>
+        <Layer listening={!annotationMode}>
           <Group ref={boardGroupRef} x={viewport.x} y={viewport.y} scaleX={viewport.scale} scaleY={viewport.scale}>
             <Rect x={boardInset} y={boardInset} width={BOARD_WIDTH - boardInset * 2} height={BOARD_HEIGHT - boardInset * 2} cornerRadius={12} fill={boardFill} stroke="#7f8981" strokeWidth={2} shadowColor="#000" shadowBlur={28} shadowOpacity={0.45} shadowOffsetY={12} />
 
@@ -1397,6 +1431,7 @@ export function BreadboardCanvas({ isDark, isFullscreen, onToggleFullscreen }: {
             ) : null}
           </Group>
         </Layer>
+        <AnnotationLayer viewport={viewport} draft={annotation.draft} erasedIds={annotation.erasedIds} />
         </Stage>
       ) : null}
       {activeTool !== 'select' || activeSensor ? (

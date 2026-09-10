@@ -1,0 +1,93 @@
+import { beforeEach, describe, expect, it } from 'vitest'
+import { drawAnnotation, defaultAnnotationStyle, type Annotation } from '@/domain/annotations'
+import { createEmptyDocument, serializeDocument } from '@/domain/document'
+import { useWorkbenchStore } from './useWorkbenchStore'
+
+const state = useWorkbenchStore.getState
+const pen = (id = 'pen'): Annotation => drawAnnotation('pen', { x: 10, y: 20 }, { x: 10, y: 20 }, defaultAnnotationStyle, id)
+beforeEach(() => useWorkbenchStore.setState(useWorkbenchStore.getInitialState(), true))
+
+describe('temporary classroom annotations', () => {
+  it('keeps all four kinds separate from the project, simulation and circuit history', () => {
+    const before = state()
+    const serialized = serializeDocument(before.document)
+    state().setAnnotationMode(true)
+    state().addAnnotation(pen())
+    state().addAnnotation(drawAnnotation('rectangle', { x: 50, y: 60 }, { x: 10, y: 20 }, defaultAnnotationStyle, 'rectangle'))
+    state().addAnnotation(drawAnnotation('arrow', { x: 50, y: 60 }, { x: 10, y: 20 }, defaultAnnotationStyle, 'arrow'))
+    state().addAnnotation({ id: 'text', kind: 'text', color: '#ef4444', position: { x: 10, y: 20 }, text: '电压\n5V', fontSize: 24 })
+    expect(state().annotations).toHaveLength(4)
+    expect(state().annotations[1]).toMatchObject({ position: { x: 10, y: 20 }, width: 40, height: 40 })
+    expect(state().annotations[2]).toMatchObject({ from: { x: 50, y: 60 }, to: { x: 10, y: 20 } })
+    expect(state().document).toBe(before.document)
+    expect(serializeDocument(state().document)).toBe(serialized)
+    expect(state().past).toBe(before.past)
+    expect(state().dirty).toBe(false)
+    expect(state().running).toBe(before.running)
+    state().setAnnotationMode(false)
+    expect(state().annotations).toHaveLength(4)
+  })
+
+  it('undoes complete gestures and clear, caps history, and discards redo on a new edit', () => {
+    for (let i = 0; i < 55; i++) state().addAnnotation(pen(String(i)))
+    expect(state().annotationPast).toHaveLength(50)
+    state().clearAnnotations()
+    expect(state().annotations).toHaveLength(0)
+    state().undoAnnotation()
+    expect(state().annotations).toHaveLength(55)
+    state().redoAnnotation()
+    expect(state().annotations).toHaveLength(0)
+    state().undoAnnotation()
+    state().undoAnnotation()
+    expect(state().annotations).toHaveLength(54)
+    state().addAnnotation(pen('new'))
+    expect(state().annotationFuture).toHaveLength(0)
+  })
+
+  it('cancels circuit placement on entry and exits when choosing a circuit tool', () => {
+    useWorkbenchStore.setState({ wireStart: 't-0-0-1', componentStart: 't-0-0-2', connectionStart: { type: 'hole', holeId: 't-0-0-1' }, selectedIds: ['circuit'] })
+    state().setAnnotationMode(true)
+    expect(state()).toMatchObject({ selectedIds: [], wireStart: null, componentStart: null, connectionStart: null, activeTool: 'select' })
+    state().setActiveTool('wire')
+    expect(state().annotationMode).toBe(false)
+    state().setAnnotationMode(true)
+    state().chooseSensor('light')
+    expect(state().annotationMode).toBe(false)
+  })
+
+  it('resets annotations and preferences on new/open, but retains them on save and viewport changes', () => {
+    state().setAnnotationMode(true)
+    state().addAnnotation(pen())
+    state().setAnnotationStyle({ color: '#ffffff', strokeWidth: 6 })
+    expect(state().annotations[0]).toMatchObject({ color: '#ef4444', strokeWidth: 3 })
+    state().setProjectIdentity(42, '课堂')
+    state().markSaved()
+    state().setViewport({ x: 20, y: 20, scale: 2 })
+    expect(state().annotations).toHaveLength(1)
+    state().loadProject(42, createEmptyDocument())
+    expect(state()).toMatchObject({ annotationMode: false, annotations: [], annotationPast: [], annotationFuture: [], annotationStyle: defaultAnnotationStyle })
+    state().addAnnotation(pen())
+    state().newProject()
+    expect(state()).toMatchObject({ annotations: [], annotationPast: [], annotationFuture: [] })
+  })
+})
+
+it('erases whole objects in one history entry and leaves circuit data untouched', () => {
+  state().addAnnotation(pen('a'))
+  state().addAnnotation(pen('b'))
+  state().addAnnotation(pen('c'))
+  const before = state()
+  state().eraseAnnotations(['a', 'b', 'a', 'missing'])
+  expect(state().annotations.map(a => a.id)).toEqual(['c'])
+  expect(state().annotationPast).toHaveLength(before.annotationPast.length + 1)
+  expect(state().document).toBe(before.document)
+  expect(state().past).toBe(before.past)
+  expect(state().dirty).toBe(before.dirty)
+  state().undoAnnotation()
+  expect(state().annotations.map(a => a.id)).toEqual(['a', 'b', 'c'])
+  state().redoAnnotation()
+  expect(state().annotations.map(a => a.id)).toEqual(['c'])
+  const after = state()
+  state().eraseAnnotations(['missing'])
+  expect(state()).toBe(after)
+})

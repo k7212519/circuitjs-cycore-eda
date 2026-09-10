@@ -1,3 +1,4 @@
+import { defaultAnnotationStyle, type Annotation, type AnnotationStyle, type AnnotationTool } from '@/domain/annotations'
 import { endpointKey, nearestSensorEndpoint, sensorEndpointUsed, sensorOutsideBoard, endpointPoint, type SensorKind, type WireEndpoint, type SensorWire, type ExternalSensor } from '@/domain/sensors'
 import { create } from 'zustand'
 import { halfTurnPins, defaultPlacement, holeById, isLegacyCd4017Footprint, isRigidModule, isTwoPinComponent, isValidButtonPinPair, legacyCd4017PlacementFromLowerPin, nearestHole, rigidModulePlacementFromLowerPin } from '@/domain/board'
@@ -36,6 +37,21 @@ const defaults: Record<ComponentKind, ComponentPlacementOptions> = {
 }
 
 interface WorkbenchState {
+  annotationMode: boolean
+  annotationTool: AnnotationTool
+  annotationStyle: AnnotationStyle
+  annotations: Annotation[]
+  annotationPast: Annotation[][]
+  annotationFuture: Annotation[][]
+  annotationSession: number
+  setAnnotationMode: (enabled: boolean) => void
+  setAnnotationTool: (tool: AnnotationTool) => void
+  setAnnotationStyle: (style: Partial<AnnotationStyle>) => void
+  addAnnotation: (annotation: Annotation) => void
+  eraseAnnotations: (ids: string[]) => void
+  clearAnnotations: () => void
+  undoAnnotation: () => void
+  redoAnnotation: () => void
   document: BreadboardDocument
   projectId: number | null
   dirty: boolean
@@ -148,6 +164,34 @@ function availableEndpoint(document: BreadboardDocument, endpoint: WireEndpoint,
 }
 
 export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
+  annotationMode: false,
+  annotationTool: 'pen',
+  annotationStyle: { ...defaultAnnotationStyle },
+  annotations: [], annotationPast: [], annotationFuture: [], annotationSession: 0,
+  setAnnotationMode: (annotationMode) => set({ annotationMode, activeTool: 'select', activeSensor: null, selectedIds: [], wireStart: null, connectionStart: null, componentStart: null }),
+  setAnnotationTool: (annotationTool) => set({ annotationTool }),
+  setAnnotationStyle: (patch) => set(state => ({ annotationStyle: { ...state.annotationStyle, ...patch } })),
+  addAnnotation: (annotation) => set(state => ({
+    annotations: [...state.annotations, structuredClone(annotation)],
+    annotationPast: [...state.annotationPast, state.annotations].slice(-50), annotationFuture: [],
+  })),
+  eraseAnnotations: (ids) => set(state => {
+    const erased = new Set(ids)
+    const annotations = state.annotations.filter(annotation => !erased.has(annotation.id))
+    if (annotations.length === state.annotations.length) return state
+    return { annotations, annotationPast: [...state.annotationPast, state.annotations].slice(-50), annotationFuture: [] }
+  }),
+  clearAnnotations: () => set(state => state.annotations.length ? ({
+    annotations: [], annotationPast: [...state.annotationPast, state.annotations].slice(-50), annotationFuture: [],
+  }) : state),
+  undoAnnotation: () => set(state => state.annotationPast.length ? ({
+    annotations: state.annotationPast.at(-1)!, annotationPast: state.annotationPast.slice(0, -1),
+    annotationFuture: [state.annotations, ...state.annotationFuture].slice(0, 50),
+  }) : state),
+  redoAnnotation: () => set(state => state.annotationFuture.length ? ({
+    annotations: state.annotationFuture[0]!, annotationFuture: state.annotationFuture.slice(1),
+    annotationPast: [...state.annotationPast, state.annotations].slice(-50),
+  }) : state),
   document: createEmptyDocument(),
   projectId: null,
   dirty: false,
@@ -170,7 +214,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
   simulationStatus: 'connecting',
   running: true,
 
-  chooseSensor: (activeSensor) => set({ activeSensor, sensorRotation: 0, activeTool: 'select', selectedIds: [], wireStart: null, connectionStart: null, componentStart: null }),
+  chooseSensor: (activeSensor) => set({ annotationMode: false, activeSensor, sensorRotation: 0, activeTool: 'select', selectedIds: [], wireStart: null, connectionStart: null, componentStart: null }),
   rotateSensorPlacement: () => set(state => ({ sensorRotation: ((state.sensorRotation + 90) % 360) as ExternalSensor['rotation'] })),
   placeSensorAt: (kind, position) => {
     const state = get()
@@ -201,6 +245,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
 
   setActiveTool: (activeTool) => set((state) => ({
     activeTool,
+    annotationMode: false,
     activeSensor: null,
     connectionStart: activeTool === 'wire' ? state.connectionStart : null,
     placementRotation: activeTool === state.activeTool ? state.placementRotation : 0,
@@ -682,14 +727,18 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
     })
   },
 
-  newProject: () => set({
+  newProject: () => set(state => ({
+    annotationMode: false, annotationTool: 'pen', annotationStyle: { ...defaultAnnotationStyle },
+    annotations: [], annotationPast: [], annotationFuture: [], annotationSession: state.annotationSession + 1,
     document: createEmptyDocument(), projectId: null, dirty: false, selectedIds: [],
     past: [], future: [], issues: [], readings: {}, closedContacts: {}, wireStart: null, connectionStart: null, activeSensor: null, componentStart: null,
-  }),
+  })),
 
   loadProject: (projectId, value) => {
     const document = parseDocument(value)
     set({
+      annotationMode: false, annotationTool: 'pen', annotationStyle: { ...defaultAnnotationStyle },
+      annotations: [], annotationPast: [], annotationFuture: [], annotationSession: get().annotationSession + 1,
       document, projectId, dirty: false, selectedIds: [], past: [], future: [],
       issues: validateDocument(document), readings: {}, closedContacts: {}, wireStart: null, connectionStart: null, activeSensor: null, componentStart: null,
     })
