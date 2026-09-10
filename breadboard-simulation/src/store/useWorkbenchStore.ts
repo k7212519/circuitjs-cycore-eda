@@ -21,6 +21,7 @@ const id = (prefix: string) => `${prefix}-${crypto.randomUUID()}`
 
 const defaults: Record<ComponentKind, ComponentPlacementOptions> = {
   resistor: { value: 500, label: '500 Ω', bandCount: 4 },
+  buzzer: { value: 1, label: '无源压电蜂鸣器' },
   capacitor: { value: 100e-9, label: '100 nF', variant: 'ceramic' },
   led: { value: 0.01, color: '#ef3d32', label: '红色 LED' },
   diode: { value: 1, label: '1N4148', variant: 'small-signal' },

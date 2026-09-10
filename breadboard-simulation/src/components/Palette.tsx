@@ -39,6 +39,11 @@ const esp32Model: MenuChild = {
   options: { value: 1, label: 'ESP32-S3-WROOM-1-N16R8' },
 }
 
+const buzzerModel: MenuChild = {
+  id: 'buzzer', tool: 'buzzer', label: '无源压电蜂鸣器', glyph: 'chip',
+  options: { value: 1, label: '无源压电蜂鸣器' },
+}
+
 const menus: PartsMenu[] = [
   {
     id: 'switch', label: '开关', glyph: 'switch',
@@ -225,6 +230,9 @@ export function Palette() {
           {openMenu === 'sensors' && <div className="part-sublist" id="parts-submenu-sensors" role="group" aria-label="芯片传感器模型类型">
             <button type="button" className={`part-subitem ${childIsActive(esp32Model) ? 'is-active' : ''}`} data-testid="part-sensor-esp32-s3" draggable onClick={() => chooseChild(esp32Model)} onDragStart={event => startDrag(event, esp32Model.tool, esp32Model)}>
               <span className="subitem-mark"><CircuitGlyph kind={esp32Model.glyph} /></span><span><strong>{esp32Model.label}</strong></span>
+            </button>
+            <button type="button" className={`part-subitem ${childIsActive(buzzerModel) ? 'is-active' : ''}`} data-testid="part-sensor-buzzer" draggable onClick={() => chooseChild(buzzerModel)} onDragStart={event => startDrag(event, buzzerModel.tool, buzzerModel)}>
+              <span className="subitem-mark"><CircuitGlyph kind={buzzerModel.glyph} /></span><span><strong>{buzzerModel.label}</strong></span>
             </button>
             {PALETTE_SENSOR_KINDS.map(kind => <button key={kind} type="button" className={`part-subitem ${activeSensor === kind ? 'is-active' : ''}`} data-testid={`part-sensor-${kind}`} draggable onClick={() => chooseSensor(kind)} onDragStart={event => { event.dataTransfer.setData('application/x-breadboard-sensor', kind); event.dataTransfer.effectAllowed = 'copy'; chooseSensor(kind) }}>
               <span className="subitem-mark"><CircuitGlyph kind="chip" /></span><span><strong>{SENSOR_MODELS[kind].name}</strong></span>

@@ -37,6 +37,7 @@ export function circuitElementType(component: Pick<BreadboardComponent, 'kind' |
     case 'seven-segment': return 'SevenSegElm'
     case 'cd4017': return 'CD4017Elm'
     case 'cd4026': return 'CD4026Elm'
+    case 'buzzer':
     case 'esp32-s3': return '' // Visual-only board; never exported to CircuitJS.
   }
 }

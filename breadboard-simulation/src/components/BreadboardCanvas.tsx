@@ -59,10 +59,10 @@ const minViewportScale = 0.25
 const maxViewportScale = 3.5
 
 function componentName(kind: ComponentKind): string {
-  return ({ resistor: 'R', capacitor: 'C', led: 'LED', diode: 'D', switch: '开关', button: '按键', npn: 'NPN', pnp: 'PNP', 'seven-segment': '数码管', cd4017: 'CD4017', cd4026: 'CD4026', 'esp32-s3': 'ESP32-S3模型' })[kind]
+  return ({ buzzer: '蜂鸣器', resistor: 'R', capacitor: 'C', led: 'LED', diode: 'D', switch: '开关', button: '按键', npn: 'NPN', pnp: 'PNP', 'seven-segment': '数码管', cd4017: 'CD4017', cd4026: 'CD4026', 'esp32-s3': 'ESP32-S3模型' })[kind]
 }
 
-const uprightComponentKinds = new Set<ComponentKind>(['capacitor', 'led', 'npn', 'pnp'])
+const uprightComponentKinds = new Set<ComponentKind>(['buzzer', 'capacitor', 'led', 'npn', 'pnp'])
 
 function componentMountDepth(component: BreadboardComponent): number {
   return Math.max(...component.pins.map((pin) => holeById.get(pin)?.y ?? Number.NEGATIVE_INFINITY))
@@ -94,6 +94,7 @@ function orderComponentsForRendering(components: BreadboardComponent[]): Breadbo
 const twoPinCoreWidth: Record<TwoPinComponentKind, number> = {
   resistor: 46,
   capacitor: 12,
+  buzzer: 36,
   led: 20,
   diode: 34,
   switch: 36,
@@ -189,6 +190,20 @@ function ResistorBody({ points, selected, value = 500, bandCount = 4 }: { points
       ))}
     </Group>
   )
+}
+
+function BuzzerBody({ points, selected }: { points: Point[]; selected: boolean }) {
+  const frame = twoPinFrame(points, 'buzzer')
+  if (!frame) return null
+  return <Group x={frame.mid.x} y={frame.mid.y} rotation={frame.angle}>
+    <UprightPinLeads length={frame.length} slots={[-18, 18]} attachY={-14} />
+    <Group y={-32}>
+      <Circle radius={30} fill="#151619" stroke={selected ? '#f5b83b' : '#08090a'} strokeWidth={selected ? 2 : 1} shadowColor="#000" shadowOpacity={0.3} shadowBlur={6} shadowOffsetY={3} />
+      <Circle y={-3} radius={27} fillLinearGradientStartPoint={{ x: -22, y: -25 }} fillLinearGradientEndPoint={{ x: 20, y: 25 }} fillLinearGradientColorStops={[0, '#424448', 0.45, '#292b2e', 1, '#1d1e21']} stroke="#535559" strokeWidth={1} />
+      <Circle y={-3} radius={6} fill="#08090a" stroke="#17181a" strokeWidth={2} />
+      <Text x={-24} y={-11} width={16} height={16} verticalAlign="middle" align="center" text="+" fontSize={16} fontStyle="bold" fill="#c9cbcc" />
+    </Group>
+  </Group>
 }
 
 function CapacitorBody({ points, selected, variant = 'ceramic' }: { points: Point[]; selected: boolean; variant?: ComponentVariant }) {
@@ -407,6 +422,7 @@ function SwitchBody({ points, selected, closed = false }: { points: Point[]; sel
 
 function TwoPinBody({ kind, points, selected, options }: { kind: TwoPinComponentKind; points: Point[]; selected: boolean; options: ComponentPlacementOptions }) {
   if (kind === 'resistor') return <ResistorBody points={points} selected={selected} value={options.value} bandCount={options.bandCount} />
+  if (kind === 'buzzer') return <BuzzerBody points={points} selected={selected} />
   if (kind === 'capacitor') return <CapacitorBody points={points} selected={selected} variant={options.variant} />
   if (kind === 'diode') return <DiodeBody points={points} selected={selected} variant={options.variant} label={options.label} />
   if (kind === 'switch') return <SwitchBody points={points} selected={selected} />
@@ -725,6 +741,7 @@ function ComponentShape({
     >
       <Group name="selection-bounds">
         {component.kind === 'resistor' ? <ResistorBody points={renderedPoints} selected={selected} value={component.value} bandCount={component.bandCount} /> : null}
+        {component.kind === 'buzzer' ? <BuzzerBody points={renderedPoints} selected={selected} /> : null}
         {component.kind === 'capacitor' ? <CapacitorBody points={renderedPoints} selected={selected} variant={component.variant} /> : null}
         {component.kind === 'diode' ? <DiodeBody points={renderedPoints} selected={selected} variant={component.variant} label={component.label} /> : null}
         {component.kind === 'led' ? <LedBody points={renderedPoints} selected={selected} color={component.color} brightness={reading?.brightness ?? 0} /> : null}
@@ -1071,7 +1088,8 @@ export function BreadboardCanvas({ isDark, isFullscreen, onToggleFullscreen }: {
     if (!kind || !containerRef.current) return
     const rect = containerRef.current.getBoundingClientRect()
     const point = toWorld({ x: event.clientX - rect.left, y: event.clientY - rect.top })
-    if (isTwoPinComponent(kind)) componentAt(kind, point)
+    if (kind === 'buzzer') placeAt(kind, point)
+    else if (isTwoPinComponent(kind)) componentAt(kind, point)
     else placeAt(kind, point)
   }
 

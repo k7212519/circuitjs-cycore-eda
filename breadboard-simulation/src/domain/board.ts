@@ -117,7 +117,7 @@ export function defaultPlacement(kind: ComponentKind, anchor: Hole, occupied: Se
   const candidates: string[][] = []
 
   if (anchor.region === 'terminal' && anchor.zone !== undefined && anchor.row !== undefined) {
-    const spans = count === 3 ? [0, 1, 2] : kind === 'button' ? [0, 2] : [0, 5]
+    const spans = count === 3 ? [0, 1, 2] : kind === 'button' || kind === 'buzzer' ? [0, 2] : [0, 5]
     for (const direction of [1, -1]) {
       const pins = spans.map((span) => `t-${anchor.zone}-${anchor.row}-${anchor.column + direction * span}`)
       candidates.push(pins)

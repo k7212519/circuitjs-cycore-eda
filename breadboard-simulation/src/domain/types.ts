@@ -1,5 +1,5 @@
 import type { ExternalSensor, SensorWire } from './sensors'
-export type ComponentKind = 'resistor' | 'capacitor' | 'led' | 'diode' | 'switch' | 'button' | 'npn' | 'pnp' | 'seven-segment' | 'cd4017' | 'cd4026' | 'esp32-s3'
+export type ComponentKind = 'buzzer' | 'resistor' | 'capacitor' | 'led' | 'diode' | 'switch' | 'button' | 'npn' | 'pnp' | 'seven-segment' | 'cd4017' | 'cd4026' | 'esp32-s3'
 export type TwoPinComponentKind = Exclude<ComponentKind, 'npn' | 'pnp' | 'seven-segment' | 'cd4017' | 'cd4026' | 'esp32-s3'>
 export type ToolKind = ComponentKind | 'wire' | 'select' | 'pan'
 export type ResistorBandCount = 4 | 5

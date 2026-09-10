@@ -5,22 +5,23 @@ import { SENSOR_MODELS, sensorPcbTop, sensorPinLocal, type ExternalSensor } from
 export function SensorBody({ sensor, selected = false, invalid = false }: { sensor: ExternalSensor; selected?: boolean; invalid?: boolean }) {
   const m = SENSOR_MODELS[sensor.kind], w = m.width, h = m.height, kind = sensor.kind
   const pcbTop = sensorPcbTop(kind)
+  const hasPcb = kind !== 'motor' && kind !== 'buzzer'
   const metal = (x: number, y: number, radius: number) => <Group x={x} y={y}>
     <Circle radius={radius} fill="#adb9bb" stroke="#e7edeb" strokeWidth={3} />
     <Circle radius={radius - 5} fill="#384448" stroke="#76858a" strokeWidth={2} />
     {Array.from({ length: 7 }, (_, i) => <Line key={i} points={[-radius + 9, (i - 3) * 4, radius - 9, (i - 3) * 4]} stroke="#839398" strokeWidth={1} />)}
   </Group>
-  const simple = !['dht11', 'hc-sr04', 'motor', 'sg90', 'traffic-light', 'relay', 'potentiometer', 'mq2', 'hc-sr501'].includes(kind)
+  const simple = !['dht11', 'hc-sr04', 'motor', 'sg90', 'traffic-light', 'relay', 'potentiometer', 'mq2', 'hc-sr501', 'buzzer'].includes(kind)
   return <Group rotation={sensor.rotation} listening={false}>
     {/* Render terminal hardware behind the PCB and motor body; labels stay above. */}
     {m.pins.map((name, pin) => {
       const p = sensorPinLocal(sensor, pin), top = p.direction.y < 0
       return <Group key={`terminal-${name}`}>
-        {kind !== 'motor' && <Rect x={p.x - 5} y={top ? p.y : h / 2 - 4} width={10} height={16} fill="#232f2d" />}
-        <Line points={[p.x, kind === 'motor' ? 2 : p.y - p.direction.y * 12, p.x, p.y]} stroke="#ddbe77" strokeWidth={5} />
+        {hasPcb && <Rect x={p.x - 5} y={top ? p.y : h / 2 - 4} width={10} height={16} fill="#232f2d" />}
+        <Line points={[p.x, kind === 'motor' ? 2 : kind === 'buzzer' ? 22 : p.y - p.direction.y * 12, p.x, p.y]} stroke={kind === 'buzzer' ? '#bdc3c5' : '#ddbe77'} strokeWidth={kind === 'buzzer' ? 3 : 5} />
       </Group>
     })}
-    {kind !== 'motor' && <Rect x={-w / 2} y={pcbTop} width={w} height={h / 2 - pcbTop} cornerRadius={5} fill={m.color} stroke={invalid ? '#ff5a50' : selected ? '#f5b83b' : '#102f3b'} strokeWidth={selected || invalid ? 3 : 2} shadowColor="#000" shadowOpacity={0.28} shadowBlur={6} shadowOffsetY={3} />}
+    {hasPcb && <Rect x={-w / 2} y={pcbTop} width={w} height={h / 2 - pcbTop} cornerRadius={5} fill={m.color} stroke={invalid ? '#ff5a50' : selected ? '#f5b83b' : '#102f3b'} strokeWidth={selected || invalid ? 3 : 2} shadowColor="#000" shadowOpacity={0.28} shadowBlur={6} shadowOffsetY={3} />}
     {simple && <>
       {[-17, -10, -3, 4].map(x => <Line key={x} points={[x, 13, x, 34]} stroke="#b7c2be" strokeWidth={2} />)}
       <Rect x={-21} y={17} width={27} height={14} fill="#111516" cornerRadius={2} />
@@ -59,6 +60,12 @@ export function SensorBody({ sensor, selected = false, invalid = false }: { sens
       <Circle y={-18} radius={10} fill="#edbd1e" stroke="#ac810c" strokeWidth={2} />
       <Circle y={-18} radius={3} fill="#737d78" />
     </>}
+    {kind === 'buzzer' && <>
+      <Circle radius={37} fill="#151619" stroke={invalid ? '#ff5a50' : selected ? '#f5b83b' : '#08090a'} strokeWidth={2} shadowColor="#000" shadowOpacity={0.3} shadowBlur={6} shadowOffsetY={3} />
+      <Circle y={-3} radius={33} fillLinearGradientStartPoint={{ x: -25, y: -30 }} fillLinearGradientEndPoint={{ x: 24, y: 30 }} fillLinearGradientColorStops={[0, '#424448', 0.45, '#292b2e', 1, '#1d1e21']} stroke="#535559" strokeWidth={1} />
+      <Circle y={-3} radius={8} fill="#08090a" stroke="#17181a" strokeWidth={2} />
+      <Text x={-29} y={-12} width={18} height={18} verticalAlign="middle" align="center" text="+" fontSize={17} fontStyle="bold" fill="#c9cbcc" />
+    </>}
     {kind === 'sg90' && <>
       <Rect x={-40} y={-44} width={80} height={67} cornerRadius={6} fill="#255397" stroke="#5494d4" strokeWidth={2} />
       <Circle y={-17} radius={22} fill="#163b72" stroke="#86b4e1" />
@@ -84,7 +91,7 @@ export function SensorBody({ sensor, selected = false, invalid = false }: { sens
     {m.pins.map((name, pin) => {
       const p = sensorPinLocal(sensor, pin), top = p.direction.y < 0
       return <Group key={name}>
-        <Text x={p.x - 13} y={kind === 'motor' ? 35 : top ? pcbTop + 5 : h / 2 - 14} width={26} align="center" fontSize={7} text={name} fill="#fff0bd" />
+        <Text x={p.x - 13} y={kind === 'motor' ? 35 : kind === 'buzzer' ? p.y + 4 : top ? pcbTop + 5 : h / 2 - 14} width={26} align="center" fontSize={7} text={name} fill="#fff0bd" />
       </Group>
     })}
   </Group>

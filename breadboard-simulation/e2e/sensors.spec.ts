@@ -30,7 +30,7 @@ async function setup(page: Page) {
 
 test('offers all 13 external models, rejects board placement and renders a restorable gallery', async ({ page }, testInfo) => {
   await setup(page)
-  await expect(page.getByRole('group', { name: '芯片传感器模型类型' }).getByRole('button')).toHaveCount(14)
+  await expect(page.getByRole('group', { name: '芯片传感器模型类型' }).getByRole('button')).toHaveCount(15)
   await page.getByTestId('part-sensor-dht11').click()
   await clickWorld(page, { x: 300, y: 300 })
   await expect(page.getByLabel('放置选项').getByRole('heading', { name: '温湿度传感器' })).toBeVisible()

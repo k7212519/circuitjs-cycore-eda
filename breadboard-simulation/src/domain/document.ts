@@ -7,7 +7,7 @@ import type { BreadboardDocument } from './types'
 
 const componentSchema = z.object({
   id: z.string().min(1),
-  kind: z.enum(['resistor', 'capacitor', 'led', 'diode', 'switch', 'button', 'npn', 'pnp', 'seven-segment', 'cd4017', 'cd4026', 'esp32-s3']),
+  kind: z.enum(['buzzer', 'resistor', 'capacitor', 'led', 'diode', 'switch', 'button', 'npn', 'pnp', 'seven-segment', 'cd4017', 'cd4026', 'esp32-s3']),
   pins: z.array(z.string()).min(2).max(44),
   rotation: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]),
   value: z.number().positive(),

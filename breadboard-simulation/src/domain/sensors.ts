@@ -1,7 +1,7 @@
 import { BOARD_HEIGHT, BOARD_WIDTH, boardPointLabel, holeById } from './board'
 import type { BreadboardDocument, Point } from './types'
 
-export const SENSOR_KINDS = ['dht11', 'hc-sr04', 'hc-sr501', 'light', 'sound', 'soil', 'flame', 'mq2', 'obstacle', 'hall', 'thermistor', 'vibration', 'motor', 'sg90', 'traffic-light', 'relay', 'potentiometer'] as const
+export const SENSOR_KINDS = ['dht11', 'hc-sr04', 'hc-sr501', 'light', 'sound', 'soil', 'flame', 'mq2', 'obstacle', 'hall', 'thermistor', 'vibration', 'motor', 'sg90', 'traffic-light', 'relay', 'potentiometer', 'buzzer'] as const
 export type SensorKind = typeof SENSOR_KINDS[number]
 export const PALETTE_SENSOR_KINDS: SensorKind[] = ['dht11', 'hc-sr04', 'obstacle', 'light', 'sound', 'thermistor', 'mq2', 'motor', 'sg90', 'traffic-light', 'relay', 'vibration', 'potentiometer']
 export interface SensorModel { name: string; model: string; pins: string[]; width: number; height: number; color: string; headHeight?: number }
@@ -23,6 +23,7 @@ export const SENSOR_MODELS: Record<SensorKind, SensorModel> = {
   sg90: { name: 'SG90 舵机', model: 'SG90', pins: ['GND', 'VCC', 'PWM'], width: 110, height: 120, color: '#236ac0' },
   'traffic-light': { name: '红绿灯模块', model: 'TRAFFIC LIGHT', pins: ['GND', 'R', 'Y', 'G'], width: 68, height: 168, color: '#285b43' },
   relay: { name: '单路继电器', model: 'RELAY · 1CH', pins: ['VCC', 'GND', 'IN', 'NC', 'COM', 'NO'], width: 62, height: 130, color: '#173d68' },
+  buzzer: { name: '无源压电蜂鸣器', model: '两脚无源压电蜂鸣器', pins: ['+', '−'], width: 76, height: 76, color: '#202124' },
   potentiometer: { name: '旋钮电位器', model: 'ROTARY POT', pins: ['VCC', 'SIG', 'GND'], width: 96, height: 110, color: '#285b43' },
 
 }
