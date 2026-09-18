@@ -14,8 +14,10 @@ VITE_DEV_AUTH_BYPASS=true pnpm dev
 真实 CircuitJS 联调时，先在仓库根目录运行：
 
 ```bash
-python3 -m http.server 8000 --directory site
+python3 -m http.server 8000 --directory site/circuit
 ```
+
+此命令用于 Vite 联调，刻意以 `site/circuit` 为根目录；完整发布包预览请使用根目录的 `./serve.sh`。
 
 Vite 会把 `/circuit-engine` 代理到该服务。`VITE_DEV_AUTH_BYPASS` 只在开发模式生效，并让 CircuitJS 使用已有的离线仿真入口。
 
@@ -100,7 +102,7 @@ gradle breadboardBuild
 gradle makeSite
 ```
 
-后一个命令会将面包板产物一并复制到 `site/breadboard/`。
+后一个命令会将面包板产物一并复制到 `site/circuit/breadboard/`。
 
 ## 环境变量
 

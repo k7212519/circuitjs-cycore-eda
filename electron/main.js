@@ -49,11 +49,11 @@ function createMainWindow() {
   }
 
   if (isDev) {
-    const devIndex = path.resolve(__dirname, '..', 'site', 'index.html');
+    const devIndex = path.resolve(__dirname, '..', 'site', 'circuit', 'index.html');
     mainWindow.loadFile(devIndex);
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   } else {
-    const prodIndex = path.join(process.resourcesPath, 'site', 'index.html');
+    const prodIndex = path.join(process.resourcesPath, 'site', 'circuit', 'index.html');
     mainWindow.loadFile(prodIndex);
     // mainWindow.webContents.openDevTools({ mode: 'detach' }); //生产环境关闭devTools
   }
@@ -81,7 +81,7 @@ app.whenReady().then(() => {
     try {
       const { pathname: rawPathname } = new URL(url);
       let pathname = decodeURIComponent(rawPathname || '');
-      const prefixes = ['/circuitjs1/', '/img/', '/font/'];
+      const prefixes = ['/circuit/', '/circuitjs1/', '/img/', '/font/'];
       let sliceIndex = -1;
       for (const prefix of prefixes) {
         const i = pathname.indexOf(prefix);
@@ -89,7 +89,11 @@ app.whenReady().then(() => {
       }
       if (sliceIndex !== -1) {
         const subPath = pathname.slice(sliceIndex).replace(/^\/+/, '');
-        const mapped = path.normalize(path.join(siteDir, subPath));
+        const resourceRoot = subPath.startsWith('circuit/') ? siteDir : path.join(siteDir, 'circuit');
+        let mapped = path.normalize(path.join(resourceRoot, subPath));
+        if (fs.existsSync(mapped) && fs.statSync(mapped).isDirectory()) {
+          mapped = path.join(mapped, 'index.html');
+        }
         callback({ path: mapped });
         return;
       }

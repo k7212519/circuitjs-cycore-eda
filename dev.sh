@@ -1,5 +1,6 @@
 #!/bin/bash
 set -euo pipefail
+cd "$(dirname "$0")"
 
 echo "========================================="
 echo "GWT Development Mode Build"
@@ -24,7 +25,7 @@ echo "✓ 开发构建完成！"
 echo "========================================="
 echo ""
 echo "部署位置: ./site"
-echo "启动方式: 在浏览器中打开 ./site/circuitjs.html"
+echo "启动方式: ./serve.sh，然后打开 http://127.0.0.1:8080/"
 echo ""
 echo "调试提示:"
 echo "  1. 打开浏览器开发者工具 (F12)"

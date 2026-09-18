@@ -40,14 +40,14 @@
       },
       {
         "from": "../war/img",
-        "to": "site/img",
+        "to": "site/circuit/img",
         "filter": [
           "**/*"
         ]
       },
       {
         "from": "../src/com/lushprojects/circuitjs1/public",
-        "to": "site/circuitjs1",
+        "to": "site/circuit/circuitjs1",
         "filter": [
           "**/*"
         ]

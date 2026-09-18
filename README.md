@@ -49,29 +49,56 @@ Once you have successfully connected your local VS Code to the remote workspace,
 
 ### Development using Gradle
 
-To build the application using gradle, do the following:
+Run `./build.sh` (or `gradle makeSite`) to compile both GWT and the breadboard
+frontend and produce the complete static site. Requires Java, Gradle, Node.js
+20.19+ and pnpm 10. The build synchronizes `site/`, removing obsolete output.
 
 ```bash
-# 1. Run Gradle build with verbose output:
-gradle compileGwt --console verbose --info
-# 2. Create the web-site directory from the build files:
-gradle makeSite --console verbose --info
+./build.sh
+./serve.sh
 ```
 
-Now, just open `site/circuitjs.html` with your browser and enjoy!
+Open `http://127.0.0.1:8080/`. Do not open the HTML via `file://`.
 
-You can do the same thing inside GitHub Codespaces.  Then after creating the site directory, you can create a web server using:
+### 统一发布目录（EdgeOne Makers / 自建服务器）
 
-```bash
-cd site
-python3 -m http.server
+所有平台使用同一份 `site/` 产物：
+
+```text
+site/
+├── index.html                 # 跳转到 /circuit/circuitjs.html
+└── circuit/
+    ├── index.html
+    ├── circuitjs.html
+    ├── login.html
+    ├── activate.html
+    ├── api.js
+    ├── circuitjs1/
+    ├── breadboard/
+    │   ├── index.html
+    │   └── assets/
+    └── 其他静态资源
 ```
 
-Then go to the Ports tab, hover over the "Forwarded Address" and click "Follow Link".  Then click `circuitjs.html` to view the application.
+- **EdgeOne Makers**：完整上传 `site/` 的内容；发布根目录必须直接包含
+  `index.html` 和 `circuit/`。若在平台构建，项目根目录设为本目录，构建命令
+  为 `./build.sh`，输出目录为 `site`；构建环境须提供上述工具，否则本地构建后上传。
+- **自建服务器**：把完整 `site/` 内容上传到网站根目录，使用普通静态文件服务。
+  删除旧的 `location = /circuit` 和 `location ^~ /circuit/` alias 配置，
+  由真实的 `circuit/` 目录处理请求。目录默认页使用 `index.html`。
+- 不要配置把现有静态资源强制改写为根目录 `index.html` 的兜底规则。
+- 旧版根路径入口改为 `/circuit/circuitjs.html`；网站首页会自动跳转。
+- `site/` 是生成目录，不要直接维护其中的文件。首页源文件在 `deployment/index.html`。
+
+发布后检查 `/circuit/login.html`、`/circuit/circuitjs.html` 和
+`/circuit/breadboard/`，确认 `/circuit/breadboard/assets/` 的 JS 请求返回
+JavaScript，而不是首页 HTML。登录后点击“实物仿真”，确认求解引擎正常连接。
+
+面包板 Vite 联调方式见 [breadboard-simulation/README.md](breadboard-simulation/README.md)。
 
 ## Deployment of the web application
 
-* "GWT Compile Project..." as explained above or run `./dev.sh compile`. This will put the outputs in to the "war" directory in the Eclipse project folder. You then need to copy everything in the "war" directory, except the "WEB-INF" directory, on to your web server.
+* Run `./build.sh` and deploy the complete `site/` output as described above. Do not deploy `war/` directly; it lacks the portable `/circuit/` directory layout.
 * Customize the header of the file "circuitjs1.html" to include your tracking, favicon etc.
 * Customize the "iframe.html" file to include any branding you want in the right hand panel of the application
 * The optional file "shortrelay.php" is a server-side script to act as a relay to a URL shortening service to avoid cross-origin problems with a purely client solution. You may want to customize this for your site. If you don't want to use this feature edit the circuitjs1.java file before compiling.

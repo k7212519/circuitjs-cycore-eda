@@ -127,32 +127,21 @@ task cleanUp {
     }
 }
 
-//task makeSite(type: Copy) {
-task makeSite {
+// One portable static-site layout for EdgeOne and ordinary web servers.
+// Sync removes files left by the previous flat layout and old hashed assets.
+task makeSite(type: Sync) {
     group 'circuitjs1'
-    description 'Copy circuitjs resources from ./war ./build/gwt/out to ./site'
-    dependsOn 'breadboardBuild'
-    //dependsOn compileGwt
-    //@SkipWhenEmpty
-    doLast {
-        // Copying files using the copy() method without up-to-date check
-        copy {
-            println "\nCopying contents of ./war AND ./build/gwt/out into ./site ..."
-            from 'war'
-            include('**/*.html', 'api.js', 'css/menu.css')
-            from('war/breadboard') {
-                include('**/*')
-                into 'breadboard'
-            }
-            from 'build/gwt/out'
-            include('**/*')                 // to ensure recursion!
-            exclude('gwt/', 'WEB-INF/')
-            into 'site'
-
-            duplicatesStrategy = DuplicatesStrategy.INCLUDE  // Change to INCLUDE, WARN, or FAIL as needed
-
-            println "Done\n"
-        }
+    description 'Build the complete static site under ./site/circuit with a root entry page.'
+    dependsOn 'compileGwt', 'breadboardBuild'
+    into siteDir
+    from('deployment') {
+        include 'index.html'
+    }
+    into('circuit') {
+        from 'war'
+        from 'build/gwt/out'
+        exclude 'gwt/**', 'WEB-INF/**', '**/.DS_Store'
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
     }
 }
 
