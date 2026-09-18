@@ -370,14 +370,16 @@
             const offlineLink = document.getElementById('offline-link');
 
             // 面包板等独立页面登录后可安全返回来源页面；仅允许当前源，避免开放重定向。
-            function redirectToRequestedPageOrCircuit() {
-                const requestedUrl = sessionStorage.getItem('redirect_after_login');
+            function redirectToRequestedPageOrCircuit(requestedUrl = sessionStorage.getItem('redirect_after_login')) {
+                sessionStorage.removeItem('redirect_after_login');
                 if (requestedUrl) {
                     try {
                         const target = new URL(requestedUrl, window.location.href);
-                        if (target.origin === window.location.origin) {
+                        const circuitPath = new URL('circuitjs.html', window.location.href).pathname;
+                        const allowedPaths = [circuitPath, '/circuit/breadboard/', '/circuit/breadboard/index.html'];
+                        if (target.origin === window.location.origin && allowedPaths.includes(target.pathname)) {
                             sessionStorage.removeItem('redirect_after_login');
-                            window.location.href = target.href;
+                            window.location.replace(target.href);
                             return;
                         }
                     } catch (error) {
@@ -385,7 +387,7 @@
                     }
                     sessionStorage.removeItem('redirect_after_login');
                 }
-                window.location.href = 'circuitjs.html';
+                window.location.replace(new URL('circuitjs.html', window.location.href).href);
             }
             
             // 从localStorage获取保存的用户名（如果有）
@@ -438,28 +440,25 @@
                                 sessionStorage.removeItem('pending_save_circuit');
                                 sessionStorage.removeItem('return_url');
                                 sessionStorage.setItem('circuit_to_save', pendingSaveCircuit);
-                                window.location.href = returnUrl;
+                                redirectToRequestedPageOrCircuit(returnUrl);
                             } else {
                                 redirectToRequestedPageOrCircuit();
                             }
                         } else {
-                            // token无效，清理所有认证信息
-                            localStorage.removeItem('eda_token');
-                            sessionStorage.removeItem('eda_token');
-                            localStorage.removeItem('eda_user');
-                            localStorage.removeItem('userId');
-                            sessionStorage.removeItem('userId');
                             sessionStorage.removeItem('authenticated');
+                            if (data.code === 401) clearAuthentication();
+                            loginError.textContent = data.message || data.msg || '无法恢复登录，请重新登录或稍后重试';
+                            loginError.style.display = 'block';
                         }
                     })
                     .catch(error => {
                         console.error('验证token失败:', error);
-                        localStorage.removeItem('eda_token');
-                        sessionStorage.removeItem('eda_token');
-                        localStorage.removeItem('eda_user');
-                        localStorage.removeItem('userId');
-                        sessionStorage.removeItem('userId');
                         sessionStorage.removeItem('authenticated');
+                        if (error.status === 401) clearAuthentication();
+                        loginError.textContent = error.status === 401
+                            ? '登录已失效，请重新登录'
+                            : '暂时无法验证登录，请检查网络后重试，或使用访客模式';
+                        loginError.style.display = 'block';
                     });
             }
             
@@ -585,7 +584,7 @@
                             sessionStorage.setItem('circuit_to_save', pendingSaveCircuit);
                             
                             console.log("检测到有待保存的电路，重定向回原页面");
-                            window.location.href = returnUrl;
+                            redirectToRequestedPageOrCircuit(returnUrl);
                         } else {
                             // 正常登录流程，跳转到首页
                             redirectToRequestedPageOrCircuit();
@@ -620,7 +619,7 @@
                         localStorage.removeItem('userId');
                         sessionStorage.removeItem('authenticated');
                         // 直接进入仿真页
-                        window.location.href = 'circuitjs.html';
+                        window.location.replace(new URL('circuitjs.html', window.location.href).href);
                     }
                 });
             }

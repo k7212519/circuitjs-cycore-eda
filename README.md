@@ -96,6 +96,24 @@ JavaScript，而不是首页 HTML。登录后点击“实物仿真”，确认�
 
 面包板 Vite 联调方式见 [breadboard-simulation/README.md](breadboard-simulation/README.md)。
 
+### 实物仿真的离线缓存与登录
+
+- 实物仿真及内嵌求解器无需登录，不在启动、刷新或切回窗口时校验 token。
+- 打开、保存、另存和删除云端项目时才使用 token；由项目接口校验身份与权限。
+  未登录或接口返回 HTTP/业务码 401 时跳转 `/circuit/login.html`，保留本地工作区
+  和登录回跳地址。网络故障不会清除 token 或触发登录跳转。
+- `gradle makeSite` 生成带内容版本号的 Service Worker 和静态资源清单。
+  首次联网打开实物仿真并完成资源缓存后，可断网刷新并继续运行求解器。
+  尚未下载过的站点无法首次离线访问；云端项目操作仍需要网络。
+- 带内容哈希的 JS/CSS 优先使用缓存；HTML 和其他静态文件联网时检查更新，
+  断网时回退缓存。登录页、API 响应和不存在的路径不写入离线缓存。
+- 新版本完整缓存成功后激活，清理旧版 `v1` 缓存，并保留上一版本的静态资源供
+  已打开的页面使用。不删除用户登录信息、草稿或设置。
+
+完整构建后的浏览器验证脚本为 `breadboard-simulation/e2e/offline_qa.py`，
+需先在 `127.0.0.1:8766` 提供 `site/` 静态服务（Python Playwright）。
+
+
 ## Deployment of the web application
 
 * Run `./build.sh` and deploy the complete `site/` output as described above. Do not deploy `war/` directly; it lacks the portable `/circuit/` directory layout.

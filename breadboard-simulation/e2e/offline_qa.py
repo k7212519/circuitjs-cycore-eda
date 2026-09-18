@@ -9,6 +9,11 @@ with sync_playwright() as p:
     api_requests = []
     page.on('request', lambda request: api_requests.append(request.url)
             if 'api-eda.cycore.com.cn' in request.url or '/eda/login/validate' in request.url else None)
+    page.goto(BASE + '/circuit/manifest.json')
+    page.evaluate('''async () => {
+      const cache = await caches.open('circuitjs1-app-cache-v1');
+      await cache.put('/circuit/breadboard/', new Response('obsolete login redirect'));
+    }''')
     page.goto(BASE + '/circuit/breadboard/')
     page.wait_for_load_state('networkidle')
     print('Toolbar:', page.locator('.tool-actions button').all_text_contents())
@@ -17,6 +22,7 @@ with sync_playwright() as p:
     page.wait_for_function('navigator.serviceWorker.controller !== null', timeout=60000)
     cache_names = page.evaluate('caches.keys()')
     assert any(name.startswith('circuitjs1-app-cache-') for name in cache_names)
+    assert 'circuitjs1-app-cache-v1' not in cache_names
     print('PASS: guest entry and embedded engine make no authentication requests; offline cache installed')
 
     # Simulate expired credentials. Entry must still be completely local.

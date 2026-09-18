@@ -499,7 +499,8 @@ API.checkConnection = function() {
 // 验证令牌
 API.validateToken = function() {
   return API.request('/eda/login/validate', {
-    method: 'GET'
+    method: 'GET',
+    cache: 'no-store'
   });
 };
 
@@ -603,18 +604,10 @@ API.request = function(url, options = {}, timeout = 10000) {
           console.warn("认证失败，HTTP状态码：401");
           clearAuthentication();
           
-          // 尝试获取详细错误信息
-          return response.json().then(errorData => {
-            const errorDetail = errorData.msg || errorData.message || "认证失败";
-            console.warn("认证错误详情:", errorDetail);
-            throw new Error("认证失败: " + errorDetail);
-          }).catch(e => {
-            if (e.message && e.message.includes("JSON")) {
-              // JSON解析失败，可能是非JSON响应
-              throw new Error("认证失败 (401)");
-            } else {
-              throw e; // 重新抛出已处理的错误
-            }
+          return response.json().catch(() => ({})).then(errorData => {
+            const error = new Error(errorData.msg || errorData.message || '认证失败');
+            error.status = 401;
+            throw error;
           });
         }
         
