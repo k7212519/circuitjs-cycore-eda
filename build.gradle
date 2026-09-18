@@ -143,6 +143,27 @@ task makeSite(type: Sync) {
         exclude 'gwt/**', 'WEB-INF/**', '**/.DS_Store'
         duplicatesStrategy = DuplicatesStrategy.INCLUDE
     }
+    doLast {
+        // Version the worker from every offline resource, including hashed GWT
+        // and Vite bundles. Exclude account pages and source maps from precache.
+        def offlineFiles = fileTree(new File(siteDir, 'circuit')) {
+            include 'breadboard/**', 'circuitjs1/**', 'css/**', 'font/**', 'img/**', 'avr8js/**'
+            include 'circuitjs.html', '*.js', '*.png', 'manifest.json'
+            exclude '**/*.map', 'service-worker.js', '**/.DS_Store'
+        }.files.sort { it.path }
+        def digest = java.security.MessageDigest.getInstance('SHA-256')
+        digest.update(file('war/service-worker.js').bytes)
+        def urls = offlineFiles.collect { asset ->
+            def relative = siteDir.toPath().relativize(asset.toPath()).toString().replace('\\', '/')
+            digest.update(relative.getBytes('UTF-8'))
+            digest.update(asset.bytes)
+            '/' + relative
+        }
+        def config = groovy.json.JsonOutput.toJson([version: digest.digest().encodeHex().toString().substring(0, 16), urls: urls])
+        def worker = new File(siteDir, 'circuit/service-worker.js')
+        worker.text = file('war/service-worker.js').getText('UTF-8').replace(
+            "/* OFFLINE_BUILD */ { version: 'development', urls: [] }", config)
+    }
 }
 
 // React/TypeScript breadboard simulator embedded in the CircuitJS product.

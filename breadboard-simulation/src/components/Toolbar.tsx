@@ -11,12 +11,11 @@ interface Props {
   onSave: () => void
   onSaveAs: () => void
   saving: boolean
-  cloudEnabled: boolean
   theme: 'dark' | 'light'
   onToggleTheme: () => void
 }
 
-export function Toolbar({ onNew, onOpen, onSave, onSaveAs, saving, cloudEnabled, theme, onToggleTheme }: Props) {
+export function Toolbar({ onNew, onOpen, onSave, onSaveAs, saving, theme, onToggleTheme }: Props) {
   const document = useWorkbenchStore((state) => state.document)
   const projectId = useWorkbenchStore((state) => state.projectId)
   const dirty = useWorkbenchStore((state) => state.dirty)
@@ -34,13 +33,11 @@ export function Toolbar({ onNew, onOpen, onSave, onSaveAs, saving, cloudEnabled,
         </div>
       </div>
 
-      <div className={`project-title-wrap ${cloudEnabled ? '' : 'is-guest'}`}>
+      <div className="project-title-wrap">
         <span className={`save-dot ${dirty ? 'is-dirty' : ''}`} />
         <div>
           <strong>{document.projectName}</strong>
-          <small>{cloudEnabled
-            ? `${projectId ? `云端项目 #${projectId}` : '本地草稿'} · ${dirty ? '有未保存更改' : '已保存'}`
-            : `访客模式 · ${dirty ? '本地草稿已自动恢复' : '仅限本地仿真'}`}</small>
+          <small>{`${projectId ? `云端项目 #${projectId}` : '本地草稿'} · ${dirty ? '有未保存更改' : '已保存'}`}</small>
         </div>
         <ChevronDown size={15} />
       </div>
@@ -48,9 +45,9 @@ export function Toolbar({ onNew, onOpen, onSave, onSaveAs, saving, cloudEnabled,
       <nav className="tool-actions" aria-label="项目操作">
         <div className="tool-cluster">
           <button type="button" className="icon-button" onClick={onNew} title="新建"><FilePlus2 size={17} /></button>
-          <button type="button" className="icon-button" onClick={onOpen} disabled={!cloudEnabled} title={cloudEnabled ? '打开' : '访客模式不能打开云项目'}><FolderOpen size={17} /></button>
-          <button type="button" className="icon-button" onClick={onSave} disabled={saving || !cloudEnabled} title={cloudEnabled ? '保存' : '访客模式不能保存云项目'}><Save size={17} /></button>
-          <button type="button" className="text-button" onClick={onSaveAs} disabled={saving || !cloudEnabled} title={cloudEnabled ? '另存' : '访客模式不能另存到云端'}>另存</button>
+          <button type="button" className="icon-button" onClick={onOpen} title="打开云端项目"><FolderOpen size={17} /></button>
+          <button type="button" className="icon-button" onClick={onSave} disabled={saving} title="保存到云端"><Save size={17} /></button>
+          <button type="button" className="text-button" onClick={onSaveAs} disabled={saving} title="另存到云端">另存</button>
         </div>
         <button type="button" className={`run-button ${running ? 'is-running' : ''}`} onClick={toggleRunning}>
           {running ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}

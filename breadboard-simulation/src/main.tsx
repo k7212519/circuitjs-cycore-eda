@@ -18,3 +18,11 @@ createRoot(document.getElementById('root')!).render(
     </QueryClientProvider>
   </StrictMode>,
 )
+
+// Register even when the workbench is opened directly, without the CircuitJS page.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register('/circuit/service-worker.js', { updateViaCache: 'none' })
+      .catch(error => console.warn('离线缓存注册失败', error))
+  })
+}

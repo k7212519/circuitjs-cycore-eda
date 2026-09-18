@@ -1,5 +1,4 @@
 const TOKEN_KEYS = ['eda_token'] as const
-export type AccessMode = 'authenticated' | 'guest'
 
 export function getToken(): string | null {
   for (const key of TOKEN_KEYS) {
@@ -18,8 +17,8 @@ export function clearAuthentication(): void {
 }
 
 export function loginUrl(): string {
-  return import.meta.env.VITE_LOGIN_URL
-    || (import.meta.env.DEV ? '/circuit-engine/login.html' : '/circuit/login.html')
+  return new URL(import.meta.env.VITE_LOGIN_URL || 'login.html',
+    new URL(import.meta.env.DEV ? '/circuit-engine/' : '/circuit/', window.location.origin)).href
 }
 
 export function activationUrl(): string {
@@ -59,45 +58,17 @@ async function importDevelopmentTokenFromCircuitJs(): Promise<void> {
   })
 }
 
-function enterGuestMode(): AccessMode {
-  sessionStorage.setItem('authenticated', 'true')
-  sessionStorage.setItem('offline_mode', 'true')
-  sessionStorage.removeItem('redirect_after_login')
-  return 'guest'
-}
-
-export async function ensureAuthenticated(): Promise<AccessMode> {
-  if (import.meta.env.DEV && import.meta.env.VITE_DEV_AUTH_BYPASS === 'true') {
-    return enterGuestMode()
-  }
+// Simulation is public. Tokens are consulted only for user-triggered cloud actions.
+export async function requireCloudToken(): Promise<string> {
   await importDevelopmentTokenFromCircuitJs()
   const token = getToken()
-  if (!token) return enterGuestMode()
+  if (!token) redirectToLogin()
+  return token!
+}
 
-  const base = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? '/api' : 'https://api-eda.cycore.com.cn')
-  let response: Response
-  try {
-    response = await fetch(`${base}/eda/login/validate`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-  } catch {
-    return enterGuestMode()
-  }
-  if (response.status === 401) {
-    clearAuthentication()
-    return enterGuestMode()
-  }
-  const result = await response.json() as { code?: number; data?: { productAccess?: { status?: string } } }
-  if (!response.ok || result.code !== 200) {
-    clearAuthentication()
-    return enterGuestMode()
-  }
-  if (result.data?.productAccess?.status !== 'ACTIVE') {
-    window.location.assign(activationUrl())
-    throw new Error('ACTIVATION_REDIRECT')
-  }
-  sessionStorage.setItem('authenticated', 'true')
-  sessionStorage.removeItem('offline_mode')
-  sessionStorage.removeItem('redirect_after_login')
-  return 'authenticated'
+export function redirectToLogin(): never {
+  clearAuthentication()
+  sessionStorage.setItem('redirect_after_login', window.location.href)
+  window.location.assign(loginUrl())
+  throw new Error('请登录后使用云端项目')
 }

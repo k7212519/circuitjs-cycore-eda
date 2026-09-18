@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, LoaderCircle } from 'lucide-react'
+import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { BreadboardCanvas } from '@/components/BreadboardCanvas'
 import { Inspector } from '@/components/Inspector'
 import { Palette } from '@/components/Palette'
@@ -8,7 +8,7 @@ import { ProjectDialog } from '@/components/ProjectDialog'
 import { Toolbar } from '@/components/Toolbar'
 import { parseDocument, serializeDocument } from '@/domain/document'
 import { projectApi } from '@/services/api'
-import { ensureAuthenticated, type AccessMode } from '@/services/auth'
+import { requireCloudToken } from '@/services/auth'
 import { CircuitJsEngine } from '@/services/CircuitJsEngine'
 import { useWorkbenchStore } from '@/store/useWorkbenchStore'
 
@@ -37,8 +37,6 @@ function persistCurrentWorkspace(): void {
 
 export default function App() {
   const [theme, setTheme] = useState<Theme>(() => localStorage.getItem(THEME_KEY) === 'false' ? 'light' : 'dark')
-  const [authReady, setAuthReady] = useState(false)
-  const [accessMode, setAccessMode] = useState<AccessMode>('guest')
   const [dialog, setDialog] = useState<'open' | 'saveAs' | null>(null)
   const [toast, setToast] = useState<{ kind: 'ok' | 'error'; message: string } | null>(null)
   const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false)
@@ -87,6 +85,7 @@ export default function App() {
 
   const saveMutation = useMutation({
     mutationFn: async ({ saveAsName }: { saveAsName?: string }) => {
+      persistCurrentWorkspace()
       if (saveAsName || !projectId) {
         const name = saveAsName || document.projectName
         const response = await projectApi.create(name, { ...document, projectName: name })
@@ -107,18 +106,6 @@ export default function App() {
     },
     onError: (cause) => setToast({ kind: 'error', message: cause instanceof Error ? cause.message : '保存失败' }),
   })
-
-  useEffect(() => {
-    ensureAuthenticated().then((mode) => {
-      setAccessMode(mode)
-      setAuthReady(true)
-    }).catch((cause) => {
-      if (!String(cause).includes('REDIRECT')) {
-        setAccessMode('guest')
-        setAuthReady(true)
-      }
-    })
-  }, [])
 
   useEffect(() => {
     const draft = localStorage.getItem(DRAFT_KEY)
@@ -142,10 +129,10 @@ export default function App() {
   }, [loadProject])
 
   useEffect(() => {
-    if (!authReady || !restoredWorkspaceRef.current) return
+    if (!restoredWorkspaceRef.current) return
     restoredWorkspaceRef.current = false
     queueMicrotask(() => setToast({ kind: 'ok', message: '已恢复上次的面包板工作区' }))
-  }, [authReady])
+  }, [])
 
   useEffect(() => {
     if (!workspaceHydratedRef.current) return
@@ -178,6 +165,16 @@ export default function App() {
     return () => window.clearTimeout(timer)
   }, [toast])
 
+  const openCloudDialog = useCallback(async (mode: 'open' | 'saveAs') => {
+    try {
+      persistCurrentWorkspace()
+      await requireCloudToken()
+      setDialog(mode)
+    } catch (cause) {
+      setToast({ kind: 'error', message: cause instanceof Error ? cause.message : '无法打开云端项目' })
+    }
+  }, [])
+
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return
@@ -207,18 +204,13 @@ export default function App() {
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
         event.preventDefault()
-        if (accessMode === 'guest') setToast({ kind: 'error', message: '访客模式不能保存云项目，本地恢复草稿会自动保留' })
-        else if (projectId) saveMutation.mutate({})
-        else setDialog('saveAs')
+        if (projectId) saveMutation.mutate({})
+        else void openCloudDialog('saveAs')
       }
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [accessMode, canvasFullscreen, deleteSelected, projectId, redo, saveMutation, setActiveTool, toggleCanvasFullscreen, undo])
-
-  if (!authReady) {
-    return <div className="boot-screen"><span className="brand-mark large"><span>+</span><span>−</span></span><LoaderCircle className="spin" /><strong>正在准备面包板实验台…</strong></div>
-  }
+  }, [openCloudDialog, canvasFullscreen, deleteSelected, projectId, redo, saveMutation, setActiveTool, toggleCanvasFullscreen, undo])
 
   const requestNew = () => {
     if (!useWorkbenchStore.getState().dirty || window.confirm('新建项目会清空当前画布，未保存更改仍可从本地草稿恢复。继续吗？')) newProject()
@@ -228,11 +220,10 @@ export default function App() {
     <div className={`app-shell ${canvasFullscreen ? 'is-canvas-fullscreen' : ''}`}>
       <Toolbar
         onNew={requestNew}
-        onOpen={() => setDialog('open')}
-        onSave={() => projectId ? saveMutation.mutate({}) : setDialog('saveAs')}
-        onSaveAs={() => setDialog('saveAs')}
+        onOpen={() => { void openCloudDialog('open') }}
+        onSave={() => { if (projectId) saveMutation.mutate({}); else void openCloudDialog('saveAs') }}
+        onSaveAs={() => { void openCloudDialog('saveAs') }}
         saving={saveMutation.isPending}
-        cloudEnabled={accessMode === 'authenticated'}
         theme={theme}
         onToggleTheme={() => setTheme((current) => current === 'dark' ? 'light' : 'dark')}
       />

@@ -128,8 +128,8 @@ export function CircuitJsEngine({ document: workspaceDocument, closedContacts, r
   const disabled = import.meta.env.VITE_DISABLE_ENGINE === 'true'
   const src = import.meta.env.VITE_CIRCUITJS_URL
     || (import.meta.env.DEV
-      ? '/circuit-engine/circuitjs.html?hideSidebar=true&hideMenu=true&hideInfoBox=true&editable=false'
-      : '/circuit/circuitjs.html?hideSidebar=true&hideMenu=true&hideInfoBox=true&editable=false')
+      ? '/circuit-engine/circuitjs.html?simulationOnly=true&hideSidebar=true&hideMenu=true&hideInfoBox=true&editable=false'
+      : '/circuit/circuitjs.html?simulationOnly=true&hideSidebar=true&hideMenu=true&hideInfoBox=true&editable=false')
 
   useEffect(() => {
     runningRef.current = running

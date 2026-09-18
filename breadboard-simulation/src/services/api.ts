@@ -1,4 +1,4 @@
-import { activationUrl, clearAuthentication, getToken, loginUrl } from './auth'
+import { activationUrl, redirectToLogin, requireCloudToken } from './auth'
 import type { BreadboardDocument } from '@/domain/types'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? '/api' : 'https://api-eda.cycore.com.cn')
@@ -31,9 +31,10 @@ export interface ProjectPage {
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = getToken()
+  const token = await requireCloudToken()
   const response = await fetch(`${API_BASE}${path}`, {
     ...init,
+    cache: 'no-store',
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -41,12 +42,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     },
   })
   const payload = await response.json().catch(() => ({})) as ApiEnvelope<T>
-  if (response.status === 401) {
-    clearAuthentication()
-    window.location.assign(loginUrl())
-    throw new Error('登录状态已失效')
-  }
-  if (response.status === 403 && ['PRODUCT_ACCESS_REQUIRED', 'PRODUCT_ACCESS_REVOKED'].includes(payload.errorCode ?? '')) {
+  if (response.status === 401 || payload.code === 401) redirectToLogin()
+  if ((response.status === 403 || payload.code === 403) && ['PRODUCT_ACCESS_REQUIRED', 'PRODUCT_ACCESS_REVOKED'].includes(payload.errorCode ?? '')) {
     window.location.assign(activationUrl())
     throw new Error('当前账户没有 L1 使用权限')
   }

@@ -20,6 +20,10 @@ export function ProjectDialog({ mode, currentName, onClose, onOpen, onSaveAs }: 
     queryKey: ['breadboard-projects'],
     queryFn: () => projectApi.list(),
     enabled: mode === 'open',
+    retry: false,
+    staleTime: 0,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
   const remove = useMutation({
     mutationFn: projectApi.remove,
