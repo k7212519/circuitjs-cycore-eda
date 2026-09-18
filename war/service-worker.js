@@ -1,74 +1,19 @@
-const CACHE_NAME = 'circuitjs1-app-cache-v1';
-const urlsToCache = [
-  '/circuit/about.html',
-  '/circuit/canvas2svg.js',
-  '/circuit/circuitjs.html',
-  '/circuit/crystal.html',
-  '/circuit/customfunction.html',
-  '/circuit/customlogic.html',
-  '/circuit/customtransformer.html',
-  '/circuit/diodecalc.html',
-  '/circuit/icon512.png',
-  '/circuit/icon128.png',
-  '/circuit/iframe.html',
-  '/circuit/lz-string.min.js',
-  '/circuit/manifest.json',
-  '/circuit/mexle.html',
-  '/circuit/mosfet-beta.html',
-  '/circuit/opampreal.html',
-  '/circuit/split.js',
-  '/circuit/subcircuits.html',
-  // put everything else here
-];
-
+// Retire the legacy cache-first worker. It cached HTML, missing-page fallbacks,
+// and authenticated API responses indefinitely across deployments.
+// Keep this file at its original URL so existing installations can upgrade.
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(urlsToCache))
-  );
+  event.waitUntil(self.skipWaiting());
 });
 
-self.addEventListener('fetch', (event) => {
-    event.respondWith(
-        caches.match(event.request).then((cachedResponse) => {
-            if (cachedResponse) {
-                // If the resource is already cached, return it
-                return cachedResponse;
-            }
-
-            // Otherwise, fetch it from the network and add it to the cache
-            return fetch(event.request).then((networkResponse) => {
-                // Only cache non-GET requests and responses that aren't errors
-                if (
-                    event.request.method === 'GET' &&
-                    networkResponse.status === 200
-                ) {
-		    const responseClone = networkResponse.clone();
-                    caches.open(CACHE_NAME).then((cache) => {
-                        cache.put(event.request, responseClone);
-                    });
-                }
-
-                return networkResponse;
-            });
-        })
-    );
+self.addEventListener('activate', event => {
+  event.waitUntil((async () => {
+    const names = await caches.keys();
+    await Promise.all(names
+      .filter(name => name.startsWith('circuitjs1-app-cache-'))
+      .map(name => caches.delete(name)));
+    await self.clients.claim();
+  })());
 });
 
-
-// Activate event: cleans up old caches
-self.addEventListener('activate', (event) => {
-    const cacheWhitelist = [CACHE_NAME];  // List of cache versions you want to keep
-
-    event.waitUntil(
-        caches.keys().then((cacheNames) => {
-            return Promise.all(
-                cacheNames.map((cacheName) => {
-                    if (!cacheWhitelist.includes(cacheName)) {
-                        return caches.delete(cacheName);  // Delete old caches that aren't in whitelist
-                    }
-                })
-            );
-        })
-    );
-});
+// Deliberately do not intercept fetch: HTTP cache rules and the network handle
+// requests, including login validation. Do not reload tabs or erase user data.
