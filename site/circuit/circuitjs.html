@@ -1,0 +1,2788 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <link rel="manifest" href="/circuit/manifest.json">
+  
+    <!-- 登录验证脚本 -->
+    <script src="api.js"></script>
+    <script>
+      // 检查用户是否已登录；离线模式下跳过
+      const isOfflineMode = sessionStorage.getItem('offline_mode') === 'true';
+      if (!isOfflineMode && sessionStorage.getItem('authenticated') !== 'true') {
+        // 记录当前页面URL，以便登录后返回
+        sessionStorage.setItem('redirect_after_login', window.location.href);
+        // 未登录，重定向到登录页
+        window.location.href = 'login.html';
+      } else if (!isOfflineMode) {
+        API.validateToken().then(function(response) {
+          if (response.code !== 200) {
+            window.location.href = 'login.html';
+          } else if (!response.data.productAccess ||
+                     response.data.productAccess.status !== 'ACTIVE') {
+            window.location.href = 'activate.html';
+          }
+        }).catch(function(error) {
+          if (!error.errorCode) {
+            window.location.href = 'login.html';
+          }
+        });
+      }
+    </script>
+  
+    <!-- Properties can be specified to influence deferred binding -->
+    <meta name='gwt:property' content='locale=en_UK'>
+    
+    <!-- 引入CSS文件 -->
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/menu.css">
+    <link rel="stylesheet" href="css/gwt-menu.css">
+    <link rel="stylesheet" href="css/menu-dark.css">
+    <link rel="stylesheet" href="css/dialog.css">
+    <link rel="stylesheet" href="css/popup.css">
+    <link rel="stylesheet" href="font/fontello.css">
+    
+    <!-- Titles are optional, but useful -->
+    <title></title>
+
+
+
+</head>
+  <body>
+  <!-- 添加顶部按钮和下拉菜单 -->
+  <div class="header-nav">
+    <!-- 暗黑模式切换按钮 -->
+    <div class="theme-toggle">
+      <button id="themeToggleBtn" class="theme-btn">
+        <img src="img/svg/mode-light-filled.svg" alt="切换主题" class="btn-icon theme-icon" id="themeIcon">
+      </button>
+    </div>
+    <!-- 实物面包板仿真入口：使用独立页面，不在 CircuitJS 内弹窗 -->
+    <a id="breadboardBtn" class="dropbtn" href="/circuit/breadboard/" target="_blank" rel="noopener noreferrer" title="在新标签页打开实物面包板仿真">
+      <img src="img/svg/breadboard-outline.svg" alt="" class="btn-icon" aria-hidden="true">
+      <span>实物仿真</span>
+    </a>
+    <!-- 项目按钮 -->
+    <div class="dropdown">
+      <button id="projectBtn" class="dropbtn">
+        <img src="img/svg/folder-open.svg" alt="项目" class="btn-icon">
+        <span>项目</span>
+      </button>
+      <div id="projectDropdown" class="dropdown-content">
+        <a href="#" id="saveToCloudBtn">保存到云端</a>
+      </div>
+    </div>
+    
+    <!-- 个人中心按钮 -->
+    <div class="dropdown">
+      <button id="userCenterBtn" class="dropbtn">
+        <img src="img/svg/user-avatar.svg" alt="用户" class="btn-icon">
+        <span>个人中心</span>
+      </button>
+      <div id="userDropdown" class="dropdown-content">
+        <a href="userProfile.html">我的资料</a>
+        <a href="#" id="myExamLink">我的考试</a>
+        <a href="logout.html">退出登录</a>
+      </div>
+    </div>
+  </div>
+
+
+
+  <script>
+    // 全局变量，用于保存从GWT应用获取的电路数据
+    var circuitTextData = null;
+    
+    // 屏蔽不重要的日志（设置 window.__EDA_DEBUG__ = true 可恢复）
+    (function() {
+      try {
+        if (!window.__EDA_DEBUG__) {
+          const noop = function(){};
+          console.log = noop;
+          if (console.info) console.info = noop;
+          if (console.debug) console.debug = noop;
+        }
+      } catch (e) {}
+    })();
+    
+    // 用于接收GWT应用发送的电路文本数据的回调函数
+    function receiveCircuitText(text) {
+      // console.log("接收到电路文本数据，长度: " + (text ? text.length : 0));
+      circuitTextData = text;
+    }
+    
+    // 顶部菜单功能
+    document.addEventListener('DOMContentLoaded', function() {
+      // console.log("文档已加载，开始初始化顶部菜单");
+      
+      // 检查是否有来自登录页面的待保存电路数据
+      const circuitToSave = sessionStorage.getItem('circuit_to_save');
+      if (circuitToSave) {
+        // console.log("检测到登录后需要保存的电路数据");
+        sessionStorage.removeItem('circuit_to_save');
+        
+        // 等待页面和API完全加载
+        setTimeout(() => {
+          // 确保用户已登录（同时检查sessionStorage和localStorage）
+          const userId = sessionStorage.getItem('userId') || localStorage.getItem('userId');
+          const token = sessionStorage.getItem('eda_token') || localStorage.getItem('eda_token');
+          
+          if (userId && token) {
+            console.log("用户已登录，自动触发保存流程");
+            window.currentCircuitData = circuitToSave;
+            showProjectMenu();
+          }
+        }, 2000);
+      }
+      
+      // 主题切换按钮逻辑
+      const themeToggleBtn = document.getElementById('themeToggleBtn');
+      const themeIcon = document.getElementById('themeIcon');
+      const breadboardBtn = document.getElementById('breadboardBtn');
+
+      // 面包板编辑器是独立产品页面。CircuitJS 本地调试服务运行在 8000，
+      // 此时跳到 Vite 的 5174；正式部署后保持 /circuit 下的同源路径。
+      const isCircuitJsDevelopment = window.location.port === '8000'
+        && !window.location.pathname.startsWith('/circuit/');
+      breadboardBtn.href = isCircuitJsDevelopment
+        ? window.location.protocol + '//' + window.location.hostname + ':5174/circuit/breadboard/'
+        : '/circuit/breadboard/';
+
+      // 本地调试时 8000 与 5174 不同源，通过一次受限的 postMessage 握手复用
+      // CircuitJS 已有 token。生产部署同源，不需要也不会进入此分支。
+      if (isCircuitJsDevelopment) {
+        breadboardBtn.addEventListener('click', function(event) {
+          event.preventDefault();
+          const targetOrigin = new URL(breadboardBtn.href).origin;
+          const breadboardWindow = window.open(breadboardBtn.href, '_blank');
+          if (!breadboardWindow) return;
+
+          const handleAuthRequest = function(messageEvent) {
+            if (messageEvent.origin !== targetOrigin
+                || messageEvent.source !== breadboardWindow
+                || !messageEvent.data
+                || messageEvent.data.type !== 'cycore-breadboard-auth-request') return;
+            const token = sessionStorage.getItem('eda_token') || localStorage.getItem('eda_token');
+            breadboardWindow.postMessage({
+              type: 'cycore-breadboard-auth-response',
+              token: token || null
+            }, targetOrigin);
+            window.removeEventListener('message', handleAuthRequest);
+          };
+
+          window.addEventListener('message', handleAuthRequest);
+          window.setTimeout(function() {
+            window.removeEventListener('message', handleAuthRequest);
+          }, 3000);
+        });
+      }
+      
+      // 检查当前主题状态（默认为浅色模式）
+      let isDarkMode = localStorage.getItem('darkMode') === 'true';
+      
+      // 初始化页面主题
+      if (isDarkMode) {
+        document.body.classList.add('dark-mode');
+        document.documentElement.style.backgroundColor = '#000000';
+      } else {
+        document.body.classList.remove('dark-mode');
+        document.documentElement.style.backgroundColor = '#ffffff';
+      }
+      
+      // 初始化图标
+      updateThemeIcon();
+      
+      // 页面加载后同步GWT背景与当前主题
+      setTimeout(function() {
+        if (window.CircuitJS1) {
+          // 获取GWT当前背景状态（true表示白色背景）
+          const isWhiteBg = window.CircuitJS1.isWhiteBackground ? window.CircuitJS1.isWhiteBackground() : false;
+          // 如果GWT白背景状态与isDarkMode不匹配，则同步
+          if ((isWhiteBg && isDarkMode) || (!isWhiteBg && !isDarkMode)) {
+            console.log("同步GWT背景与主题设置");
+            window.CircuitJS1.toggleWhiteBackground();
+          }
+        }
+      }, 1500); // 给GWT应用足够的加载时间
+      
+      // 绑定点击事件
+      themeToggleBtn.addEventListener('click', function() {
+        isDarkMode = !isDarkMode;
+        localStorage.setItem('darkMode', isDarkMode);
+        
+        // 更新body类以应用暗黑模式CSS
+        if (isDarkMode) {
+          document.body.classList.add('dark-mode');
+          document.documentElement.style.backgroundColor = '#000000';
+        } else {
+          document.body.classList.remove('dark-mode');
+          document.documentElement.style.backgroundColor = '#ffffff';
+        }
+        
+        updateThemeIcon();
+        
+        // 调用GWT项目中的主题切换方法
+        if (window.CircuitJS1 && typeof window.CircuitJS1.toggleWhiteBackground === 'function') {
+          // 注意：CircuitJS1中白背景状态与isDarkMode相反
+          var isWhiteBg = window.CircuitJS1.toggleWhiteBackground();
+          console.log("主题已切换，GWT白色背景状态:", isWhiteBg);
+        } else {
+          console.log("无法切换GWT背景，CircuitJS1接口未就绪");
+        }
+        
+        // 通知iframe主题已变更
+        const popup = document.getElementById('corner-project-popup');
+        if (popup) {
+          const iframe = popup.querySelector('#save-popup-iframe');
+          if (iframe && iframe.contentWindow) {
+            iframe.contentWindow.postMessage({ type: 'themeChanged', isDarkMode }, '*');
+          }
+        }
+        
+        console.log("主题模式切换为:", isDarkMode ? "暗黑模式" : "浅色模式");
+      });
+      
+      // 更新主题图标
+      function updateThemeIcon() {
+        if (isDarkMode) {
+          themeIcon.src = "img/svg/mode-dark-filled.svg";
+          themeIcon.alt = "切换到浅色模式";
+          themeToggleBtn.title = "当前为暗色模式，点击切换到浅色模式";
+        } else {
+          themeIcon.src = "img/svg/mode-light-filled.svg";
+          themeIcon.alt = "切换到暗黑模式";
+          themeToggleBtn.title = "当前为浅色模式，点击切换到暗色模式";
+        }
+      }
+      
+      // 检查保存按钮是否存在
+      const saveBtn = document.getElementById('saveToCloudBtn');
+      if (saveBtn) {
+        console.log("找到保存到云端按钮，绑定点击事件");
+      } else {
+        console.error("未找到保存到云端按钮，请检查HTML结构");
+      }
+      
+      // 个人中心按钮下拉菜单
+      document.getElementById('userCenterBtn').addEventListener('click', function(e) {
+        e.preventDefault();
+        // 关闭其他下拉菜单
+        document.getElementById('projectDropdown').classList.remove('show');
+        // 切换当前下拉菜单显示状态
+        document.getElementById('userDropdown').classList.toggle('show');
+      });
+      
+      // 退出登录：拦截点击，调用后端注销并清理本地状态
+      (function() {
+        try {
+          var logoutLink = document.querySelector('#userDropdown a[href="logout.html"]');
+          if (logoutLink) {
+            logoutLink.addEventListener('click', function(e) {
+              e.preventDefault();
+              
+              var doCleanupAndRedirect = function() {
+                try {
+                  // 清理本地认证相关状态
+                  localStorage.removeItem('eda_token');
+                  sessionStorage.removeItem('eda_token');
+                  localStorage.removeItem('eda_user');
+                  localStorage.removeItem('eda_user_info');
+                  localStorage.removeItem('userId');
+                  sessionStorage.removeItem('userId');
+                  localStorage.removeItem('auth_error');
+                  // 不强制清理 saved_username，方便下次登录；但清理 saved_password
+                  localStorage.removeItem('saved_password');
+                  sessionStorage.removeItem('authenticated');
+                  sessionStorage.removeItem('offline_mode');
+                } catch(_) {}
+                // 跳转到登录页
+                window.location.href = 'login.html';
+              };
+              
+              try {
+                // 优先使用统一API模块
+                if (window.API && typeof window.API.logout === 'function') {
+                  API.logout().finally(doCleanupAndRedirect);
+                } else {
+                  // 后备：直接调用后端接口
+                  var token = (localStorage.getItem('eda_token') || '').trim();
+                  var apiBaseUrl = window.API_BASE_URL || (window.API && window.API.API_BASE_URL) || (window.location.protocol + '//' + window.location.hostname + ':8088');
+                  fetch(apiBaseUrl + '/eda/login', {
+                    method: 'DELETE',
+                    headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+                  }).finally(doCleanupAndRedirect);
+                }
+              } catch(err) {
+                // 出现异常也直接清理并跳转
+                doCleanupAndRedirect();
+              }
+            });
+          }
+        } catch (e) {
+          // 忽略绑定异常
+        }
+      })();
+      
+      // 项目按钮下拉菜单
+      document.getElementById('projectBtn').addEventListener('click', function(e) {
+        e.preventDefault();
+        // 关闭其他下拉菜单
+        document.getElementById('userDropdown').classList.remove('show');
+        
+        // 直接调用强制保存函数，显示项目弹窗
+        forceDirectRequest();
+      });
+      
+      // 保存到云端功能
+      document.getElementById('saveToCloudBtn').addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        console.log("保存到云端按钮被点击");
+        
+        // 隐藏下拉菜单
+        document.getElementById('projectDropdown').classList.remove('show');
+        
+        // 执行强制保存函数，直接绕过GWT
+        forceDirectRequest();
+      });
+
+      // 点击页面其他地方时关闭所有下拉菜单
+      window.addEventListener('click', function(e) {
+        const userCenterBtn = document.getElementById('userCenterBtn');
+        const projectBtn = document.getElementById('projectBtn');
+        
+        // 如果点击的是按钮或其子元素，不做任何操作
+        if (userCenterBtn.contains(e.target) || projectBtn.contains(e.target)) {
+          return;
+        }
+        
+        // 否则，隐藏所有下拉菜单
+        var userDropdown = document.getElementById('userDropdown');
+        var projectDropdown = document.getElementById('projectDropdown');
+        
+        if (userDropdown.classList.contains('show')) {
+          userDropdown.classList.remove('show');
+        }
+        
+        if (projectDropdown.classList.contains('show')) {
+          projectDropdown.classList.remove('show');
+        }
+      });
+      
+      // 从sessionStorage加载保存的电路数据（如果有）
+      loadSavedCircuitIfExists();
+      
+      // 初始化主题
+      applyCurrentTheme();
+    });
+    
+    // 应用当前主题设置
+    function applyCurrentTheme() {
+      const isDarkMode = localStorage.getItem('darkMode') === 'true';
+      if (isDarkMode) {
+        document.body.classList.add('dark-mode');
+        document.documentElement.style.backgroundColor = '#000000';
+      } else {
+        document.body.classList.remove('dark-mode');
+        document.documentElement.style.backgroundColor = '#ffffff';
+      }
+    }
+    
+    // 获取电路数据的几种方式
+    function getCircuitData(callback) {
+      console.log("开始获取电路数据...");
+      
+      // 方式0: 检查是否已经从sessionStorage加载了电路
+      const loadedCircuit = sessionStorage.getItem('circuit_text_data');
+      if (loadedCircuit) {
+        console.log("从sessionStorage获取到之前保存的电路数据");
+        sessionStorage.removeItem('circuit_text_data');
+        callback(loadedCircuit);
+        return;
+      }
+      
+      // 方式1: 直接通过导出接口获取
+      try {
+        console.log("尝试直接通过CircuitJS1.exportCircuit()获取电路数据");
+        if (window.CircuitJS1 && typeof window.CircuitJS1.exportCircuit === 'function') {
+          const circuitData = window.CircuitJS1.exportCircuit();
+          console.log("成功获取电路数据，长度:", circuitData.length);
+          callback(circuitData);
+          return;
+        }
+      } catch (e) {
+        console.error("通过CircuitJS1.exportCircuit获取失败:", e);
+      }
+      
+      // 方式2: 通过模拟菜单项点击获取
+      try {
+        console.log("尝试模拟菜单项点击获取电路数据");
+        let menuItemFound = false;
+        
+        // 查找所有菜单项
+        const menuItems = document.querySelectorAll('.gwt-MenuItem');
+        console.log("发现", menuItems.length, "个菜单项");
+        
+        // 查找并点击导出为文本菜单项
+        menuItems.forEach(item => {
+          if (!menuItemFound && item.textContent && 
+              (item.textContent.includes('导出为文本') || item.textContent.includes('Export as Text'))) {
+            console.log("找到导出为文本菜单项:", item.textContent);
+            menuItemFound = true;
+            
+            // 设置一个事件处理函数来捕获复制事件
+            const copyListener = function(e) {
+              console.log("捕获到复制事件");
+              setTimeout(() => {
+                document.removeEventListener('copy', copyListener);
+                
+                // 从剪贴板获取数据
+                const textarea = document.getElementById("circuit-data-textarea");
+                if (textarea && textarea.value) {
+                  console.log("从文本区域获取到数据，长度:", textarea.value.length);
+                  callback(textarea.value);
+                }
+              }, 200);
+            };
+            
+            document.addEventListener('copy', copyListener);
+            
+            // 点击菜单项
+            setTimeout(() => {
+              item.click();
+              
+              // 如果5秒内没有获取到数据，移除事件监听器
+              setTimeout(() => {
+                document.removeEventListener('copy', copyListener);
+              }, 5000);
+            }, 0);
+          }
+        });
+        
+        if (!menuItemFound) {
+          console.log("未找到导出为文本菜单项");
+        }
+      } catch (e) {
+        console.error("模拟菜单点击获取电路数据失败:", e);
+      }
+      
+      // 方式3: 尝试通过GWT内部对象直接获取
+      try {
+        console.log("尝试通过GWT内部对象获取电路数据");
+        
+        // 创建一个全局回调函数
+        window.receiveCircuitTextCallback = function(text) {
+          if (text) {
+            console.log("通过回调获取到电路数据，长度:", text.length);
+            circuitTextData = text;
+          }
+        };
+        
+        // 通过注入脚本访问GWT对象
+        const script = document.createElement('script');
+        script.textContent = `
+          try {
+            if (window.circuitjs1 && window.circuitjs1.theSim) {
+              var data = window.circuitjs1.theSim.dumpCircuit();
+              if (window.receiveCircuitTextCallback) {
+                window.receiveCircuitTextCallback(data);
+              }
+            } else if (window.CircuitJS1) {
+              var data = window.CircuitJS1.exportCircuit();
+              if (window.receiveCircuitTextCallback) {
+                window.receiveCircuitTextCallback(data);
+              }
+            } else {
+              // 尝试查找其他可能的导出方法
+              for (var key in window) {
+                if (key.startsWith('__gwt_')) {
+                  console.log('检查GWT对象:', key);
+                }
+              }
+            }
+          } catch (e) {
+            console.error('尝试访问GWT对象失败:', e);
+          }
+        `;
+        document.head.appendChild(script);
+        document.head.removeChild(script);
+      } catch (e) {
+        console.error("通过GWT内部对象获取电路数据失败:", e);
+      }
+      
+      // 设置最大等待时间并开始检查是否有数据
+      const maxWaitTime = 3000;
+      let startTime = Date.now();
+      
+      const checkInterval = setInterval(function() {
+        if (circuitTextData) {
+          clearInterval(checkInterval);
+          console.log("获取到电路数据，长度:", circuitTextData.length);
+          callback(circuitTextData);
+          return;
+        }
+        
+        // 从文本区域检查
+        const textArea = document.getElementById("circuit-data-textarea");
+        if (textArea && textArea.value && textArea.value.length > 0) {
+          clearInterval(checkInterval);
+          console.log("从文本区域获取到数据，长度:", textArea.value.length);
+          callback(textArea.value);
+          return;
+        }
+        
+        // 超时处理
+        if (Date.now() - startTime > maxWaitTime) {
+          clearInterval(checkInterval);
+          console.error("获取电路数据超时");
+          
+          // 最后尝试通过全局函数
+          if (window.getCircuitData && typeof window.getCircuitData === 'function') {
+            try {
+              const data = window.getCircuitData();
+              if (data) {
+                console.log("通过全局getCircuitData函数获取到数据，长度:", data.length);
+                callback(data);
+                return;
+              }
+            } catch (e) {
+              console.error("通过getCircuitData获取失败:", e);
+            }
+          }
+          
+          callback(null);
+        }
+      }, 200);
+    }
+    
+    // 注入脚本到GWT应用
+    function injectExportScript() {
+      try {
+        // 创建一个脚本标签，尝试访问GWT内部对象
+        const script = document.createElement('script');
+        script.textContent = `
+          try {
+            console.log("执行注入脚本，尝试访问GWT应用...");
+            
+            // 尝试访问不同的可能路径
+            if (window.circuitjs1 && window.circuitjs1.theSim) {
+              console.log("找到theSim对象，尝试调用dumpCircuit()");
+              // 直接方式
+              var data = window.circuitjs1.theSim.dumpCircuit();
+              window.receiveCircuitText(data);
+            } else {
+              console.log("未找到theSim对象，尝试查找替代方法");
+              
+              // 寻找所有可能的GWT对象
+              var gwt = document.querySelector('[__gwt_ObjectId]');
+              if (gwt && gwt.$doExportAsText && typeof gwt.$doExportAsText === 'function') {
+                console.log("找到带有$doExportAsText方法的GWT对象");
+                gwt.$doExportAsText();
+              }
+              
+              // 尝试模拟菜单点击 - 使用标准DOM API查找菜单项
+              console.log("尝试查找菜单项...");
+              var menuItems = document.querySelectorAll('.gwt-MenuItem');
+              console.log("找到", menuItems.length, "个菜单项");
+              
+              var fileMenu = null;
+              // 遍历所有菜单项，查找"文件"或"File"
+              for (var i = 0; i < menuItems.length; i++) {
+                var item = menuItems[i];
+                console.log("菜单项", i, "内容:", item.textContent);
+                if (item.textContent.includes("文件") || 
+                    item.textContent.includes("File")) {
+                  fileMenu = item;
+                  console.log("找到文件菜单项:", item.textContent);
+                  break;
+                }
+              }
+              
+              if (fileMenu) {
+                console.log("点击文件菜单");
+                fileMenu.click();
+                
+                // 等待子菜单出现
+                setTimeout(function() {
+                  console.log("查找导出菜单项...");
+                  var exportMenu = null;
+                  var menuItems = document.querySelectorAll('.gwt-MenuItem');
+                  
+                  for (var i = 0; i < menuItems.length; i++) {
+                    var item = menuItems[i];
+                    console.log("子菜单项", i, "内容:", item.textContent);
+                    if (item.textContent.includes("导出为文本") || 
+                        item.textContent.includes("Export as Text") ||
+                        item.textContent.includes("导出") ||
+                        item.textContent.includes("Export")) {
+                      exportMenu = item;
+                      console.log("找到导出菜单项:", item.textContent);
+                      break;
+                    }
+                  }
+                  
+                  if (exportMenu) {
+                    console.log("点击导出菜单");
+                    exportMenu.click();
+                    
+                    // 等待复制到剪贴板
+                    setTimeout(function() {
+                      var textarea = document.getElementById('circuit-data-textarea');
+                      if (textarea && textarea.value) {
+                        console.log("从文本区域获取数据，长度:", textarea.value.length);
+                        window.receiveCircuitText(textarea.value);
+                      } else {
+                        console.log("文本区域为空或不存在");
+                      }
+                    }, 300);
+                  } else {
+                    console.log("未找到导出菜单项");
+                  }
+                }, 200);
+              } else {
+                console.log("未找到文件菜单项");
+              }
+            }
+          } catch (e) {
+            console.error("注入脚本执行失败:", e);
+          }
+        `;
+        document.head.appendChild(script);
+        document.head.removeChild(script);
+      } catch (e) {
+        console.error("注入脚本失败:", e);
+      }
+    }
+    
+    // 从sessionStorage加载保存的电路
+    function loadSavedCircuitIfExists() {
+      const circuitData = sessionStorage.getItem('openCircuitData');
+      const circuitName = sessionStorage.getItem('openCircuitName');
+      
+      if (circuitData) {
+        // 删除保存的数据，防止页面刷新后重复加载
+        sessionStorage.removeItem('openCircuitData');
+        sessionStorage.removeItem('openCircuitName');
+        
+        // 由于GWT应用可能还没有完全加载，所以我们需要等待一下
+        setTimeout(function() {
+          loadCircuitData(circuitData, circuitName);
+        }, 1000);
+      }
+    }
+    
+    // 加载电路数据（优先使用官方JS接口 CircuitJS1.importCircuit）
+    function loadCircuitData(data, name) {
+      try {
+        const tryImport = () => {
+          if (window.CircuitJS1 && typeof window.CircuitJS1.importCircuit === 'function') {
+            window.CircuitJS1.importCircuit(data, false);
+            // 可选：设置标题（如果暴露了theSim）
+            if (name && window.circuitjs1 && window.circuitjs1.theSim && typeof window.circuitjs1.theSim.setCircuitTitle === 'function') {
+              window.circuitjs1.theSim.setCircuitTitle(name);
+            }
+
+            console.log('电路加载成功');
+            return true;
+          }
+          return false;
+        };
+
+        if (!tryImport()) {
+          // 等待GWT模块完成初始化后再导入
+          let attempts = 0;
+          const maxAttempts = 50; // ~10秒
+          const intervalId = setInterval(() => {
+            attempts++;
+            if (tryImport()) {
+              clearInterval(intervalId);
+              return;
+            }
+            if (attempts >= maxAttempts) {
+              clearInterval(intervalId);
+              console.warn('等待CircuitJS1.importCircuit超时，尝试后备方式');
+              // 后备：尝试直接调用theSim.readCircuit（若可用）
+              try {
+                if (window.circuitjs1 && window.circuitjs1.theSim && typeof window.circuitjs1.theSim.readCircuit === 'function') {
+                  window.circuitjs1.theSim.readCircuit(data);
+                  if (name && typeof window.circuitjs1.theSim.setCircuitTitle === 'function') {
+                    window.circuitjs1.theSim.setCircuitTitle(name);
+                  }
+
+                } else {
+                  showPromptDialog('加载电路失败: 模块未就绪');
+                }
+              } catch (err) {
+                console.error('后备加载失败:', err);
+                showPromptDialog('加载电路失败: ' + err.message);
+              }
+            }
+          }, 200);
+        }
+      } catch (e) {
+        console.error('加载电路过程异常:', e);
+        showPromptDialog('加载电路失败: ' + e.message);
+      }
+    }
+    
+    // 保存电路到云端
+    function saveCircuitToCloud(circuitData) {
+      // 此函数不再使用，改为调用showProjectSaveDialog
+      console.log("已弃用的函数saveCircuitToCloud被调用");
+      
+      // 检查是否已登录（同时检查sessionStorage和localStorage）
+      const userId = sessionStorage.getItem('userId') || localStorage.getItem('userId');
+      if (userId) {
+        window.currentCircuitData = circuitData;
+        showProjectSaveDialog();
+      } else {
+        showPromptDialog('未找到用户信息，请重新登录');
+        setTimeout(() => {
+          window.location.href = 'login.html';
+        }, 2000);
+      }
+    }
+
+    // 保存电路数据到服务器
+    function saveCircuit(circuitSaveData) {
+      try {
+        console.log("准备保存电路数据:", circuitSaveData.circuitName);
+        
+        if (!window.API) {
+          console.error('API 对象未找到');
+          showCustomNotification('保存失败: API 未加载', 'error');
+          return;
+        }
+        
+        // 显示加载中提示（右上角轻量提示）
+showCustomNotification('正在保存项目...', 'info');
+        
+        // 检查认证令牌
+        const token = API.getValidToken ? API.getValidToken() : localStorage.getItem('eda_token');
+        if (!token) {
+          console.error('未找到认证令牌');
+          showPromptDialog('认证已过期，请重新登录');
+          setTimeout(() => {
+            showLoginRequiredDialog();
+          }, 2000);
+          return;
+        }
+        
+        // 输出token信息以便调试
+        console.log('保存电路使用的token长度:', token.length, 
+                  '前10个字符:', token.length > 10 ? token.substring(0, 10) + "..." : token);
+        
+        console.log("调用API.saveCircuit");
+        window.API.saveCircuit(circuitSaveData)
+          .then(response => {
+            console.log("保存电路响应:", response);
+            if (response.code === 200) {
+              showCustomNotification('项目保存成功！', 'success');
+            } else {
+              console.error("保存失败:", response);
+              showCustomNotification('保存失败: ' + (response.msg || '服务器错误'), 'error');
+            }
+          })
+          .catch(error => {
+            console.error('保存电路出错:', error);
+            
+            // 检查是否为JWT认证错误
+            if (error.message && (error.message.includes('JWT') || error.message.includes('认证失败'))) {
+              showCustomNotification('登录已失效，请重新登录', 'warning');
+              setTimeout(() => {
+                showLoginRequiredDialog();
+              }, 1500);
+            } else {
+              showCustomNotification('保存失败: ' + error.message, 'error');
+            }
+          });
+      } catch (error) {
+        console.error("saveCircuit函数执行出错:", error);
+        showPromptDialog('保存过程中出错: ' + error.message);
+      }
+    }
+
+    // 显示提示对话框
+    function showPromptDialog(message) {
+      // 检查是否已有提示框
+      const existingPrompt = document.querySelector('.prompt-dialog');
+      if (existingPrompt) {
+        document.body.removeChild(existingPrompt);
+      }
+      
+      // 创建提示框
+      const prompt = document.createElement('div');
+      prompt.className = 'prompt-dialog';
+      prompt.style.position = 'fixed';
+      prompt.style.top = '50%';
+      prompt.style.left = '50%';
+      prompt.style.transform = 'translate(-50%, -50%)';
+      prompt.style.backgroundColor = 'white';
+      prompt.style.padding = '20px';
+      prompt.style.borderRadius = '8px';
+      prompt.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.15)';
+      prompt.style.zIndex = '3000';
+      prompt.style.minWidth = '300px';
+      prompt.style.textAlign = 'center';
+      
+      const messageElem = document.createElement('p');
+      messageElem.textContent = message;
+      messageElem.style.margin = '0 0 15px 0';
+      prompt.appendChild(messageElem);
+      
+      const okButton = document.createElement('button');
+      okButton.textContent = '确定';
+      okButton.style.padding = '8px 16px';
+      okButton.style.borderRadius = '4px';
+      okButton.style.border = 'none';
+      okButton.style.backgroundColor = '#5e35b1';
+      okButton.style.color = 'white';
+      okButton.style.cursor = 'pointer';
+      okButton.onclick = function() {
+        document.body.removeChild(prompt);
+      };
+      prompt.appendChild(okButton);
+      
+      document.body.appendChild(prompt);
+      
+      // 3秒后自动关闭
+      setTimeout(function() {
+        if (document.body.contains(prompt)) {
+          document.body.removeChild(prompt);
+        }
+      }, 3000);
+    }
+
+    // 显示项目保存对话框
+    function showProjectSaveDialog() {
+      console.log("显示项目保存对话框");
+      
+      try {
+        // 获取对话框元素
+        const overlay = document.getElementById('project-save-overlay');
+        const container = document.getElementById('project-list-container');
+        
+        if (!overlay || !container) {
+          console.error("找不到对话框元素", !!overlay, !!container);
+          showPromptDialog("页面元素丢失，无法显示保存对话框");
+          return;
+        }
+        
+        // 从localStorage获取用户信息
+        const userInfoStr = localStorage.getItem('eda_user');
+        if (!userInfoStr) {
+          console.error("未找到用户信息");
+          showPromptDialog("未找到用户信息，请先登录");
+          setTimeout(() => {
+            showLoginRequiredDialog();
+          }, 1500);
+          return;
+        }
+        
+        try {
+          // 解析用户信息
+          const userInfo = JSON.parse(userInfoStr);
+          if (!userInfo.userId) {
+            throw new Error("无效的用户信息");
+          }
+          window.currentUserId = userInfo.userId;
+        } catch (e) {
+          console.error("解析用户信息失败", e);
+          showPromptDialog("用户信息无效，请重新登录");
+          setTimeout(() => {
+            showLoginRequiredDialog();
+          }, 1500);
+          return;
+        }
+        
+        // 显示加载中状态
+        container.innerHTML = `
+          <div style="text-align: center; padding: 20px;">
+            <div style="width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #5e35b1; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 10px;"></div>
+            <p>正在加载您的项目...</p>
+          </div>
+        `;
+        
+        // 显示对话框
+        overlay.style.display = 'block';
+        
+        // 添加搜索和筛选控件到对话框头部
+        const dialogHeader = document.getElementById('project-save-header') || createProjectDialogHeader();
+        if (!document.getElementById('project-save-header')) {
+          const dialogContent = document.getElementById('project-save-content');
+          dialogContent.insertBefore(dialogHeader, dialogContent.firstChild);
+        }
+        
+        // 绑定取消按钮事件
+        document.getElementById('cancel-save-btn').onclick = function() {
+          overlay.style.display = 'none';
+        };
+        
+        // 加载项目列表
+        console.log("请求用户项目列表...");
+        loadProjectList();
+        
+      } catch (error) {
+        console.error("显示保存对话框出错:", error);
+        showPromptDialog("显示保存对话框出错: " + error.message);
+      }
+    }
+    
+    // 创建项目对话框头部（包含搜索功能）
+    function createProjectDialogHeader() {
+      const header = document.createElement('div');
+      header.id = 'project-save-header';
+      header.style.marginBottom = '15px';
+      
+      header.innerHTML = `
+        <div style="display:flex;align-items:center;margin-bottom:10px;">
+          <input type="text" id="project-search" placeholder="搜索项目..." 
+                 style="flex-grow:1;padding:8px;border-radius:4px;border:1px solid #ccc;margin-right:10px;">
+          <select id="project-sort" style="padding:8px;border-radius:4px;border:1px solid #ccc;">
+            <option value="date-desc">最新优先</option>
+            <option value="date-asc">最早优先</option>
+            <option value="name-asc">名称 A-Z</option>
+            <option value="name-desc">名称 Z-A</option>
+          </select>
+        </div>
+      `;
+      
+      // 延迟添加事件监听器，确保DOM元素已创建
+      setTimeout(() => {
+        const searchInput = document.getElementById('project-search');
+        const sortSelect = document.getElementById('project-sort');
+        
+        if (searchInput) {
+          searchInput.addEventListener('input', function() {
+            filterProjects(this.value);
+          });
+        }
+        
+        if (sortSelect) {
+          sortSelect.addEventListener('change', function() {
+            sortProjects(this.value);
+          });
+        }
+      }, 100);
+      
+      return header;
+    }
+    
+    // 筛选项目列表
+    function filterProjects(searchTerm) {
+      if (!window.projectsList) return;
+      
+      const searchLower = searchTerm.toLowerCase();
+      const projectItems = document.querySelectorAll('.project-item');
+      
+      projectItems.forEach((item, index) => {
+        const circuit = window.projectsList[index];
+        if (!circuit) return;
+        
+        const nameMatches = circuit.circuitName.toLowerCase().includes(searchLower);
+        const descMatches = circuit.description && circuit.description.toLowerCase().includes(searchLower);
+        
+        if (nameMatches || descMatches) {
+          item.style.display = 'flex';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+    }
+    
+    // 排序项目列表
+    function sortProjects(sortOption) {
+      if (!window.projectsList) return;
+      
+      const projectList = document.querySelector('.project-list');
+      if (!projectList) return;
+      
+      // 获取所有项目项
+      const items = Array.from(projectList.querySelectorAll('.project-item'));
+      
+      // 根据选项排序
+      switch (sortOption) {
+        case 'date-desc':
+          items.sort((a, b) => {
+            const indexA = parseInt(a.querySelector('input').id.split('-')[1]);
+            const indexB = parseInt(b.querySelector('input').id.split('-')[1]);
+            const circuitA = window.projectsList[indexA];
+            const circuitB = window.projectsList[indexB];
+            const timeA = new Date(circuitA.updateTime || circuitA.createTime).getTime();
+            const timeB = new Date(circuitB.updateTime || circuitB.createTime).getTime();
+            return timeB - timeA; // 降序
+          });
+          break;
+        case 'date-asc':
+          items.sort((a, b) => {
+            const indexA = parseInt(a.querySelector('input').id.split('-')[1]);
+            const indexB = parseInt(b.querySelector('input').id.split('-')[1]);
+            const circuitA = window.projectsList[indexA];
+            const circuitB = window.projectsList[indexB];
+            const timeA = new Date(circuitA.updateTime || circuitA.createTime).getTime();
+            const timeB = new Date(circuitB.updateTime || circuitB.createTime).getTime();
+            return timeA - timeB; // 升序
+          });
+          break;
+        case 'name-asc':
+          items.sort((a, b) => {
+            const indexA = parseInt(a.querySelector('input').id.split('-')[1]);
+            const indexB = parseInt(b.querySelector('input').id.split('-')[1]);
+            const circuitA = window.projectsList[indexA];
+            const circuitB = window.projectsList[indexB];
+            return circuitA.circuitName.localeCompare(circuitB.circuitName); // A-Z
+          });
+          break;
+        case 'name-desc':
+          items.sort((a, b) => {
+            const indexA = parseInt(a.querySelector('input').id.split('-')[1]);
+            const indexB = parseInt(b.querySelector('input').id.split('-')[1]);
+            const circuitA = window.projectsList[indexA];
+            const circuitB = window.projectsList[indexB];
+            return circuitB.circuitName.localeCompare(circuitA.circuitName); // Z-A
+          });
+          break;
+      }
+      
+      // 重新排列DOM
+      items.forEach(item => projectList.appendChild(item));
+    }
+
+    // 加载项目列表
+    function loadProjectList() {
+      console.log("开始执行loadProjectList函数");
+      const container = document.getElementById('project-list-container');
+      const overlay = document.getElementById('project-save-overlay');
+      const defaultName = "我的电路 " + new Date().toLocaleString();
+      
+      if (!container) {
+        console.error("找不到project-list-container元素");
+        return;
+      }
+      
+      // 显示加载中
+      container.innerHTML = `
+        <div style="text-align: center; padding: 20px;">
+          <div style="width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #5e35b1; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 10px;"></div>
+          <p>正在加载您的项目...</p>
+        </div>
+      `;
+      
+      // 初始化分页参数
+      const options = {
+        limit: 50,  // 一次获取较多的项目，避免频繁分页
+        offset: 0
+      };
+      
+      // 获取token和API基础URL
+      const token = window.API && window.API.getValidToken ? window.API.getValidToken() : localStorage.getItem('eda_token');
+      const apiBaseUrl = window.API_BASE_URL || (window.API && window.API.API_BASE_URL) || (window.location.protocol + '//' + window.location.hostname + ':8088');
+      
+      console.log("开始获取项目列表, token长度:", token ? token.length : 0, "API基础URL:", apiBaseUrl);
+      
+      if (!token) {
+        console.error("没有可用的token，无法获取项目列表");
+        container.innerHTML = `
+          <p style="color:#f44336;text-align:center;">未登录，请先登录</p>
+        `;
+        setTimeout(() => {
+          showLoginRequiredDialog();
+        }, 1500);
+        return;
+      }
+      
+      // 直接使用fetch API发起请求，绕过API.js
+      console.log("使用fetch直接请求项目列表");
+      
+      const url = `${apiBaseUrl}/cycore/circuit/user/current?limit=${options.limit}&offset=${options.offset}`;
+      console.log("请求URL:", url);
+      
+      fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+        .then(response => {
+        console.log("获取项目列表HTTP状态:", response.status);
+        if (!response.ok) {
+          throw new Error(`HTTP错误: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log("成功获取项目列表:", data);
+        processProjectList(data, container, defaultName, overlay);
+      })
+      .catch(error => {
+        console.error("获取项目列表失败:", error);
+        
+        // 出错后尝试使用API对象方式
+        if (window.API && window.API.getCurrentUserCircuits) {
+          console.log("尝试使用API.getCurrentUserCircuits获取项目列表");
+          
+          API.getCurrentUserCircuits(options)
+            .then(response => {
+              console.log("API方式获取项目列表成功:", response);
+              processProjectList(response, container, defaultName, overlay);
+            })
+            .catch(apiError => {
+              console.error("API方式获取项目列表失败:", apiError);
+              showErrorState(container, defaultName, overlay, apiError.message);
+            });
+        } else {
+          showErrorState(container, defaultName, overlay, error.message);
+        }
+      });
+    }
+    
+    // 处理获取到的项目列表
+    function processProjectList(response, container, defaultName, overlay) {
+      if (response.code === 200) {
+        let projects = [];
+        
+        // 处理不同的响应格式
+        if (response.data && Array.isArray(response.data)) {
+          projects = response.data;
+        } else if (response.data && response.data.records && Array.isArray(response.data.records)) {
+          projects = response.data.records;
+        }
+        
+        console.log("处理后的项目数据:", projects.length, "条记录");
+        
+        if (projects.length > 0) {
+            // 有项目，显示列表
+            let html = `
+              <h3 style="margin:10px 0;font-size:16px;color:#666;font-weight:normal;">选择要覆盖的项目</h3>
+            <div class="project-list" style="max-height:200px;overflow-y:auto;border:1px solid #eee;border-radius:8px;margin-bottom:15px;">
+            `;
+            
+          projects.forEach((circuit, index) => {
+            const updateTime = circuit.updateTime || circuit.createTime;
+            const formattedDate = updateTime ? new Date(updateTime).toLocaleString() : '未知时间';
+            
+              html += `
+              <div class="project-item" style="padding:10px;border-bottom:1px solid #eee;cursor:pointer;display:flex;align-items:center;" onclick="selectProject(${index})">
+                  <input type="radio" name="project" value="${circuit.circuitId}" id="project-${index}" style="margin-right:10px;">
+                <div style="flex-grow:1;">
+                    <div style="font-weight:500;">${circuit.circuitName}</div>
+                  <div style="display:flex;justify-content:space-between;font-size:12px;color:#888;">
+                    <span>${formattedDate}</span>
+                    <span>${circuit.isPublic === '1' ? '公开' : '私有'}</span>
+                  </div>
+                </div>
+                </div>
+              `;
+            });
+            
+            html += `</div>`;
+            
+            // 新建项目表单
+            html += `
+              <h3 style="margin:15px 0 10px;font-size:16px;color:#666;font-weight:normal;">或创建新项目</h3>
+              <div style="margin-bottom:10px;">
+                <label style="display:block;margin-bottom:5px;">项目名称:</label>
+                <input type="text" id="new-project-name" style="width:100%;padding:8px;box-sizing:border-box;border-radius:4px;border:1px solid #ccc;" value="${defaultName}">
+              </div>
+              <div style="margin-bottom:10px;">
+                <label style="display:block;margin-bottom:5px;">描述 (可选):</label>
+                <textarea id="new-project-desc" style="width:100%;padding:8px;box-sizing:border-box;border-radius:4px;border:1px solid #ccc;min-height:60px;resize:vertical;"></textarea>
+              </div>
+              <div>
+                <label style="display:flex;align-items:center;">
+                  <input type="checkbox" id="new-project-public"> 
+                  <span style="margin-left:5px;">公开此项目（允许其他用户查看）</span>
+                </label>
+              </div>
+            `;
+            
+            container.innerHTML = html;
+            
+            // 存储项目数据到全局变量
+          window.projectsList = projects;
+          
+          // 获取并存储用户ID
+          const userId = projects[0].userId;
+          window.currentUserId = userId;
+          console.log("设置用户ID:", userId);
+            
+          } else {
+            // 没有项目，只显示新建项目表单
+            container.innerHTML = `
+              <p style="text-align:center;color:#666;margin-bottom:15px;">您还没有保存过项目</p>
+              <div style="margin-bottom:10px;">
+                <label style="display:block;margin-bottom:5px;">项目名称:</label>
+                <input type="text" id="new-project-name" style="width:100%;padding:8px;box-sizing:border-box;border-radius:4px;border:1px solid #ccc;" value="${defaultName}">
+              </div>
+              <div style="margin-bottom:10px;">
+                <label style="display:block;margin-bottom:5px;">描述 (可选):</label>
+                <textarea id="new-project-desc" style="width:100%;padding:8px;box-sizing:border-box;border-radius:4px;border:1px solid #ccc;min-height:60px;resize:vertical;"></textarea>
+              </div>
+              <div>
+                <label style="display:flex;align-items:center;">
+                  <input type="checkbox" id="new-project-public"> 
+                  <span style="margin-left:5px;">公开此项目（允许其他用户查看）</span>
+                </label>
+              </div>
+            `;
+        }
+      } else {
+        // 请求成功但返回错误
+        console.error("API返回错误码:", response.code, response.msg);
+        showErrorState(container, defaultName, overlay, response.msg || '未知错误');
+          }
+          
+          // 绑定保存按钮事件
+      const saveBtn = document.getElementById('confirm-save-btn');
+      if (saveBtn) {
+        console.log("绑定保存按钮事件");
+        saveBtn.onclick = bindSaveButtonEvent(overlay);
+      } else {
+        console.error("找不到confirm-save-btn元素");
+      }
+    }
+    
+    // 显示错误状态
+    function showErrorState(container, defaultName, overlay, errorMessage) {
+      container.innerHTML = `
+        <p style="color:#f44336;text-align:center;">加载项目列表失败: ${errorMessage}</p>
+        <div style="margin-bottom:10px;">
+          <label style="display:block;margin-bottom:5px;">项目名称:</label>
+          <input type="text" id="new-project-name" style="width:100%;padding:8px;box-sizing:border-box;border-radius:4px;border:1px solid #ccc;" value="${defaultName}">
+        </div>
+        <div style="margin-bottom:10px;">
+          <label style="display:block;margin-bottom:5px;">描述 (可选):</label>
+          <textarea id="new-project-desc" style="width:100%;padding:8px;box-sizing:border-box;border-radius:4px;border:1px solid #ccc;min-height:60px;resize:vertical;"></textarea>
+        </div>
+        <div>
+          <label style="display:flex;align-items:center;">
+            <input type="checkbox" id="new-project-public"> 
+            <span style="margin-left:5px;">公开此项目（允许其他用户查看）</span>
+          </label>
+        </div>
+      `;
+      
+      // 绑定保存按钮事件 - 仅新建项目
+      const saveBtn = document.getElementById('confirm-save-btn');
+      if (saveBtn) {
+        console.log("绑定保存按钮事件（错误恢复模式）");
+        saveBtn.onclick = bindSaveButtonEvent(overlay, true);
+      } else {
+        console.error("找不到confirm-save-btn元素（错误恢复模式）");
+      }
+    }
+    
+    // 绑定保存按钮事件
+    function bindSaveButtonEvent(overlay, isErrorMode = false) {
+      return function() {
+        console.log("保存按钮被点击" + (isErrorMode ? " (错误恢复模式)" : ""));
+            const selectedRadio = document.querySelector('input[name="project"]:checked');
+            const circuitData = window.currentCircuitData;
+            
+            if (!circuitData) {
+              showPromptDialog('电路数据丢失，请重试');
+              overlay.style.display = 'none';
+              return;
+            }
+            
+        if (selectedRadio && window.projectsList) {
+              // 覆盖现有项目
+              const circuitId = parseInt(selectedRadio.value);
+              const selectedCircuit = window.projectsList.find(c => c.circuitId === circuitId);
+              
+              if (selectedCircuit) {
+                saveCircuit({
+                  circuitId: selectedCircuit.circuitId,
+              userId: window.currentUserId,
+                  circuitName: selectedCircuit.circuitName,
+                  circuitData: circuitData,
+                  description: selectedCircuit.description,
+                  isPublic: selectedCircuit.isPublic
+                });
+              }
+            } else {
+              // 新建项目
+              const nameInput = document.getElementById('new-project-name');
+              const descInput = document.getElementById('new-project-desc');
+              const publicCheckbox = document.getElementById('new-project-public');
+              
+              if (!nameInput || !nameInput.value.trim()) {
+                showPromptDialog('请输入项目名称');
+                return;
+              }
+              
+          // 获取当前用户ID或从localStorage恢复
+          let userId = window.currentUserId;
+          if (!userId) {
+            const userInfo = localStorage.getItem('eda_user');
+            if (userInfo) {
+              try {
+                const userObj = JSON.parse(userInfo);
+                userId = userObj.userId;
+              } catch (e) {
+                console.error('解析用户信息失败', e);
+              }
+            }
+          }
+          
+          if (!userId) {
+            showPromptDialog('访客模式下无法使用该功能，请登录');
+              overlay.style.display = 'none';
+            setTimeout(() => {
+              showLoginRequiredDialog();
+            }, 1500);
+              return;
+            }
+            
+            saveCircuit({
+            userId: userId,
+              circuitName: nameInput.value.trim(),
+              circuitData: circuitData,
+              description: descInput ? descInput.value.trim() : '',
+              isPublic: publicCheckbox && publicCheckbox.checked ? '1' : '0'
+            });
+        }
+            
+            // 隐藏对话框
+            overlay.style.display = 'none';
+          };
+    }
+
+    // 项目选择函数
+    window.selectProject = function(index) {
+      const radio = document.getElementById(`project-${index}`);
+      if (radio) {
+        radio.checked = true;
+        
+        // 高亮选中项
+        document.querySelectorAll('.project-item').forEach(item => {
+          item.style.backgroundColor = 'transparent';
+        });
+        radio.closest('.project-item').style.backgroundColor = '#f0e6ff';
+      }
+    };
+  </script>
+  
+  <!-- Include the next line to allow support for dropbox import/export. You will need your own app key. -->
+  <!--<script type="text/javascript" src="https://www.dropbox.com/static/api/2/dropins.js" id="dropboxjs" data-app-key="YOUR_KEY"></script>-->
+
+  <script language="javascript" src="lz-string.min.js"></script>
+   
+    <!-- This script tag is what actually loads the GWT module.  The -->
+    <!-- 'nocache.js' file (also called a "selection script") is     -->
+    <!-- produced by the GWT compiler in the module output directory -->
+    <!-- or generated automatically in development mode.             -->
+    <script language="javascript" src="circuitjs1/circuitjs1.nocache.js"></script>
+    <script>
+      (function(){
+        if (window.__submenuCenteringInstalled) return;
+        window.__submenuCenteringInstalled = true;
+        var lastHoverItem = null;
+        document.addEventListener('mouseover', function(e){
+          var el = e.target;
+          while (el && el !== document.body) {
+            if (el.classList && el.classList.contains('gwt-MenuItem')) {
+              lastHoverItem = el;
+              break;
+            }
+            el = el.parentNode;
+          }
+        }, true);
+        var mo = new MutationObserver(function(muts){
+          muts.forEach(function(m){
+            Array.prototype.forEach.call(m.addedNodes || [], function(node){
+              if (!(node && node.nodeType === 1)) return;
+              var popups;
+              if (node.classList && node.classList.contains('gwt-MenuBarPopup')) {
+                popups = [node];
+              } else {
+                popups = node.querySelectorAll ? node.querySelectorAll('.gwt-MenuBarPopup') : [];
+              }
+              Array.prototype.forEach.call(popups, function(popup){
+                var parentItem = lastHoverItem;
+                if (!parentItem) return;
+                var verticalContainer = parentItem.closest && parentItem.closest('.gwt-MenuBar-vertical');
+                if (!verticalContainer) return;
+                requestAnimationFrame(function(){
+                  try {
+                    var pr = parentItem.getBoundingClientRect();
+                    var r = popup.getBoundingClientRect();
+                    if (!pr || !r || !r.height) return;
+                    var desiredTop = pr.top + pr.height/2 - r.height/2;
+                    var vh = window.innerHeight || document.documentElement.clientHeight || 0;
+                    var minTop = 0;
+                    var maxTop = Math.max(0, vh - r.height);
+                    desiredTop = Math.min(Math.max(desiredTop, minTop), maxTop);
+                    var scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
+                    popup.style.top = (desiredTop + scrollY) + 'px';
+                  } catch(_){}
+                });
+              });
+            });
+          });
+        });
+        mo.observe(document.body, { childList: true, subtree: true });
+      })();
+    </script>
+    
+    <!-- Include a history iframe to enable full GWT history support -->
+    <!-- (the id must be exactly as shown)                           -->
+    <iframe src="javascript:''" id="__gwt_historyFrame" style="width:0;height:0;border:0"></iframe>
+    
+    <script>
+    // 等待GWT应用初始化并注册导出函数
+    function waitForCircuitJS1() {
+      let attempts = 0;
+      const maxAttempts = 50; // 最多尝试50次，约10秒
+      
+      const checkInterval = setInterval(() => {
+        attempts++;
+        console.log(`等待CircuitJS1初始化，第${attempts}次尝试`);
+        
+        if (window.CircuitJS1 && typeof window.CircuitJS1.exportCircuit === 'function') {
+          clearInterval(checkInterval);
+          console.log('CircuitJS1.exportCircuit已可用，注册全局函数');
+          
+          // 注册全局获取电路数据函数
+          window.getCircuitData = function() {
+            try {
+              const data = window.CircuitJS1.exportCircuit();
+              console.log('通过CircuitJS1.exportCircuit获取到电路数据，长度:', data.length);
+              // console.log('电路数据:', data);
+              return data;
+            } catch (e) {
+              console.error('通过CircuitJS1.exportCircuit获取电路数据失败:', e);
+              return null;
+            }
+          };
+        } else if (attempts >= maxAttempts) {
+          clearInterval(checkInterval);
+          console.warn('等待CircuitJS1初始化超时');
+        }
+      }, 200);
+    }
+    
+    // 在页面加载完成后开始等待
+    window.addEventListener('load', waitForCircuitJS1);
+    
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+	navigator.serviceWorker.register('service-worker.js').then(registration => {
+	  console.log('Service Worker registered with scope:', registration.scope);
+	}).catch(error => {
+	  console.error('Service Worker registration failed:', error);
+	});
+      });
+    }
+    </script>
+    
+    <!-- 添加预定义的项目保存对话框 -->
+<div id="project-save-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 9999;">
+  <div id="project-save-dialog" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; padding: 20px; border-radius: 10px; width: 400px; max-width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
+    <h2 style="margin-top: 0; color: #5e35b1; text-align: center;">保存项目</h2>
+    <div id="project-save-content">
+    <div id="project-list-container" style="margin-bottom: 20px;">
+      <!-- 这里将由JavaScript填充内容 -->
+      <div style="text-align: center; padding: 20px;">
+        <div style="width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #5e35b1; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 10px;"></div>
+        <p>正在加载...</p>
+      </div>
+    </div>
+    <div style="display: flex; justify-content: flex-end; gap: 10px;">
+      <button id="cancel-save-btn" style="padding: 8px 16px; background-color: #f5f5f5; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;">取消</button>
+      <button id="confirm-save-btn" style="padding: 8px 16px; background-color: #5e35b1; color: white; border: none; border-radius: 4px; cursor: pointer;">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 添加右上角弹出菜单样式的项目保存组件 -->
+  <div id="project-save-popup" style="display: none; position: fixed; top: 80px; right: 20px; width: 350px; max-width: 90vw; background-color: white; border-radius: 10px; box-shadow: 0 5px 25px rgba(0,0,0,0.18); z-index: 10000; overflow: hidden;">
+  <div style="background-color: #5e35b1; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center;">
+    <h3 style="margin: 0; font-size: 18px;">保存项目</h3>
+    <div id="close-project-popup" style="cursor: pointer; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </div>
+  </div>
+  <div id="project-menu-container" style="padding: 15px; max-height: 80vh; overflow-y: auto;">
+    <!-- 内容将由JavaScript动态填充 -->
+    <div style="text-align: center; padding: 20px;">
+      <div style="width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #5e35b1; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 10px;"></div>
+      <p>正在加载您的项目...</p>
+    </div>
+  </div>
+</div>
+
+<style>
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  @keyframes slideDownIn {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  #project-save-popup {
+    animation: slideDownIn 0.2s ease-out;
+    border: 1px solid #eaeaea;
+  }
+  .project-item {
+    padding: 12px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  .project-item:hover {
+    background-color: #f9f4ff;
+  }
+  .project-item.selected {
+    background-color: #f0e6ff;
+  }
+  .popup-btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    border: none;
+    transition: background-color 0.2s;
+  }
+  .popup-btn-primary {
+  background-color: #5e35b1;
+  color: white;
+}
+.popup-btn-secondary {
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+  color: #333;
+}
+.popup-btn-danger {
+  background-color: #e53935; /* 重要操作：红色 */
+  color: #fff;
+}
+.popup-btn-info {
+  background-color: #2196f3; /* 信息类：蓝色 */
+  color: #fff;
+}
+.popup-btn:hover {
+  opacity: 0.9;
+}
+.popup-btn:active {
+  transform: translateY(1px);
+}
+/* 已移动到menu.css */
+</style>
+
+<script>
+// 保存到云端功能
+document.getElementById('saveToCloudBtn').addEventListener('click', function(e) {
+  e.preventDefault();
+  
+  console.log("保存到云端按钮被点击");
+  
+  // 隐藏下拉菜单
+  document.getElementById('projectDropdown').classList.remove('show');
+  
+  // 执行强制保存函数，直接绕过GWT
+  forceDirectRequest();
+  
+  // 以下是原来的代码，现在跳过不执行
+  /*
+  // 检查是否已登录
+  const userId = localStorage.getItem('userId');
+  const token = localStorage.getItem('eda_token');
+  const userData = JSON.parse(localStorage.getItem('eda_user') || '{}');
+  
+  // 验证用户登录状态
+  if (!userId || !token) {
+    console.log("未找到用户信息或令牌，需要登录");
+    showLoginRequiredDialog();
+    return;
+  }
+  
+  // 验证令牌是否有效
+  API.validateToken()
+    .then(response => {
+      console.log("验证令牌结果:", response);
+      if (response.code === 200) {
+        // 令牌有效，继续保存操作
+        getAndSaveCircuitData();
+      } else {
+        console.log("令牌无效，尝试自动重新登录");
+        // 令牌无效，尝试自动重新登录
+        showAutoLoginDialog();
+      }
+    })
+    .catch(error => {
+      console.error("验证令牌失败:", error);
+      showLoginRequiredDialog();
+    });
+  */
+});
+
+// 获取电路数据并保存
+function getAndSaveCircuitData() {
+  try {
+    console.log("开始获取电路数据并准备保存...");
+    
+    // 先清理可能已经存在的文本区域
+    const existingTextArea = document.getElementById("circuit-data-textarea");
+    if (existingTextArea) {
+      console.log("发现已存在的文本区域，先移除");
+      document.body.removeChild(existingTextArea);
+    }
+    
+    // 清理可能存在的多余文本区域（具有相同类名但ID可能不同）
+    document.querySelectorAll('textarea[style*="opacity: 0"]').forEach(elem => {
+      if (elem !== existingTextArea) {
+        console.log("发现多余的隐藏文本区域，移除");
+        elem.parentNode.removeChild(elem);
+      }
+    });
+    
+    // 创建一个隐藏的文本区域，用于复制电路数据
+    let textArea = document.createElement("textarea");
+    textArea.id = "circuit-data-textarea";
+    textArea.style.position = "fixed";
+    textArea.style.top = "0";
+    textArea.style.left = "0";
+    textArea.style.width = "2em";
+    textArea.style.height = "2em";
+    textArea.style.opacity = 0;
+    document.body.appendChild(textArea);
+    
+    // 重置全局变量
+    circuitTextData = null;
+    
+    // 尝试获取电路数据
+    getCircuitData(function(data) {
+      try {
+        console.log("获取电路数据结果:", data ? "成功，数据长度=" + data.length : "失败");
+        
+        // 无论成功与否，都清理临时DOM元素
+        const tempTextArea = document.getElementById("circuit-data-textarea");
+        if (tempTextArea) {
+          document.body.removeChild(tempTextArea);
+        }
+        
+        if (data) {
+          // 存储电路数据到全局变量
+          window.currentCircuitData = data;
+          
+          // 显示右上角弹出菜单
+          showProjectMenu();
+        } else {
+          showPromptDialog("无法获取电路数据。请尝试使用'文件->导出为文本'手动保存。");
+        }
+      } catch (innerError) {
+        console.error("处理电路数据时出错:", innerError);
+        showPromptDialog("处理电路数据时出错: " + innerError.message);
+        
+        // 确保清理临时DOM元素
+        const tempTextArea = document.getElementById("circuit-data-textarea");
+        if (tempTextArea) {
+          document.body.removeChild(tempTextArea);
+        }
+      }
+    });
+  } catch (outerError) {
+    console.error("准备获取电路数据时出错:", outerError);
+    showPromptDialog("准备获取电路数据时出错: " + outerError.message);
+    
+    // 确保清理临时DOM元素
+    const tempTextArea = document.getElementById("circuit-data-textarea");
+    if (tempTextArea) {
+      document.body.removeChild(tempTextArea);
+    }
+  }
+}
+
+// 显示项目保存菜单
+function showProjectMenu() {
+  console.log("显示项目保存菜单");
+  
+  try {
+    // 获取菜单元素
+    const popup = document.getElementById('project-save-popup');
+    const container = document.getElementById('project-menu-container');
+    
+    if (!popup || !container) {
+      console.error("找不到菜单元素", !!popup, !!container);
+      showPromptDialog("页面元素丢失，无法显示保存菜单");
+      return;
+    }
+    
+    // 确保菜单可见
+    popup.style.display = 'block';
+    
+    // 绑定关闭按钮事件
+    document.getElementById('close-project-popup').onclick = function() {
+      console.log("点击了关闭按钮");
+      popup.style.display = 'none';
+    };
+    
+    // 显示加载中状态
+    container.innerHTML = `
+      <div style="text-align: center; padding: 20px;">
+        <div style="width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #5e35b1; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 10px;"></div>
+        <p>正在加载您的项目...</p>
+      </div>
+    `;
+    
+    // 加载项目列表
+    console.log("请求用户项目列表...");
+    loadProjectMenuItems();
+    
+  } catch (error) {
+    console.error("显示保存菜单出错:", error);
+    showPromptDialog("显示保存菜单出错: " + error.message);
+  }
+}
+
+// 加载项目菜单项
+function loadProjectMenuItems() {
+  console.log("加载项目菜单项");
+  
+  const userId = sessionStorage.getItem('userId') || localStorage.getItem('userId');
+  const container = document.getElementById('project-menu-container');
+  const popup = document.getElementById('project-save-popup');
+  const defaultName = "我的电路 " + new Date().toLocaleString();
+  
+  // 确保元素存在
+  if (!container || !popup || !userId) {
+    console.error("缺少必要的元素或用户ID");
+    return;
+  }
+  
+  API.getUserCircuits(userId)
+    .then(response => {
+      console.log("获取到项目列表响应:", response);
+      
+      // 准备菜单内容HTML
+      let html = '';
+      let hasProjects = response.code === 200 && response.data && response.data.length > 0;
+      
+      // 顶部控制按钮
+      html += `
+        <div style="display: flex; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+          <button id="menu-show-projects" class="popup-btn popup-btn-secondary" style="flex: 1; margin-right: 5px;">我的项目</button>
+          <button id="menu-create-new" class="popup-btn popup-btn-secondary" style="flex: 1; margin-left: 5px;">新建项目</button>
+        </div>
+      `;
+      
+      // 项目列表容器
+      html += `<div id="project-list-section" style="display: ${hasProjects ? 'block' : 'none'};">`;
+      
+      if (hasProjects) {
+        html += `<h4 style="margin: 0 0 10px; font-size: 16px; color: #444;">选择要覆盖的项目</h4>`;
+        html += `<div style="max-height: 300px; overflow-y: auto; margin-bottom: 15px;">`;
+        
+        // 添加项目列表
+        response.data.forEach((circuit, index) => {
+          html += `
+            <div class="project-item" data-id="${circuit.circuitId}" data-index="${index}">
+              <div style="font-weight: 500; margin-bottom: 3px;">${circuit.circuitName}</div>
+              <div style="font-size: 12px; color: #888;">${new Date(circuit.updateTime || circuit.createTime).toLocaleString()}</div>
+            </div>
+          `;
+        });
+        
+        html += `</div>`;
+      } else {
+        html += `<p style="color: #666; text-align: center; margin-bottom: 15px;">您还没有保存过项目</p>`;
+      }
+      html += `</div>`;
+      
+      // 新建项目表单
+      html += `
+        <div id="new-project-section" style="display: none;">
+          <h4 style="margin: 0 0 10px; font-size: 16px; color: #444;">创建新项目</h4>
+          <div style="margin-bottom: 10px;">
+            <label style="display: block; margin-bottom: 5px; font-size: 14px;">项目名称:</label>
+            <input type="text" id="new-project-name" style="width: 100%; padding: 8px; box-sizing: border-box; border-radius: 4px; border: 1px solid #ccc;" value="${defaultName}">
+          </div>
+          <div style="margin-bottom: 10px;">
+            <label style="display: block; margin-bottom: 5px; font-size: 14px;">描述 (可选):</label>
+            <textarea id="new-project-desc" style="width: 100%; padding: 8px; box-sizing: border-box; border-radius: 4px; border: 1px solid #ccc; min-height: 60px; resize: vertical;"></textarea>
+          </div>
+          <div style="margin-bottom: 15px;">
+            <label style="display: flex; align-items: center; font-size: 14px;">
+              <input type="checkbox" id="new-project-public"> 
+              <span style="margin-left: 5px;">公开此项目（允许其他用户查看）</span>
+            </label>
+          </div>
+        </div>
+      `;
+      
+      // 底部操作按钮容器（按钮动态切换：未选中=取消+新建项目；已选中=取消+保存并覆盖+打开）
+      html += `
+        <div id="menu-footer" style="display: flex; justify-content: flex-end; margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px; gap: 10px;">
+          <button id="menu-cancel-btn" class="popup-btn popup-btn-secondary">取消</button>
+          <button id="menu-create-btn" class="popup-btn popup-btn-info">新建项目</button>
+          <button id="menu-save-cover-btn" class="popup-btn popup-btn-danger" style="display:none;">保存并覆盖</button>
+          <button id="menu-open-btn" class="popup-btn popup-btn-secondary" style="display:none;">打开</button>
+        </div>
+      `;
+      
+      // 更新容器内容
+      container.innerHTML = html;
+      
+      // 存储项目数据到全局变量
+      if (hasProjects) {
+        window.projectsList = response.data;
+      }
+      
+      // 绑定按钮事件
+      bindMenuEvents(userId);
+      
+      // 默认显示:
+      // - 如果有项目，显示项目列表
+      // - 如果没有项目，显示新建项目表单
+      if (hasProjects) {
+        document.getElementById('project-list-section').style.display = 'block';
+        document.getElementById('new-project-section').style.display = 'none';
+        document.getElementById('menu-show-projects').classList.add('popup-btn-primary');
+        document.getElementById('menu-show-projects').classList.remove('popup-btn-secondary');
+      } else {
+        document.getElementById('project-list-section').style.display = 'none';
+        document.getElementById('new-project-section').style.display = 'block';
+        document.getElementById('menu-create-new').classList.add('popup-btn-primary');
+        document.getElementById('menu-create-new').classList.remove('popup-btn-secondary');
+      }
+      
+      // 初始化底部按钮逻辑（默认未选中项目）
+      updateFooterButtons();
+    })
+    .catch(error => {
+      console.error("加载项目列表失败:", error);
+      
+      // 检查是否是认证错误
+      if (error.message && (error.message.includes('401') || error.message.includes('JWT'))) {
+        console.log("认证错误，尝试重新登录");
+        popup.style.display = 'none';
+        showAutoLoginDialog();
+        return;
+      }
+      
+      // 显示错误信息和新建项目表单
+      container.innerHTML = `
+        <p style="color: #f44336; text-align: center; margin-bottom: 15px;">加载项目列表失败: ${error.message}</p>
+        
+        <div style="margin-bottom: 10px;">
+          <label style="display: block; margin-bottom: 5px; font-size: 14px;">项目名称:</label>
+          <input type="text" id="new-project-name" style="width: 100%; padding: 8px; box-sizing: border-box; border-radius: 4px; border: 1px solid #ccc;" value="${defaultName}">
+        </div>
+        <div style="margin-bottom: 10px;">
+          <label style="display: block; margin-bottom: 5px; font-size: 14px;">描述 (可选):</label>
+          <textarea id="new-project-desc" style="width: 100%; padding: 8px; box-sizing: border-box; border-radius: 4px; border: 1px solid #ccc; min-height: 60px; resize: vertical;"></textarea>
+        </div>
+        <div style="margin-bottom: 15px;">
+          <label style="display: flex; align-items: center; font-size: 14px;">
+            <input type="checkbox" id="new-project-public"> 
+            <span style="margin-left: 5px;">公开此项目（允许其他用户查看）</span>
+          </label>
+        </div>
+        
+        <div style="display: flex; justify-content: flex-end; margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+          <button id="menu-cancel-btn" class="popup-btn popup-btn-secondary" style="margin-right: 10px;">取消</button>
+          <button id="menu-save-btn" class="popup-btn popup-btn-primary">保存</button>
+        </div>
+      `;
+      
+      // 绑定简化版的事件处理
+      document.getElementById('menu-cancel-btn').onclick = function() {
+        popup.style.display = 'none';
+      };
+      
+      document.getElementById('menu-save-btn').onclick = function() {
+        const nameInput = document.getElementById('new-project-name');
+        const descInput = document.getElementById('new-project-desc');
+        const publicCheckbox = document.getElementById('new-project-public');
+        const circuitData = window.currentCircuitData;
+        
+        if (!circuitData) {
+          showPromptDialog('电路数据丢失，请重试');
+          popup.style.display = 'none';
+          return;
+        }
+        
+        if (!nameInput || !nameInput.value.trim()) {
+          showPromptDialog('请输入项目名称');
+          return;
+        }
+        
+        saveCircuit({
+          userId: window.currentUserId,
+          circuitName: nameInput.value.trim(),
+          circuitData: circuitData,
+          description: descInput ? descInput.value.trim() : '',
+          isPublic: publicCheckbox.checked ? "1" : "0"
+        });
+        
+        // 隐藏菜单
+        popup.style.display = 'none';
+      };
+    });
+}
+
+  // 绑定菜单交互事件
+  function bindMenuEvents(userId) {
+    const popup = document.getElementById('project-save-popup');
+    
+    const footer = document.getElementById('menu-footer');
+    const btnCancel = document.getElementById('menu-cancel-btn');
+    const btnCreate = document.getElementById('menu-create-btn');
+    const btnSaveCover = document.getElementById('menu-save-cover-btn');
+    const btnOpen = document.getElementById('menu-open-btn');
+    
+    // 切换按钮
+    document.getElementById('menu-show-projects').onclick = function() {
+      document.getElementById('project-list-section').style.display = 'block';
+      document.getElementById('new-project-section').style.display = 'none';
+      
+      this.classList.add('popup-btn-primary');
+      this.classList.remove('popup-btn-secondary');
+      document.getElementById('menu-create-new').classList.remove('popup-btn-primary');
+      document.getElementById('menu-create-new').classList.add('popup-btn-secondary');
+      
+      // 切换到项目列表页时重置选择与底部按钮
+      window.selectedProjectIndex = undefined;
+      document.querySelectorAll('.project-item').forEach(p => p.classList.remove('selected'));
+      updateFooterButtons();
+    };
+    
+    document.getElementById('menu-create-new').onclick = function() {
+      document.getElementById('project-list-section').style.display = 'none';
+      document.getElementById('new-project-section').style.display = 'block';
+      
+      this.classList.add('popup-btn-primary');
+      this.classList.remove('popup-btn-secondary');
+      document.getElementById('menu-show-projects').classList.remove('popup-btn-primary');
+      document.getElementById('menu-show-projects').classList.add('popup-btn-secondary');
+      
+      // 新建页底部按钮：取消 + 新建项目
+      window.selectedProjectIndex = undefined;
+      updateFooterButtons(true);
+    };
+    
+    // 项目项选择
+    document.querySelectorAll('.project-item').forEach(item => {
+      item.onclick = function() {
+        // 移除其他项目的选中状态
+        document.querySelectorAll('.project-item').forEach(p => p.classList.remove('selected'));
+        // 添加当前项目的选中状态
+        this.classList.add('selected');
+        // 保存所选项目索引
+        window.selectedProjectIndex = parseInt(this.dataset.index);
+        updateFooterButtons();
+      };
+    });
+    
+    // 取消
+    btnCancel.onclick = function() {
+      popup.style.display = 'none';
+    };
+    
+    // 新建项目
+    btnCreate.onclick = function() {
+      // 切换到"新建项目"页签
+      const switchBtn = document.getElementById('menu-create-new');
+      if (switchBtn) switchBtn.click();
+    };
+    
+    // 保存并覆盖
+    btnSaveCover.onclick = function() {
+      const circuitData = window.currentCircuitData;
+      if (!circuitData) {
+        showPromptDialog('电路数据丢失，请重试');
+        popup.style.display = 'none';
+        return;
+      }
+      const selectedProjectIndex = window.selectedProjectIndex;
+      const selectedItem = document.querySelector('.project-item.selected');
+      if (selectedItem && typeof selectedProjectIndex !== 'undefined' && window.projectsList) {
+        const selectedCircuit = window.projectsList[selectedProjectIndex];
+        if (selectedCircuit) {
+          console.log('覆盖现有项目:', selectedCircuit.circuitName);
+          saveCircuit({
+            circuitId: selectedCircuit.circuitId,
+            userId: window.currentUserId,
+            circuitName: selectedCircuit.circuitName,
+            circuitData: circuitData,
+            description: selectedCircuit.description,
+            isPublic: selectedCircuit.isPublic
+          });
+        } else {
+          showPromptDialog('请选择要覆盖的项目或创建新项目');
+          return;
+        }
+      } else {
+        showPromptDialog('请选择要覆盖的项目或创建新项目');
+        return;
+      }
+      popup.style.display = 'none';
+    };
+    
+    // 打开（占位逻辑）
+    btnOpen.onclick = function() {
+      if (typeof window.selectedProjectIndex === 'undefined' || !window.projectsList) {
+        showPromptDialog('请先选择一个项目');
+        return;
+      }
+      const selectedCircuit = window.projectsList[window.selectedProjectIndex];
+      console.log('准备打开项目:', selectedCircuit && selectedCircuit.circuitName);
+      showPromptDialog('项目打开功能即将实现');
+      popup.style.display = 'none';
+    };
+  }
+  
+  // 根据选择状态更新底部按钮
+  function updateFooterButtons(isNewTab = false) {
+    const btnCreate = document.getElementById('menu-create-btn');
+    const btnSaveCover = document.getElementById('menu-save-cover-btn');
+    const btnOpen = document.getElementById('menu-open-btn');
+    
+    if (isNewTab) {
+      // 新建页：取消 + 新建项目
+      btnCreate.style.display = 'inline-block';
+      btnSaveCover.style.display = 'none';
+      btnOpen.style.display = 'none';
+      return;
+    }
+    
+    if (typeof window.selectedProjectIndex === 'undefined') {
+      // 未选中：取消 + 新建项目
+      btnCreate.style.display = 'inline-block';
+      btnSaveCover.style.display = 'none';
+      btnOpen.style.display = 'none';
+    } else {
+      // 已选中：取消 + 保存并覆盖 + 打开
+      btnCreate.style.display = 'none';
+      btnSaveCover.style.display = 'inline-block';
+      btnOpen.style.display = 'inline-block';
+    }
+  }
+
+// 显示登录提醒对话框
+function showLoginRequiredDialog() {
+  // 检查是否已有提示框
+  const existingDialog = document.querySelector('.login-dialog');
+  if (existingDialog) {
+    document.body.removeChild(existingDialog);
+  }
+  
+  // 创建对话框
+  const dialog = document.createElement('div');
+  dialog.className = 'login-dialog';
+  dialog.style.position = 'fixed';
+  dialog.style.top = '50%';
+  dialog.style.left = '50%';
+  dialog.style.transform = 'translate(-50%, -50%)';
+  dialog.style.backgroundColor = 'white';
+  dialog.style.padding = '25px';
+  dialog.style.borderRadius = '10px';
+  dialog.style.boxShadow = '0 5px 25px rgba(0, 0, 0, 0.25)';
+  dialog.style.zIndex = '10001'; // 高于其他对话框
+  dialog.style.textAlign = 'center';
+  dialog.style.width = '350px';
+  dialog.style.maxWidth = '90vw';
+  
+  const title = document.createElement('h2');
+  title.textContent = '需要重新登录';
+  title.style.margin = '0 0 15px';
+  title.style.color = '#5e35b1';
+  dialog.appendChild(title);
+  
+  const message = document.createElement('p');
+  message.textContent = '您的登录状态已过期，需要重新登录才能保存项目。';
+  message.style.marginBottom = '20px';
+  dialog.appendChild(message);
+  
+  const btnContainer = document.createElement('div');
+  btnContainer.style.display = 'flex';
+  btnContainer.style.justifyContent = 'center';
+  btnContainer.style.gap = '15px';
+  
+  const cancelBtn = document.createElement('button');
+  cancelBtn.textContent = '取消';
+  cancelBtn.className = 'popup-btn popup-btn-secondary';
+  cancelBtn.style.padding = '8px 20px';
+  cancelBtn.onclick = function() {
+    document.body.removeChild(dialog);
+  };
+  btnContainer.appendChild(cancelBtn);
+  
+  const loginBtn = document.createElement('button');
+  loginBtn.textContent = '去登录';
+  loginBtn.className = 'popup-btn popup-btn-primary';
+  loginBtn.style.padding = '8px 20px';
+  loginBtn.onclick = function() {
+    // 保存当前电路数据到会话，以便登录后返回
+    if (window.currentCircuitData) {
+      sessionStorage.setItem('pending_save_circuit', window.currentCircuitData);
+      sessionStorage.setItem('return_url', window.location.href);
+    }
+    window.location.href = 'login.html';
+  };
+  btnContainer.appendChild(loginBtn);
+  
+  dialog.appendChild(btnContainer);
+  document.body.appendChild(dialog);
+}
+
+// 已移除API连接健康检查函数
+
+// 初始化DOM事件
+document.addEventListener('DOMContentLoaded', function() {
+  // 页面初始化完成
+});
+
+    // 已移除简化的直接保存函数
+    
+    // 已移除紧急保存模式按钮
+
+    // 添加一个绕过GWT事件循环的直接保存功能
+    function forceDirectRequest() {
+      console.log("强制直接请求模式启动");
+      
+      try {
+        // 先获取电路数据
+        let circuitData = window.currentCircuitData;
+        
+        if (!circuitData && window.getCircuitData) {
+          console.log("尝试通过getCircuitData获取电路数据");
+          circuitData = window.getCircuitData();
+        }
+        
+        if (!circuitData) {
+          console.log("无法直接获取电路数据，尝试使用getCircuitData函数获取");
+          
+          // 创建一个隐藏的文本区域，用于可能的数据复制
+    let textArea = document.createElement("textarea");
+    textArea.id = "circuit-data-textarea";
+    textArea.style.position = "fixed";
+    textArea.style.top = "0";
+    textArea.style.left = "0";
+    textArea.style.width = "2em";
+    textArea.style.height = "2em";
+    textArea.style.opacity = 0;
+    document.body.appendChild(textArea);
+    
+    // 重置全局变量
+          window.circuitTextData = null;
+          
+          // 同步方式获取电路数据
+    getCircuitData(function(data) {
+        if (data) {
+          window.currentCircuitData = data;
+              console.log("已成功获取电路数据，长度:", data.length);
+              // 递归调用自身继续执行
+              setTimeout(() => forceDirectRequest(), 100);
+        } else {
+              showCustomNotification("无法获取电路数据，请先创建电路再保存", "error");
+            }
+            
+            // 清理临时DOM元素
+            if (document.body.contains(textArea)) {
+              document.body.removeChild(textArea);
+            }
+          });
+          return; // 中断当前执行，等待回调后再继续
+        }
+        
+        console.log("已获取电路数据，长度:", circuitData.length);
+        
+        // 获取用户信息
+        const userStr = localStorage.getItem('eda_user');
+        let userId;
+        
+        try {
+          if (userStr) {
+            const userObj = JSON.parse(userStr);
+            userId = userObj.userId;
+            console.log("从eda_user获取到用户ID:", userId);
+          } else {
+            userId = sessionStorage.getItem('userId') || localStorage.getItem('userId');
+            console.log("从userId获取到用户ID:", userId);
+          }
+        } catch (e) {
+          console.error("解析用户信息失败", e);
+        }
+        
+  if (!userId) {
+          showCustomNotification("访客模式下无法使用该功能", "error");
+    return;
+  }
+  
+        // 获取token（同时检查sessionStorage和localStorage）
+        const token = sessionStorage.getItem('eda_token') || localStorage.getItem('eda_token');
+        if (!token) {
+          showCustomNotification("无法获取token，请先登录", "error");
+          return;
+        }
+        
+        // 移除显示加载通知
+        // showCustomNotification("正在加载项目列表...", "info");
+        
+        // 使用原生fetch API绕过GWT
+        const apiBaseUrl = window.API_BASE_URL || (window.API && window.API.API_BASE_URL) || (window.location.protocol + '//' + window.location.hostname + ':8088');
+        
+        // 先验证token有效性
+        fetch(`${apiBaseUrl}/eda/login/validate`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token.trim()}`
+          }
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Token验证失败');
+          }
+          return response.json();
+        })
+        .then(tokenResult => {
+          if (tokenResult.code !== 200) {
+            throw new Error('Token无效');
+          }
+          
+          console.log("Token验证成功，正在获取电路列表...");
+          // 获取用户的电路列表
+          return fetch(`${apiBaseUrl}/cycore/circuit/user/current`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token.trim()}`,
+              'Content-Type': 'application/json'
+            }
+          });
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`获取电路列表HTTP错误: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then(response => {
+          console.log("获取电路列表成功:", response);
+          
+          // 处理项目列表数据
+          let projectsList = [];
+          if (response.code === 200) {
+            if (response.data && Array.isArray(response.data)) {
+              projectsList = response.data;
+            } else if (response.data && response.data.records && Array.isArray(response.data.records)) {
+              projectsList = response.data.records;
+            }
+          }
+          
+          // 如果没有获取到数据，尝试直接获取
+          if (projectsList.length === 0) {
+            console.log("未获取到电路列表数据，尝试直接获取");
+            return fetch(`${apiBaseUrl}/cycore/circuit/user/${userId}?limit=50&offset=0`, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${token.trim()}`,
+                'Content-Type': 'application/json'
+              }
+            })
+            .then(response => response.json())
+            .then(fallbackResponse => {
+              if (fallbackResponse.code === 200) {
+                if (fallbackResponse.data && Array.isArray(fallbackResponse.data)) {
+                  projectsList = fallbackResponse.data;
+                } else if (fallbackResponse.data && fallbackResponse.data.records && Array.isArray(fallbackResponse.data.records)) {
+                  projectsList = fallbackResponse.data.records;
+                }
+              }
+              return projectsList;
+            });
+          }
+          
+          return projectsList;
+        })
+        .then(projectsList => {
+          // 存储项目列表到全局变量
+          window.projectsList = projectsList;
+          console.log("已获取电路列表，数量:", projectsList.length);
+          
+          // 显示右上角项目保存弹窗
+          showCornerProjectSavePopup(circuitData);
+        })
+        .catch(error => {
+          console.error("获取电路列表失败:", error);
+          // 显示错误，但仍然显示保存窗口
+          window.projectsList = [];
+          showCornerProjectSavePopup(circuitData);
+          showCustomNotification("加载项目列表失败: " + error.message, "error");
+        });
+      } catch (e) {
+        console.error("执行过程中出错:", e);
+        showCustomNotification("执行过程中出错: " + e.message, "error");
+      }
+    }
+
+    // 显示右上角项目保存弹窗
+    function showCornerProjectSavePopup(circuitData) {
+      console.log("显示右上角项目保存弹窗 - 使用iframe隔离方案");
+      
+      // 保存原始数据到window对象，以便在iframe中使用
+      window.projectsListData = window.projectsList || [];
+      window.circuitDataToSave = circuitData;
+      
+      // 检查当前主题状态
+      const isDarkMode = document.body.classList.contains('dark-mode');
+      window.currentThemeIsDark = isDarkMode;
+      
+      // 清除可能存在的旧弹窗
+      const oldPopup = document.getElementById('corner-project-popup');
+      if (oldPopup) {
+        document.body.removeChild(oldPopup);
+      }
+      
+      // 创建容器
+      const popupContainer = document.createElement('div');
+      popupContainer.id = 'corner-project-popup';
+      popupContainer.style.position = 'fixed';
+      popupContainer.style.top = '80px';
+      popupContainer.style.right = '20px';
+      popupContainer.style.width = '420px';  // 从350px增加到420px
+      popupContainer.style.maxWidth = '90vw';
+      popupContainer.style.height = '670px';  
+      popupContainer.style.maxHeight = '85vh';  // 从80vh增加到85vh
+      popupContainer.style.backgroundColor = 'transparent';
+      popupContainer.style.borderRadius = '16px';
+      popupContainer.style.boxShadow = 'none';
+      popupContainer.style.zIndex = '10000';
+      popupContainer.style.overflow = 'hidden';
+      popupContainer.style.visibility = 'hidden';
+      popupContainer.style.opacity = '0';
+      popupContainer.style.animation = 'none';
+      
+      // 创建iframe，添加暗黑模式参数
+      const iframe = document.createElement('iframe');
+      iframe.id = 'save-popup-iframe';
+      iframe.src = isDarkMode ? 'circuitjs_iframe_popup.html?theme=dark' : 'circuitjs_iframe_popup.html';
+      iframe.style.width = '100%';
+      iframe.style.height = '100%';
+      iframe.style.border = 'none';
+      iframe.style.borderRadius = '10px';
+      
+      // 监听 iframe 加载完成后，再显示并播放弹窗动画
+      iframe.addEventListener('load', function() {
+        popupContainer.style.visibility = 'visible';
+        // 触发一次重绘以确保动画能从头播放
+        void popupContainer.offsetWidth;
+        popupContainer.style.animation = 'slideDownIn 0.2s ease-out';
+        popupContainer.style.opacity = '1';
+      });
+      
+      popupContainer.appendChild(iframe);
+      document.body.appendChild(popupContainer);
+      
+      // 创建半透明遮罩层，覆盖整个页面
+      const overlay = document.createElement('div');
+      overlay.id = 'popup-overlay';
+      overlay.style.position = 'fixed';
+      overlay.style.top = '0';
+      overlay.style.left = '0';
+      overlay.style.right = '0';
+      overlay.style.bottom = '0';
+      overlay.style.backgroundColor = 'rgba(0,0,0,0.3)';
+      overlay.style.zIndex = '9999'; // 低于弹窗但高于其他内容
+      overlay.style.opacity = '0';
+      overlay.style.transition = 'opacity 0.2s';
+      
+      // 添加点击遮罩层关闭弹窗的功能
+      overlay.addEventListener('click', function(e) {
+                  // 确保点击的是遮罩层，而不是弹窗内部
+          if (e.target === overlay) {
+            // 先淡出
+            overlay.style.opacity = '0';
+            popupContainer.style.transform = 'translateY(-20px)';
+            popupContainer.style.opacity = '0';
+            popupContainer.style.transition = 'opacity 0.12s ease-out, transform 0.12s ease-out';
+                      
+          // 关闭弹窗
+          setTimeout(() => {
+            if (document.body.contains(popupContainer)) {
+              document.body.removeChild(popupContainer);
+            }
+            if (document.body.contains(overlay)) {
+              document.body.removeChild(overlay);
+            }
+            // 移除消息监听器
+            if (window.savePopupMessageHandler) {
+              window.removeEventListener('message', window.savePopupMessageHandler);
+            }
+          }, 150); // 减少到150ms
+        }
+      });
+      
+      document.body.appendChild(overlay);
+      
+      // 显示遮罩层
+      setTimeout(() => {
+        overlay.style.opacity = '1';
+      }, 10);
+      
+      // 创建样式
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes slideDownIn {
+          from { transform: translateY(-20px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+      `;
+      document.head.appendChild(style);
+      
+      // 先移除所有现有的消息监听器
+      if (window.savePopupMessageHandler) {
+        window.removeEventListener('message', window.savePopupMessageHandler);
+      }
+      
+      // 添加消息监听器以处理iframe的请求，并保存引用以便后续移除
+      window.savePopupMessageHandler = function(event) {
+        // 检查消息来源是否为我们的iframe
+        if (event.source !== iframe.contentWindow) return;
+        
+        if (event.data.type === 'closePopup') {
+          // 移除弹窗和遮罩层
+          const overlay = document.getElementById('popup-overlay');
+          
+          // 先添加动画
+          if (overlay) {
+            overlay.style.opacity = '0';
+          }
+          popupContainer.style.transform = 'translateY(-20px)';
+          popupContainer.style.opacity = '0';
+          popupContainer.style.transition = 'opacity 0.12s ease-out, transform 0.12s ease-out';
+          
+          setTimeout(() => {
+            if (document.body.contains(popupContainer)) {
+              document.body.removeChild(popupContainer);
+            }
+            if (overlay && document.body.contains(overlay)) {
+              document.body.removeChild(overlay);
+            }
+          }, 150);
+          
+          // 移除消息监听器
+          window.removeEventListener('message', window.savePopupMessageHandler);
+                } else if (event.data.type === 'saveCircuit') {
+          // 保存电路数据并移除监听器，防止重复保存
+          saveCircuitData(event.data.data);
+          // 不在这里移除事件监听器，等待保存完成后关闭弹窗时移除
+        } else if (event.data.type === 'openCircuit') {
+          const openData = event.data.data || {};
+          const circuitId = openData.circuitId;
+          if (!circuitId) {
+            showCustomNotification('未提供circuitId', 'error');
+            return;
+          }
+          const token = sessionStorage.getItem('eda_token') || localStorage.getItem('eda_token');
+          const apiBaseUrl = window.API_BASE_URL || (window.API && window.API.API_BASE_URL) || (window.location.protocol + '//' + window.location.hostname + ':8088');
+          if (!token) {
+            showCustomNotification('无法获取token，请重新登录', 'error');
+            return;
+          }
+          fetch(`${apiBaseUrl}/cycore/circuit/${circuitId}`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token.trim()}` }
+          })
+            .then(r => {
+              if (!r.ok) throw new Error(`HTTP错误: ${r.status}`);
+              return r.json();
+            })
+            .then(resp => {
+              if (resp && resp.code === 200 && resp.data && resp.data.circuitData) {
+                const text = resp.data.circuitData;
+                const name = resp.data.circuitName || '';
+                // 加载到GWT
+                loadCircuitData(text, name);
+                showCustomNotification('项目已打开', 'success');
+                // 关闭弹窗
+                const overlayEl = document.getElementById('popup-overlay');
+                if (overlayEl) overlayEl.style.opacity = '0';
+                popupContainer.style.transform = 'translateY(-20px)';
+                popupContainer.style.opacity = '0';
+                popupContainer.style.transition = 'opacity 0.12s ease-out, transform 0.12s ease-out';
+                setTimeout(() => {
+                  if (document.body.contains(popupContainer)) document.body.removeChild(popupContainer);
+                  if (overlayEl && document.body.contains(overlayEl)) document.body.removeChild(overlayEl);
+                  if (window.savePopupMessageHandler) {
+                    window.removeEventListener('message', window.savePopupMessageHandler);
+                  }
+                }, 150);
+              } else {
+                const msg = (resp && resp.msg) ? resp.msg : '未获取到电路数据';
+                showCustomNotification(`打开失败: ${msg}`, 'error');
+              }
+            })
+            .catch(err => {
+              showCustomNotification(`打开失败: ${err.message}`, 'error');
+            });
+        }
+       };
+       
+       window.addEventListener('message', window.savePopupMessageHandler);
+      
+      // 定义保存函数
+      window.saveCircuitData = function(saveData) {
+        // 防止重复点击保存
+        if (window.isSaving) {
+          // console.log("保存操作正在进行中，请勿重复点击");
+          showCustomNotification("正在保存，请稍候...", "info");
+                return;
+              }
+              
+        window.isSaving = true;
+        const token = sessionStorage.getItem('eda_token') || localStorage.getItem('eda_token');
+        
+        if (!token) {
+          showCustomNotification("无法获取令牌，请重新登录", "error");
+                    return;
+                  }
+        
+        // 检查必要参数
+        if (!saveData.userId || !saveData.circuitName || !saveData.circuitData) {
+          console.error("保存数据缺少必要参数:", saveData);
+          showCustomNotification("保存数据缺少必要参数", "error");
+                  return;
+                }
+                
+        const apiBaseUrl = window.API_BASE_URL || (window.API && window.API.API_BASE_URL) || (window.location.protocol + '//' + window.location.hostname + ':8088');
+        
+        // 显示保存中通知
+        showCustomNotification("正在保存项目...", "info");
+        
+        // 发送保存请求
+        fetch(`${apiBaseUrl}/cycore/circuit/save`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token.trim()}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(saveData)
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP错误: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then(data => {
+          // console.log("保存成功:", data);
+          showCustomNotification("项目保存成功!", "success");
+          
+          // 重置保存状态
+          window.isSaving = false;
+          
+          // 刷新项目列表
+          const userId = saveData.userId;
+          if (userId) {
+            setTimeout(() => {
+              // 重新获取用户的电路列表
+              fetch(`${apiBaseUrl}/cycore/circuit/user/${userId}?limit=50&offset=0`, {
+                method: 'GET',
+                headers: {
+                  'Authorization': `Bearer ${token.trim()}`,
+                  'Content-Type': 'application/json'
+                }
+              })
+              .then(response => response.json())
+              .then(response => {
+                if (response.code === 200) {
+                  let newProjectsList = [];
+                  if (response.data && Array.isArray(response.data)) {
+                    newProjectsList = response.data;
+                  } else if (response.data && response.data.records && Array.isArray(response.data.records)) {
+                    newProjectsList = response.data.records;
+                  }
+                  
+                  // 更新全局项目列表
+                  window.projectsList = newProjectsList;
+                  // console.log("项目列表已更新:", newProjectsList.length);
+                }
+    })
+    .catch(error => {
+                console.error("刷新项目列表失败:", error);
+              });
+            }, 500);
+          }
+          
+          // 关闭弹窗
+          const popupContainer = document.getElementById('corner-project-popup');
+          const overlay = document.getElementById('popup-overlay');
+          
+          // 先添加动画
+          if (overlay) {
+            overlay.style.opacity = '0';
+          }
+          
+          if (popupContainer) {
+            popupContainer.style.transform = 'translateY(-20px)';
+            popupContainer.style.opacity = '0';
+            popupContainer.style.transition = 'opacity 0.12s ease-out, transform 0.12s ease-out';
+          }
+          
+          // 延迟移除DOM元素
+          setTimeout(() => {
+            if (document.body.contains(popupContainer)) {
+              document.body.removeChild(popupContainer);
+            }
+            if (overlay && document.body.contains(overlay)) {
+              document.body.removeChild(overlay);
+            }
+            
+            // 移除消息监听器
+            if (window.savePopupMessageHandler) {
+              window.removeEventListener('message', window.savePopupMessageHandler);
+            }
+          }, 150); // 减少到150ms
+    })
+    .catch(error => {
+          console.error("保存失败:", error);
+          showCustomNotification("保存失败: " + error.message, "error");
+          
+          // 重置保存状态，允许重试
+          window.isSaving = false;
+        });
+      };
+    }
+
+    // 显示自定义通知
+    function showCustomNotification(message, type) {
+      // 清理旧通知
+      const oldNotifications = document.querySelectorAll('.custom-notification');
+      if (oldNotifications.length > 3) {
+        document.body.removeChild(oldNotifications[0]);
+      }
+      
+      // 创建通知
+      const notification = document.createElement('div');
+      notification.className = 'custom-notification';
+      notification.style.position = 'fixed';
+      notification.style.top = '20px';
+      notification.style.right = '20px';
+      notification.style.left = 'auto';
+      notification.style.bottom = 'auto';
+      notification.style.padding = '12px 20px';
+      notification.style.borderRadius = '8px';
+      notification.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+      notification.style.zIndex = '10000';
+      notification.style.maxWidth = '360px';
+      notification.style.width = 'auto';
+      notification.style.minWidth = '200px';
+      notification.style.maxHeight = '56px';
+      notification.style.height = 'auto';
+      notification.style.overflow = 'hidden';
+      notification.style.animation = 'fadeIn 0.25s ease-out, slideDown 0.25s ease-out';
+      notification.style.display = 'inline-flex';
+      notification.style.alignItems = 'center';
+      notification.style.boxSizing = 'border-box';
+      notification.style.pointerEvents = 'none';
+      
+      // 根据类型设置样式
+      switch(type) {
+        case 'success':
+          notification.style.backgroundColor = '#4caf50';
+          notification.style.color = 'white';
+          break;
+        case 'error':
+          notification.style.backgroundColor = '#f44336';
+          notification.style.color = 'white';
+          break;
+        case 'warning':
+          notification.style.backgroundColor = '#ff9800';
+          notification.style.color = 'white';
+          break;
+        case 'info':
+        default:
+          notification.style.backgroundColor = '#2196f3';
+          notification.style.color = 'white';
+          break;
+      }
+      
+      // 添加消息
+      const messageText = document.createElement('span');
+      messageText.style.whiteSpace = 'nowrap';
+      messageText.style.overflow = 'hidden';
+      messageText.style.textOverflow = 'ellipsis';
+      messageText.style.maxWidth = '320px';
+      messageText.textContent = message;
+      notification.appendChild(messageText);
+      
+      document.body.appendChild(notification);
+      
+      // 添加动画样式
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        
+        @keyframes slideDown {
+          from { transform: translateY(-10px); }
+          to { transform: translateY(0); }
+        }
+        .custom-notification { max-width: 360px; width: auto; box-sizing: border-box; display: inline-flex; pointer-events: none; max-height: 56px; overflow: hidden; }
+        .custom-notification span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      `;
+      document.head.appendChild(style);
+      
+      // 自动消失
+      setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateY(-10px)';
+        notification.style.transition = 'opacity 0.25s, transform 0.25s';
+        setTimeout(() => {
+          if (document.body.contains(notification)) {
+            document.body.removeChild(notification);
+          }
+        }, 300);
+      }, 3000);
+    }
+
+    // 移除之前重复添加的事件监听器并添加一个新的清理函数
+    (function() {
+      // 清理原有监听器
+      const saveToCloudBtn = document.getElementById('saveToCloudBtn');
+      if (saveToCloudBtn) {
+        const newBtn = saveToCloudBtn.cloneNode(true);
+        if (saveToCloudBtn.parentNode) {
+          saveToCloudBtn.parentNode.replaceChild(newBtn, saveToCloudBtn);
+        }
+        
+        // 添加新的事件监听器
+        newBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          // console.log("保存到云端按钮被点击 (清理后的监听器)");
+          
+          // 隐藏下拉菜单
+          document.getElementById('projectDropdown').classList.remove('show');
+          
+          // 执行强制保存函数
+          forceDirectRequest();
+        });
+        
+        // console.log("已重置保存到云端按钮的事件监听器");
+      }
+    })();
+
+    // "我的考试"点击提示暂未开放
+    const myExamLink = document.getElementById('myExamLink');
+    if (myExamLink) {
+      myExamLink.addEventListener('click', function(e) {
+        e.preventDefault();
+        if (typeof showPromptDialog === 'function') {
+          showPromptDialog('暂未开放');
+        } else {
+          alert('暂未开放');
+        }
+      });
+    }
+    </script>

@@ -1,0 +1,391 @@
+/* popup.css - 弹窗样式文件 */
+
+/* 弹窗动画 */
+@keyframes slideInRight {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideUp {
+    from { transform: translateY(20px); }
+    to { transform: translateY(0); }
+}
+
+/* 新增：从上到下的弹入动画 */
+@keyframes slideDownIn {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* 角落弹窗样式 */
+#corner-project-popup {
+    position: fixed; 
+    top: 80px; 
+    right: 20px; 
+    width: 420px; 
+    max-width: 90vw; 
+    background-color: white; 
+    border-radius: 16px; /* 增大圆角 */
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15); /* 柔和阴影 */
+    z-index: 10000; 
+    overflow: hidden;
+    animation: slideDownIn 0.2s ease-out;
+    border: none; /* 移除边框 */
+}
+
+/* iframe加载的内容也需要适配主题 */
+#save-popup-iframe {
+    border: none;
+    border-radius: 10px;
+    width: 100%;
+    height: 100%;
+}
+
+/* 弹窗头部 */
+.popup-header {
+    background-color: #5e35b1; 
+    color: white; 
+    padding: 18px 20px; /* 增加内边距 */
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
+    box-shadow: 0 2px 10px rgba(94, 53, 177, 0.2); /* 添加微妙阴影 */
+}
+
+.popup-title {
+    margin: 0; 
+    font-size: 20px; /* 增大字号 */
+    font-weight: 500; /* 设置字重 */
+}
+
+.popup-close {
+    cursor: pointer; 
+    width: 28px; /* 增大点击区域 */
+    height: 28px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    border-radius: 50%; /* 圆形按钮 */
+    transition: background-color 0.2s;
+}
+
+.popup-close:hover {
+    background-color: rgba(255, 255, 255, 0.2); /* 添加悬停效果 */
+}
+
+/* 弹窗内容区 */
+.popup-content {
+    padding: 20px; /* 增加内边距 */
+    max-height: 70vh; 
+    overflow-y: auto;
+}
+
+/* 按钮样式 */
+.popup-btn {
+    padding: 10px 20px; /* 统一按钮大小 */
+    border-radius: 8px; /* 增加圆角 */
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 15px;
+}
+
+.popup-btn:hover {
+    transform: translateY(-2px); /* 悬停时轻微上浮 */
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.popup-btn:active {
+    transform: translateY(1px);
+}
+
+.popup-btn-primary {
+    background-color: #5e35b1;
+    color: white;
+    border: none;
+}
+
+.popup-btn-secondary {
+    background-color: #f5f5f5;
+    border: 1px solid #eaeaea;
+    color: #333;
+}
+
+/* 自定义通知 */
+.custom-notification {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    padding: 14px 20px;
+    border-radius: 12px; /* 更大的圆角 */
+    box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+    z-index: 10000;
+    max-width: 90vw;
+    min-width: 250px;
+    animation: fadeIn 0.3s, slideUp 0.3s;
+    display: flex;
+    align-items: center;
+    font-weight: 500;
+}
+
+/* 通知类型样式 */
+.notification-success {
+    background-color: #4caf50;
+    color: white;
+}
+
+.notification-error {
+    background-color: #f44336;
+    color: white;
+}
+
+.notification-warning {
+    background-color: #ff9800;
+    color: white;
+}
+
+.notification-info {
+    background-color: #2196f3;
+    color: white;
+}
+
+/* 项目表单样式 */
+.form-group {
+    margin-bottom: 18px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 15px;
+    color: #444;
+    font-weight: 500;
+}
+
+.form-input {
+    width: 100%;
+    padding: 12px; /* 增大输入框 */
+    box-sizing: border-box;
+    border-radius: 8px; /* 统一圆角 */
+    border: 1px solid #e0e0e0; /* 更柔和的边框颜色 */
+    font-size: 15px;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.form-textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+/* 聚焦输入框样式 */
+#corner-project-popup input:focus,
+#corner-project-popup textarea:focus {
+    border-color: #5e35b1;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(94, 53, 177, 0.15);
+}
+
+/* 输入框可选择文本 */
+#corner-project-popup input, 
+#corner-project-popup textarea {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+}
+
+/* 项目列表样式 */
+.project-list-container {
+    max-height: 350px;
+    overflow-y: auto;
+    margin-bottom: 20px;
+    border: 1px solid #f0f0f0;
+    border-radius: 12px;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.03);
+}
+
+/* 项目项样式 */
+.project-item {
+    padding: 14px;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.project-item:hover {
+    background-color: #f9f5ff;
+}
+
+.project-item.selected {
+    background-color: #f0e6ff;
+}
+
+/* 标签页样式 */
+.tabs {
+    display: flex;
+    margin-bottom: 18px;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 12px;
+}
+
+.tab {
+    padding: 10px 20px;
+    cursor: pointer;
+    font-weight: 500;
+    color: #666;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.tab.active {
+    color: #5e35b1;
+    border-bottom: 2px solid #5e35b1;
+}
+
+.tab.inactive:hover {
+    color: #5e35b1;
+}
+
+/* 改进滚动条样式 */
+#corner-project-popup ::-webkit-scrollbar {
+    width: 8px;
+}
+
+#corner-project-popup ::-webkit-scrollbar-track {
+    background: #f5f5f5;
+    border-radius: 8px;
+}
+
+#corner-project-popup ::-webkit-scrollbar-thumb {
+    background-color: #d0d0d0;
+    border-radius: 8px;
+    border: 2px solid #f5f5f5;
+}
+
+#corner-project-popup ::-webkit-scrollbar-thumb:hover {
+    background-color: #aaa;
+}
+
+/* 暗黑模式样式 */
+body.dark-mode #corner-project-popup {
+    background-color: #2d2d2d; /* 稍微调亮，原来是 #222 */
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    border: 1px solid #3d3d3d; /* 边框也调亮一点 */
+}
+
+body.dark-mode .popup-header {
+    background-color: #3c2a7d; /* 较暗的紫色 */
+}
+
+body.dark-mode .popup-content {
+    color: #e0e0e0;
+}
+
+body.dark-mode .popup-btn-secondary {
+    background-color: #383838; /* 调亮按钮背景 */
+    border-color: #4a4a4a;
+    color: #e0e0e0;
+}
+
+body.dark-mode .form-label {
+    color: #bbb;
+}
+
+body.dark-mode .form-input {
+    background-color: #333;
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+body.dark-mode #corner-project-popup input:focus,
+body.dark-mode #corner-project-popup textarea:focus {
+    border-color: #7e57c2;
+    box-shadow: 0 0 0 3px rgba(126, 87, 194, 0.2);
+}
+
+body.dark-mode .project-list-container {
+    border-color: #444;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+}
+
+body.dark-mode .project-item {
+    border-bottom-color: #333;
+}
+
+body.dark-mode .project-item:hover {
+    background-color: #333;
+}
+
+body.dark-mode .project-item.selected {
+    background-color: #3c2e63; /* 暗紫色 */
+}
+
+body.dark-mode .tabs {
+    border-bottom-color: #444;
+}
+
+body.dark-mode .tab {
+    color: #aaa;
+}
+
+body.dark-mode .tab.active {
+    color: #9575cd; /* 浅紫色 */
+    border-bottom-color: #9575cd;
+}
+
+body.dark-mode .tab.inactive:hover {
+    color: #9575cd;
+}
+
+/* 暗黑模式滚动条样式 */
+body.dark-mode #corner-project-popup ::-webkit-scrollbar-track {
+    background: #333;
+}
+
+body.dark-mode #corner-project-popup ::-webkit-scrollbar-thumb {
+    background-color: #555;
+    border: 2px solid #333;
+}
+
+body.dark-mode #corner-project-popup ::-webkit-scrollbar-thumb:hover {
+    background-color: #666;
+}
+
+/* 暗黑模式项目保存对话框 */
+body.dark-mode #project-save-dialog {
+    background-color: #2d2d2d; /* 调亮 */
+    color: #e0e0e0;
+}
+
+body.dark-mode #project-save-content h3,
+body.dark-mode #project-save-content h2 {
+    color: #bbb;
+}
+
+body.dark-mode #project-save-content input[type="text"],
+body.dark-mode #project-save-content textarea,
+body.dark-mode #project-save-content select {
+    background-color: #333;
+    color: #e0e0e0;
+    border-color: #444;
+}
+
+/* 暗黑模式登录对话框 */
+body.dark-mode .login-dialog {
+    background-color: #2d2d2d; /* 调亮 */
+    color: #e0e0e0;
+    box-shadow: 0 5px 25px rgba(0, 0, 0, 0.5);
+}
+
+body.dark-mode .login-dialog h2 {
+    color: #9575cd;
+}
+
+/* 适配popup-overlay的暗黑模式 */
+body.dark-mode #popup-overlay {
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+/* 针对iframe内容的适配 */
+body.dark-mode #save-popup-iframe {
+    background-color: #2d2d2d; /* 调亮 */
+    box-shadow: none;
+} 

@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CYCORE电路芯片仿真系统</title>
+    <style>
+        :root {
+            --primary-color: #3b226e;  /* 深紫色 */
+            --primary-hover: #4826af;  /* 深紫色悬停状态 */
+            --primary-light: #856ab3;  /* 浅紫色 */
+            --bg-color: #f8f9fa;
+            --text-color: #333;
+            --error-color: #dc3545;
+            --success-color: #28a745;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            position: relative;
+            background: url('img/background.svg') no-repeat center center fixed;
+            background-size: cover;
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: inherit;
+            filter: blur(1px);
+            z-index: -1;
+        }
+        
+        .login-container {
+            width: 100%;
+            max-width: 1048px;
+            min-height: 600px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+            display: flex;
+            overflow: hidden;
+        }
+        
+        .login-form-container {
+            width: 35%;
+            min-width: 320px;
+            padding: 60px 30px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        #loginForm {
+            width: 80%;
+            margin: 0 auto;
+        }
+        
+        .login-banner {
+            width: 65%;
+            background: url('img/login_banner.svg') no-repeat center center;
+            background-size: cover;
+            border-top-right-radius: 20px;
+            border-bottom-right-radius: 20px;
+        }
+        
+        .header-section {
+            margin-bottom: 0px;
+        }
+        
+        .logo-container {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        
+        .logo-img {
+            max-width: 75%;
+            max-height: 60px;
+            margin-bottom: 0;
+        }
+        
+        .footer-section {
+            height: 20px;
+        }
+        
+        h1 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            font-size: clamp(14px, 3.5vw, 20px);
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+        
+        input {
+            width: 100%;
+            padding: clamp(8px, 2vw, 12px) clamp(10px, 3vw, 15px);
+            font-size: clamp(14px, 2vw, 16px);
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            transition: border-color 0.3s ease;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(94, 53, 177, 0.2);
+        }
+        
+        .error-message {
+            color: var(--error-color);
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+        
+        .login-btn {
+            width: 100%;
+            padding: clamp(10px, 2vw, 12px);
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: clamp(14px, 2vw, 16px);
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .login-btn:hover {
+            background-color: var(--primary-hover);
+        }
+        
+        .login-btn:disabled {
+            background-color: var(--primary-light);
+            cursor: not-allowed;
+        }
+        
+        .register-btn-link {
+            display: block;
+            width: 100%;
+            padding: clamp(10px, 2vw, 12px);
+            background-color: white;
+            color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+            border-radius: 4px;
+            font-size: clamp(14px, 2vw, 16px);
+            font-weight: 600;
+            text-decoration: none;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .register-btn-link:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .remember-forgot-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .remember-me {
+            display: flex;
+            align-items: center;
+        }
+        
+        .forgot-password a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .forgot-password a:hover {
+            text-decoration: underline;
+        }
+        
+        .remember-me input {
+            width: auto;
+            margin-right: 10px;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* 响应式布局 */
+        @media (max-width: 920px) {
+            .login-container {
+                flex-direction: column;
+                min-height: auto;
+                max-width: 100%;
+            }
+            
+            .login-form-container {
+                width: 100%;
+                min-width: 100%;
+                padding: 30px 20px;
+                order: 2;
+            }
+            
+            .login-banner {
+                width: 100%;
+                height: 280px;
+                border-top-right-radius: 20px;
+                border-top-left-radius: 20px;
+                border-bottom-right-radius: 0;
+                order: 1;
+            }
+            
+            #loginForm {
+                width: 90%;
+            }
+            
+            .form-group {
+                margin-bottom: 15px;
+            }
+            
+            .header-section {
+                margin-bottom: 0;
+            }
+            
+            .footer-section {
+                height: 10px;
+            }
+            
+            .logo-img {
+                max-width: 65%;
+                max-height: 55px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .login-container {
+                border-radius: 15px;
+            }
+            
+            .login-banner {
+                height: 180px;
+                border-top-right-radius: 15px;
+                border-top-left-radius: 15px;
+            }
+            
+            .login-form-container {
+                padding: 20px 15px;
+            }
+            
+            #loginForm {
+                width: 100%;
+            }
+            
+            .logo-img {
+                max-width: 60%;
+                max-height: 20px;
+            }
+            
+            h1 {
+                margin-top: 10px;
+                margin-bottom: 15px;
+                font-size: clamp(14px, 3vw, 18px);
+            }
+            
+            .remember-me {
+                margin-bottom: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-form-container">
+            <div class="header-section">
+        <div class="logo-container">
+            <img src="img/cycore-horizen.png" alt="电路仿真系统" class="logo-img">
+        </div>
+        <h1>EDA 芯片电路仿真系统</h1>
+            </div>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">用户名</label>
+                <input type="text" id="username" name="username" required autocomplete="username">
+                <div class="error-message" id="username-error">请输入用户名</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">密码</label>
+                <input type="password" id="password" name="password" required autocomplete="current-password">
+                <div class="error-message" id="password-error">请输入密码</div>
+            </div>
+            
+                            <div class="remember-forgot-row">
+            <div class="remember-me">
+                <input type="checkbox" id="remember" name="remember">
+                <label for="remember">记住我</label>
+                </div>
+                <div class="forgot-password">
+                    <a href="account-recover.html">忘记密码？</a>
+                </div>
+            </div>
+            
+            <button type="submit" class="login-btn" id="login-btn">登录</button>
+            <div id="login-error" class="error-message" style="text-align: center; margin-top: 15px;"></div>
+                
+                <div class="register-link" style="margin-top: 15px;">
+                    <a href="register.html" class="register-btn-link">注册新账号</a>
+                </div>
+                <div class="offline-link" style="margin-top: 16px; text-align: center;">
+                    <a href="#" id="offline-link" style="color: var(--primary-color); text-decoration: underline; font-weight: 600; font-size: 13px;">访客模式</a>
+                </div>
+        </form>
+            
+            <div class="footer-section"></div>
+        </div>
+        <div class="login-banner"></div>
+    </div>
+    
+    <script src="api.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const loginForm = document.getElementById('loginForm');
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+            const usernameError = document.getElementById('username-error');
+            const passwordError = document.getElementById('password-error');
+            const loginError = document.getElementById('login-error');
+            const loginBtn = document.getElementById('login-btn');
+            const rememberMe = document.getElementById('remember');
+            const offlineLink = document.getElementById('offline-link');
+
+            // 面包板等独立页面登录后可安全返回来源页面；仅允许当前源，避免开放重定向。
+            function redirectToRequestedPageOrCircuit() {
+                const requestedUrl = sessionStorage.getItem('redirect_after_login');
+                if (requestedUrl) {
+                    try {
+                        const target = new URL(requestedUrl, window.location.href);
+                        if (target.origin === window.location.origin) {
+                            sessionStorage.removeItem('redirect_after_login');
+                            window.location.href = target.href;
+                            return;
+                        }
+                    } catch (error) {
+                        console.warn('忽略无效的登录回跳地址', error);
+                    }
+                    sessionStorage.removeItem('redirect_after_login');
+                }
+                window.location.href = 'circuitjs.html';
+            }
+            
+            // 从localStorage获取保存的用户名（如果有）
+            const savedUsername = localStorage.getItem('saved_username');
+            if (savedUsername) {
+                usernameInput.value = savedUsername;
+                rememberMe.checked = true;
+            }
+            
+            // 启动时基于本地token自动验证登录（同时检查sessionStorage和localStorage）
+            const token = sessionStorage.getItem('eda_token') || localStorage.getItem('eda_token');
+            if (token) {
+                API.validateToken()
+                    .then(data => {
+                        if (data.code === 200) {
+                            // token有效，更新用户信息并标记本会话为已认证
+                            const userData = {
+                                userId: data.data.userId,
+                                username: data.data.username,
+                                realName: data.data.realName || data.data.username,
+                                userType: data.data.userType,
+                                expireTime: data.data.expireTime,
+                                loginTime: new Date().toISOString()
+                            };
+                            localStorage.setItem('eda_user', JSON.stringify(userData));
+                            
+                            // 根据token来源决定userId存储位置
+                            if (sessionStorage.getItem('eda_token')) {
+                                sessionStorage.setItem('userId', data.data.userId);
+                            } else {
+                                localStorage.setItem('userId', data.data.userId);
+                            }
+                            
+                            sessionStorage.setItem('authenticated', 'true');
+                            sessionStorage.removeItem('offline_mode');
+
+                            if (!data.data.productAccess || data.data.productAccess.status !== 'ACTIVE') {
+                                localStorage.setItem('eda_user', JSON.stringify({
+                                    ...userData,
+                                    productCode: 'L1',
+                                    productAccess: data.data.productAccess
+                                }));
+                                window.location.href = 'activate.html';
+                                return;
+                            }
+
+                            const pendingSaveCircuit = sessionStorage.getItem('pending_save_circuit');
+                            const returnUrl = sessionStorage.getItem('return_url');
+                            if (pendingSaveCircuit && returnUrl) {
+                                sessionStorage.removeItem('pending_save_circuit');
+                                sessionStorage.removeItem('return_url');
+                                sessionStorage.setItem('circuit_to_save', pendingSaveCircuit);
+                                window.location.href = returnUrl;
+                            } else {
+                                redirectToRequestedPageOrCircuit();
+                            }
+                        } else {
+                            // token无效，清理所有认证信息
+                            localStorage.removeItem('eda_token');
+                            sessionStorage.removeItem('eda_token');
+                            localStorage.removeItem('eda_user');
+                            localStorage.removeItem('userId');
+                            sessionStorage.removeItem('userId');
+                            sessionStorage.removeItem('authenticated');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('验证token失败:', error);
+                        localStorage.removeItem('eda_token');
+                        sessionStorage.removeItem('eda_token');
+                        localStorage.removeItem('eda_user');
+                        localStorage.removeItem('userId');
+                        sessionStorage.removeItem('userId');
+                        sessionStorage.removeItem('authenticated');
+                    });
+            }
+            
+            // 表单验证
+            function validateForm() {
+                let isValid = true;
+                
+                if (!usernameInput.value.trim()) {
+                    usernameError.style.display = 'block';
+                    isValid = false;
+                } else {
+                    usernameError.style.display = 'none';
+                }
+                
+                if (!passwordInput.value) {
+                    passwordError.style.display = 'block';
+                    isValid = false;
+                } else {
+                    passwordError.style.display = 'none';
+                }
+                
+                return isValid;
+            }
+            
+            // 在输入字段发生变化时进行验证
+            usernameInput.addEventListener('input', function() {
+                if (usernameInput.value.trim()) {
+                    usernameError.style.display = 'none';
+                }
+            });
+            
+            passwordInput.addEventListener('input', function() {
+                if (passwordInput.value) {
+                    passwordError.style.display = 'none';
+                }
+            });
+            
+            // 处理登录表单提交
+            loginForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                if (!validateForm()) {
+                    return;
+                }
+                
+                // 禁用登录按钮，显示加载状态
+                loginBtn.disabled = true;
+                const originalBtnText = loginBtn.innerHTML;
+                loginBtn.innerHTML = '登录中... <span class="loading"></span>';
+                
+                // 发送登录请求到后端API
+                API.login({
+                    username: usernameInput.value,
+                    password: passwordInput.value,
+                    rememberMe: rememberMe.checked
+                })
+                .then(data => {
+                    if (data.code === 200) {
+                        // 登录成功
+                        // 如果选择了"记住我"，则保存用户名
+                        if (rememberMe.checked) {
+                            localStorage.setItem('saved_username', usernameInput.value);
+                            // 保存加密后的密码，用于自动刷新令牌（简单加密，非安全方式）
+                            const encodedPassword = btoa(passwordInput.value);
+                            localStorage.setItem('saved_password', encodedPassword);
+                        } else {
+                            localStorage.removeItem('saved_username');
+                            localStorage.removeItem('saved_password');
+                        }
+                        
+                        // 保存token和用户信息（按记住我选项决定持久化或会话）
+                        // 确保token格式正确，不含额外空格
+                        const token = data.data.token ? data.data.token.trim() : "";
+                        const userData = {
+                            userId: data.data.userId,
+                            username: data.data.username,
+                            realName: data.data.realName || data.data.username,
+                            userType: data.data.userType,
+                            expireTime: data.data.expireTime,
+                            loginTime: new Date().toISOString()
+                        };
+                        
+                        // token存储
+                        if (rememberMe.checked) {
+                            localStorage.setItem('eda_token', token);
+                            sessionStorage.removeItem('eda_token');
+                        } else {
+                            sessionStorage.setItem('eda_token', token);
+                            localStorage.removeItem('eda_token');
+                        }
+                        
+                        // userId 持久化，便于跨会话恢复（只在记住我时持久化，否则仅本会话）
+                        if (rememberMe.checked) {
+                            localStorage.setItem('userId', data.data.userId);
+                        } else {
+                            sessionStorage.setItem('userId', data.data.userId);
+                            localStorage.removeItem('userId');
+                        }
+                        
+                        localStorage.setItem('eda_user', JSON.stringify(userData));
+                        sessionStorage.setItem('authenticated', 'true');
+                        // 清理离线模式标志
+                        sessionStorage.removeItem('offline_mode');
+
+                        if (!data.data.productAccess || data.data.productAccess.status !== 'ACTIVE') {
+                            localStorage.setItem('eda_user', JSON.stringify({
+                                ...userData,
+                                productCode: 'L1',
+                                productAccess: data.data.productAccess
+                            }));
+                            window.location.href = 'activate.html';
+                            return;
+                        }
+                        
+                        // 检查是否有来自保存功能的重定向
+                        const pendingSaveCircuit = sessionStorage.getItem('pending_save_circuit');
+                        const returnUrl = sessionStorage.getItem('return_url');
+                        
+                        if (pendingSaveCircuit && returnUrl) {
+                            // 有待保存的电路，将数据保存到会话，并重定向回原页面
+                            sessionStorage.removeItem('pending_save_circuit');
+                            sessionStorage.removeItem('return_url');
+                            sessionStorage.setItem('circuit_to_save', pendingSaveCircuit);
+                            
+                            console.log("检测到有待保存的电路，重定向回原页面");
+                            window.location.href = returnUrl;
+                        } else {
+                            // 正常登录流程，跳转到首页
+                            redirectToRequestedPageOrCircuit();
+                        }
+                    } else {
+                        // 登录失败
+                        loginError.textContent = data.message || '登录失败，请检查用户名和密码';
+                        loginError.style.display = 'block';
+                        loginBtn.disabled = false;
+                        loginBtn.innerHTML = originalBtnText;
+                    }
+                })
+                .catch(error => {
+                    console.error('登录请求失败:', error);
+                    loginError.textContent = '网络错误，请稍后再试';
+                    loginError.style.display = 'block';
+                    loginBtn.disabled = false;
+                    loginBtn.innerHTML = originalBtnText;
+                });
+            });
+
+            // 离线使用入口
+            if (offlineLink) {
+                offlineLink.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const ok = confirm('访客模式下无法保存项目到云端，仅可使用仿真功能');
+                    if (ok) {
+                        // 设置离线模式并清理登录状态
+                        sessionStorage.setItem('offline_mode', 'true');
+                        localStorage.removeItem('eda_token');
+                        localStorage.removeItem('eda_user');
+                        localStorage.removeItem('userId');
+                        sessionStorage.removeItem('authenticated');
+                        // 直接进入仿真页
+                        window.location.href = 'circuitjs.html';
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,230 @@
+/* gwt-menu.css - GWT菜单栏的下拉菜单现代简约样式 */
+
+/* 下拉菜单现代样式 */
+.modern-submenu {
+  border: none !important;
+  border-radius: 6px !important;
+  overflow: hidden !important;
+}
+
+/* 弹出菜单样式 */
+.gwt-MenuBarPopup {
+  border-radius: 6px !important;
+  border: none !important;
+  overflow: hidden !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12) !important;
+  animation: menuFadeIn 0.15s ease-out !important;
+}
+
+@keyframes menuFadeIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.gwt-MenuBarPopup .menuPopupMiddleCenter {
+  background-color: #ffffff !important;
+  border: none !important;
+  border-radius: 6px !important;
+  padding: 4px 0 !important;
+  min-width: 240px !important;
+}
+
+.gwt-MenuBarPopup .menuPopupTopCenter,
+.gwt-MenuBarPopup .menuPopupBottomCenter,
+.gwt-MenuBarPopup .menuPopupTopLeft,
+.gwt-MenuBarPopup .menuPopupTopRight,
+.gwt-MenuBarPopup .menuPopupBottomLeft,
+.gwt-MenuBarPopup .menuPopupBottomRight,
+.gwt-MenuBarPopup .menuPopupMiddleLeft,
+.gwt-MenuBarPopup .menuPopupMiddleRight {
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+}
+
+/* 菜单项分隔符样式 */
+.gwt-MenuItemSeparator {
+  border: none !important;
+  margin: 6px 8px !important;
+  height: 1px !important;
+}
+
+.gwt-MenuItemSeparator .menuSeparatorInner {
+  border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
+  height: 1px !important;
+}
+
+/* 菜单项样式 - 只应用于弹出菜单 */
+.gwt-MenuBarPopup .gwt-MenuItem {
+  color: #333333 !important;
+  background-color: transparent !important;
+  padding: 8px 12px !important;
+  border: none !important;
+  transition: background-color 0.15s ease, color 0.15s ease !important;
+  font-size: 14px !important;
+  font-weight: normal !important;
+}
+
+.gwt-MenuBarPopup .gwt-MenuItem-selected, 
+.gwt-MenuBarPopup .gwt-MenuItem:hover {
+  background-color: rgba(94, 53, 177, 0.08) !important; /* 浅色紫色背景 */
+  color: #5e35b1 !important;
+  border-radius: 3px !important;
+}
+
+/* 禁用的菜单项 */
+.gwt-MenuBarPopup .gwt-MenuItem-disabled {
+  color: rgba(0, 0, 0, 0.38) !important;
+  opacity: 0.6 !important;
+}
+
+/* 子菜单箭头样式 */
+.gwt-MenuBarPopup .subMenuIcon {
+  color: rgba(0, 0, 0, 0.54) !important;
+  font-size: 12px !important;
+  margin-right: 2px !important;
+}
+
+/* 上下文菜单样式 */
+.gwt-PopupPanel.menuPopup {
+  background-color: #ffffff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* 菜单栏图标样式 - 只应用于下拉菜单 */
+.gwt-MenuBarPopup img {
+  opacity: 0.85 !important;
+  margin-right: 6px !important;
+}
+
+/* 移除表格边框 */
+.gwt-MenuBarPopup table {
+  border-collapse: collapse !important;
+  border: none !important;
+}
+
+.gwt-MenuBarPopup table td {
+  padding: 0 !important;
+  border: none !important;
+}
+
+/* 布局：左侧图标+文字，右侧快捷键 */
+.gwt-MenuBarPopup .menu-item-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  white-space: nowrap !important;
+  width: 100% !important;
+}
+
+.gwt-MenuBarPopup .menu-item-left {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.gwt-MenuBarPopup .menu-item-shortcut {
+  margin-left: 16px !important;
+  color: rgba(0, 0, 0, 0.45) !important;
+  font-size: 12px !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+} 
+
+/* 统一条目宽度与容器一致，以及右键菜单与下拉菜单风格一致 */
+.gwt-MenuBarPopup table,
+.gwt-PopupPanel.menuPopup table {
+  width: 100% !important;
+}
+
+.gwt-MenuBarPopup .gwt-MenuItem,
+.gwt-PopupPanel.menuPopup .gwt-MenuItem {
+  color: #333333 !important;
+  background-color: transparent !important;
+  padding: 8px 12px !important;
+  border: none !important;
+  transition: background-color 0.15s ease, color 0.15s ease !important;
+  font-size: 14px !important;
+  font-weight: normal !important;
+  display: block !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.gwt-PopupPanel.menuPopup .menuPopupMiddleCenter {
+  background-color: #ffffff !important;
+  border: none !important;
+  border-radius: 6px !important;
+  padding: 4px 0 !important;
+}
+
+.gwt-PopupPanel.menuPopup .gwt-MenuItem-selected,
+.gwt-PopupPanel.menuPopup .gwt-MenuItem:hover,
+.gwt-MenuBarPopup .gwt-MenuItem-selected,
+.gwt-MenuBarPopup .gwt-MenuItem:hover {
+  background-color: rgba(94, 53, 177, 0.08) !important;
+  color: #5e35b1 !important;
+  border-radius: 3px !important;
+}
+
+/* 分隔符统一 */
+.gwt-PopupPanel.menuPopup .gwt-MenuItemSeparator {
+  border: none !important;
+  margin: 6px 8px !important;
+  height: 1px !important;
+}
+
+.gwt-PopupPanel.menuPopup .gwt-MenuItemSeparator .menuSeparatorInner {
+  border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
+  height: 1px !important;
+} 
+
+/* 修复菜单项布局：左侧标签与右侧快捷键（仅作用于包含 white-space:nowrap 的包裹层） */
+.gwt-MenuBarPopup .gwt-MenuItem > div[style*="white-space:nowrap"] {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+/* 覆盖左侧内层 div 的 width:100%; 让右侧快捷键有空间（限定在包裹层内） */
+.gwt-MenuBarPopup .gwt-MenuItem > div[style*="white-space:nowrap"] > div {
+  flex: 1 1 auto !important;
+  width: auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+} 
+
+/* 兼容绘制菜单中绝对定位的快捷键提示布局 */
+.gwt-MenuBarPopup .gwt-MenuItem {
+  position: relative !important;
+}
+
+.gwt-MenuBarPopup .gwt-MenuItem > div[style*="position:absolute"] {
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  right: 10px !important;
+  white-space: nowrap !important;
+}
+
+/* 规范勾选标记与文本的行高，防止高度被撑大 */
+.gwt-MenuBarPopup .gwt-MenuItem,
+.gwt-MenuBarPopup .gwt-MenuItem * {
+  line-height: 1.2 !important;
+}
+
+/* 细化：勾选标记固定最小宽度，保持行内容不跳动 */
+.gwt-MenuBarPopup .gwt-MenuItem > div[style*="width:15px"] {
+  display: inline-block !important;
+  min-width: 15px !important;
+  text-align: center !important;
+} 

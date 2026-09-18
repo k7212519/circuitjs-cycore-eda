@@ -11,7 +11,6 @@ war/breadboard/
 build/
 .project
 .settings/
-site/
 electron/dist/
 electron/node_modules/
 breadboard-simulation/node_modules/

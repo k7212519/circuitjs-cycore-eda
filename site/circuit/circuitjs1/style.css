@@ -1,0 +1,224 @@
+@charset "UTF-8";
+
+.gwt-MenuBar-horizontal {
+    background-color: #1075de;
+    color: white !important;
+    background-image: none !important;
+    border: none !important;
+    font-size: 14px !important; /* Apply font size to the parent container */
+}
+
+
+.gwt-MenuBar-horizontal .gwt-MenuItem {
+    color: white !important;
+    padding: 0 15px; /* 设置水平内边距 */
+    vertical-align: middle; /* 垂直居中单元格内容 */
+}
+
+.toolbarButton {
+    margin: 0px 10px;
+}
+
+.toolbar-icon svg {
+    width: 24px;
+    height: 24px;
+    vertical-align: middle;
+}
+
+.gwt-MenuBar-horizontal .gwt-MenuItem-selected {
+    background-color: #0000003b;
+}
+
+.dark-background .gwt-MenuBar-horizontal .gwt-MenuItem-selected {
+    background-color: #1c74c2;
+}
+
+.gwt-MenuBar-horizontal table {
+    height: 100%; /* 让表格高度填满父容器 */
+}
+
+/* 滑块标题样式 */
+.sliderLabel {
+    font-size: 14px;
+    color: #FF6E6E;
+}
+
+/* 顶部间距样式，用于添加元素上方的边距 */
+.topSpace {
+    margin-top: 18px;
+}
+
+/* 黑色背景模式下的样式调整 */
+.dark-background .gwt-Label {
+    color: white;
+}
+
+.dark-background .sliderLabel {
+    color: #FF6E6E;
+}
+
+/* 确保电路标题在黑色背景下也能正确显示 */
+.dark-background #titleLabel {
+    color: #FF6E6E;
+}
+
+/* 黑色背景模式下的统一颜色管理 */
+.dark-background .gwt-MenuBar-horizontal {
+    background-color: #303030;
+    /* 提高CSS优先级 */
+    color: white !important;
+    background-image: none !important;
+    border: none !important;
+}
+
+.dark-background .toolbar-panel {
+    background-color: #303030 !important;
+}
+
+.dark-background .logo-panel {
+    background-color: #303030 !important;
+}
+
+/* 黑色背景模式下弹出菜单的样式 */
+.dark-background .menuPopupTopLeft, 
+.dark-background .menuPopupTopCenter, 
+.dark-background .menuPopupTopRight,
+.dark-background .menuPopupMiddleCenter,
+.dark-background .menuPopupBottomLeft, 
+.dark-background .menuPopupBottomCenter, 
+.dark-background .menuPopupBottomRight {
+    background: #303030 !important;
+}
+
+.dark-background .gwt-MenuBar-vertical {
+    background-color: #303030 !important;
+    border: 1px solid #505050 !important;
+}
+
+.dark-background .gwt-MenuBar-vertical .gwt-MenuItem {
+    color: white !important;
+}
+
+.dark-background .gwt-MenuBar-vertical .gwt-MenuItem-selected {
+    background-color: #505050 !important;
+}
+
+/* General styles */
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-width: 600px;
+    overflow: hidden;
+}
+
+.logo-panel {
+    width: 100%;
+    height: 100%;
+    padding: 0 10px;
+    box-sizing: border-box;
+    background-color: lightblue;
+}
+
+.logo-image {
+    height: 100%;
+    margin-right: 10px;
+}
+
+.logo-title {
+    font-size: 20px;
+    font-weight: bold;
+    color: #333;
+}
+
+.toolbar-panel {
+    background-color: #1075de; /* Set toolbar background to blue */
+    width: 100%;
+}
+
+.toolbar-icon-label {
+    height: 44px;
+    width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    box-sizing: border-box;
+    border-radius: 50%;
+}
+
+.toolbar-icon-label svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* 不影响内联设定尺寸的三角图标 */
+.toolbar-icon-label svg[style*="width:"] {
+    width: auto !important;
+    height: auto !important;
+}
+
+.palette-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.toolbar-dropdown-item {
+    border-radius: 10px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.toolbar-dropdown-item svg {
+    display: block;
+    flex: 0 0 auto;
+}
+
+/* 无需隐藏任何元素 */
+
+@media only screen and (max-width: 600px) {
+    /* 窄屏情况下菜单样式调整 */
+    .gwt-MenuBar-horizontal {
+        font-size: 12px !important;
+    }
+    
+    .gwt-MenuBar-horizontal .gwt-MenuItem {
+        padding: 0 8px;
+    }
+    
+    /* 窄屏情况下弹出菜单样式 */
+    .gwt-MenuBarPopup {
+        z-index: 2;
+        width: auto;
+    }
+    
+    .gwt-MenuBarPopup>div {
+        overflow: auto;
+        max-height: 300px;
+    }
+    
+    .menuPopupTopLeft, .menuPopupTopCenter, .menuPopupTopRight,
+    .menuPopupMiddleCenter,
+    .menuPopupBottomLeft, .menuPopupBottomCenter, .menuPopupBottomRight {
+        background: #e6f2ff !important;
+    }
+}
+
+/* 移除中间行左右两侧的占位单元格 */
+.menuPopupMiddleLeft,
+.menuPopupMiddleRight,
+.menuPopupMiddleLeftInner,
+.menuPopupMiddleRightInner {
+    display: none !important;
+    width: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+}
+
+/* 深色模式下页面背景改为黑色，避免底部白条 */
+body.dark-mode {
+    background-color: #000000 !important;
+}
