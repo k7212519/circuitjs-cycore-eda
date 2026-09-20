@@ -511,7 +511,7 @@ MouseOutHandler, MouseWheelHandler {
 	logoPanel.getElement().getStyle().setHeight(100, Unit.PCT);
 	logoPanel.getElement().getStyle().setBackgroundColor(COLOR_BLUE);  //顶部logo和标题的父容器背景颜色
 
-	Image logo = new Image("/circuitjs1/img/subcircuits/cycore-logo.png");
+	Image logo = new Image(GWT.getModuleBaseURL() + "img/subcircuits/cycore-logo.png");
 	logo.setStyleName("logo-image");
 	logo.getElement().getStyle().setHeight(32, Unit.PX);
 	logo.getElement().getStyle().setProperty("flexShrink", "0");
