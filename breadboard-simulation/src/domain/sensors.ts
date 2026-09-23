@@ -154,7 +154,7 @@ class RouteQueue {
 }
 
 // Rectilinear lanes can cross perpendicular wires, but do not share parallel runs.
-function routeBetween(a: Point, b: Point, boxes: Bounds[], reserved: WireSegment[], allowConflict = false): Point[] | null {
+function routeBetween(a: Point, b: Point, boxes: Bounds[], reserved: WireSegment[], allowConflict = false, terminalDirections: { incoming?: Point; outgoing?: Point } = {}): Point[] | null {
   if (boxes.some(box => inside(a, box) || inside(b, box))) return null
   const minX = Math.min(a.x, b.x, ...boxes.map(r => r.x)) - 48
   const maxX = Math.max(a.x, b.x, ...boxes.map(r => r.x + r.width)) + 48
@@ -171,8 +171,11 @@ function routeBetween(a: Point, b: Point, boxes: Bounds[], reserved: WireSegment
   const distances = new Float64Array(points.length * 3).fill(Infinity)
   const previous = new Int32Array(points.length * 3).fill(-1)
   const queue = new RouteQueue()
-  distances[start * 3] = 0
-  queue.push({ state: start * 3, cost: 0 })
+  const { incoming, outgoing } = terminalDirections
+  const axis = (d?: Point) => d?.x ? 2 : d?.y ? 1 : 0
+  const startState = start * 3 + axis(incoming)
+  distances[startState] = 0
+  queue.push({ state: startState, cost: 0 })
   let final = -1
   for (let entry = queue.pop(); entry; entry = queue.pop()) {
     if (entry.cost !== distances[entry.state]) continue
@@ -182,11 +185,15 @@ function routeBetween(a: Point, b: Point, boxes: Bounds[], reserved: WireSegment
     for (const next of [current - 1, current + 1, current - ys.length, current + ys.length]) {
       const q = points[next]
       if (!q || (p.x !== q.x && p.y !== q.y) || !clearSegment(p, q, boxes)) continue
+      // The fixed pin exits are part of the path: never turn back over them.
+      const reverses = (d?: Point) => d && (q.x - p.x) * d.x + (q.y - p.y) * d.y < 0
+      if ((current === start && reverses(incoming)) || (next === end && reverses(outgoing))) continue
       const collision = nearby.some(s => parallelConflict({ from: p, to: q }, s))
       if (collision && !allowConflict) continue
       const nextDirection = p.x === q.x ? 1 : 2, nextState = next * 3 + nextDirection
       const length = Math.abs(p.x - q.x) + Math.abs(p.y - q.y)
-      const cost = entry.cost + length + (direction && direction !== nextDirection ? 12 : 0) + (collision ? 1000 + length * 100 : 0)
+      const endBend = next === end && axis(outgoing) && axis(outgoing) !== nextDirection ? 12 : 0
+      const cost = entry.cost + length + (direction && direction !== nextDirection ? 12 : 0) + endBend + (collision ? 1000 + length * 100 : 0)
       if (cost < distances[nextState]!) {
         distances[nextState] = cost
         previous[nextState] = entry.state
@@ -222,7 +229,10 @@ function routeSensorWire(document: BreadboardDocument, wire: SensorWire, reserve
   const route = (waypoints: Point[], allowConflict = false) => {
     const points = [start, ...waypoints, finish], result: Point[] = [a]
     for (let i = 1; i < points.length; i++) {
-      const segment = routeBetween(points[i - 1]!, points[i]!, boxes, reserved, allowConflict)
+      const segment = routeBetween(points[i - 1]!, points[i]!, boxes, reserved, allowConflict, {
+        incoming: i === 1 ? { x: start.x - a.x, y: start.y - a.y } : undefined,
+        outgoing: i === points.length - 1 ? { x: b.x - finish.x, y: b.y - finish.y } : undefined,
+      })
       if (!segment) return null
       result.push(...segment)
     }

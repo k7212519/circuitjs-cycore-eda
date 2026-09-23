@@ -10,6 +10,13 @@ const orthogonal = (points: Point[]) => {
   for (let i = 1; i < points.length; i++) expect(points[i]!.x === points[i - 1]!.x || points[i]!.y === points[i - 1]!.y).toBe(true)
   expect(roundedOrthogonalPath(points)).not.toMatch(/NaN|Infinity/)
 }
+const noBacktracking = (points: Point[]) => {
+  orthogonal(points)
+  for (let i = 1; i < points.length - 1; i++) {
+    const a = points[i - 1]!, b = points[i]!, c = points[i + 1]!
+    expect((b.x - a.x) * (c.x - b.x) + (b.y - a.y) * (c.y - b.y), JSON.stringify(points)).toBeGreaterThanOrEqual(0)
+  }
+}
 const sensor: ExternalSensor = { id: 's1', kind: 'dht11', position: { x: 220, y: -180 }, rotation: 0 }
 const wire: SensorWire = { id: 'w1', from: { type: 'sensor', sensorId: 's1', pin: 1 }, to: { type: 'hole', holeId: 't-0-0-6' }, color: '#f28c28' }
 
@@ -29,7 +36,7 @@ describe('external module geometry and persistence', () => {
       const doc = { ...createEmptyDocument(), sensors: [a, b] }
       for (const to of [wire.to, { type: 'sensor' as const, sensorId: b.id, pin: 4 }]) {
         const w = { ...wire, to }, points = sensorWirePoints(doc, w)
-        orthogonal(points)
+        noBacktracking(points)
         expect(points[0]).toEqual(sensorPinPoint(a, 1))
         expect(points.at(-1)).toMatchObject({ x: endpointPoint(doc, to)!.x, y: endpointPoint(doc, to)!.y })
         // Sample straight segments to ensure routes never pass through endpoint bodies.
@@ -41,7 +48,7 @@ describe('external module geometry and persistence', () => {
           }
         }
       }
-      orthogonal(sensorWirePoints(doc, wire, { end: 'to', point: { x: 711.3, y: 38.7 } }))
+      noBacktracking(sensorWirePoints(doc, wire, { end: 'to', point: { x: 711.3, y: 38.7 } }))
     }
   })
   it('includes all terminal extents in the eight-pixel board clearance', () => {
@@ -81,17 +88,34 @@ describe('external module geometry and persistence', () => {
 })
 
 describe('parallel lanes and one handle per segment', () => {
-  it('separates three adjacent pin wires in both horizontal and vertical orientations', () => {
+  for (const reverse of [false, true]) it(`does not double back at GND when adjacent wires go left and GND goes right (reverse=${reverse})`, () => {
+    const module = { ...sensor, position: { x: 500, y: -180 } }
+    const doc = { ...createEmptyDocument(), sensors: [module], sensorWires: [0, 1, 40].map((column, pin) => {
+      const from = { type: 'sensor' as const, sensorId: module.id, pin }
+      const to = { type: 'hole' as const, holeId: `t-0-0-${column}` }
+      return { ...wire, id: `wire-${pin}`, from: reverse ? to : from, to: reverse ? from : to }
+    }) }
+    const routes = [...sensorWireRoutes(doc).values()]
+    for (const points of routes) noBacktracking(points)
+    for (let i = 0; i < routes.length; i++) for (let j = i + 1; j < routes.length; j++) {
+      for (const a of wireSegments(routes[i]!)) for (const b of wireSegments(routes[j]!)) expect(parallelConflict(a, b)).toBe(false)
+    }
+  })
+  for (const reverse of [false, true]) it(`separates adjacent pin wires without backtracking at any rotation (reverse=${reverse})`, () => {
     for (const rotation of [0, 90, 180, 270] as const) {
       const module = { ...sensor, rotation, position: { x: -180, y: -180 } }
       const doc = { ...createEmptyDocument(), sensors: [module], sensorWires: [0, 1, 2].map(pin => ({ ...wire, id: `wire-${pin}`, from: { type: 'sensor' as const, sensorId: module.id, pin }, to: { type: 'hole' as const, holeId: `t-0-0-${20 + pin}` } })) }
-      const routes = sensorWireRoutes(doc)
-      for (const points of routes.values()) orthogonal(points)
+      const routedDoc = reverse ? { ...doc, sensorWires: doc.sensorWires.map(w => ({ ...w, from: w.to, to: w.from })) } : doc
+      const routes = sensorWireRoutes(routedDoc)
+      for (const points of routes.values()) noBacktracking(points)
       const values = [...routes.values()]
       for (let i = 0; i < values.length; i++) for (let j = i + 1; j < values.length; j++) {
         for (const a of wireSegments(values[i]!)) for (const b of wireSegments(values[j]!)) expect(parallelConflict(a, b), JSON.stringify({rotation,a,b})).toBe(false)
       }
-      expect(sensorWireRoutes(doc)).toEqual(routes)
+      expect(sensorWireRoutes(routedDoc)).toEqual(routes)
+      const pending = routedDoc.sensorWires.at(-1)!
+      const end = reverse ? 'from' : 'to'
+      noBacktracking(sensorWirePoints(routedDoc, pending, { end, point: { x: 711.3, y: 38.7 } }))
     }
   })
   it('assigns exactly one midpoint per straight segment, including long end segments', () => {
