@@ -64,7 +64,7 @@ interface WorkbenchState {
   placeSensorAt: (kind: SensorKind, point: Point) => boolean
   rotateSensorPlacement: () => void
   moveSensorTo: (id: string, point: Point) => boolean
-  updateSensorWire: (id: string, patch: Partial<Pick<SensorWire, 'color' | 'waypoints'>>) => void
+  updateSensorWire: (id: string, patch: Partial<Pick<SensorWire, 'color' | 'waypoints' | 'lanes'>>) => void
   reconnectSensorWire: (id: string, end: 'from' | 'to', point: Point) => boolean
   wireStart: string | null
   componentStart: string | null
@@ -239,7 +239,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
     if (!wire || !endpoint || !availableEndpoint(state.document, endpoint, wireId)) return false
     const other = wire[end === 'from' ? 'to' : 'from']
     if (endpointKey(endpoint) === endpointKey(other) || (endpoint.type === 'hole' && other.type === 'hole')) return false
-    set(withDocument(state, document => { const target = document.sensorWires!.find(w => w.id === wireId)!; target[end] = endpoint; delete target.waypoints }))
+    set(withDocument(state, document => { const target = document.sensorWires!.find(w => w.id === wireId)!; target[end] = endpoint; delete target.waypoints; delete target.lanes }))
     return true
   },
 
@@ -599,7 +599,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
       if (!sensorOutsideBoard({ ...sensor, rotation })) return
       set(withDocument(state, document => {
         document.sensors!.find(s => s.id === sensor.id)!.rotation = rotation
-        for (const wire of document.sensorWires ?? []) if ([wire.from, wire.to].some(e => e.type === 'sensor' && e.sensorId === sensor.id)) delete wire.waypoints
+        for (const wire of document.sensorWires ?? []) if ([wire.from, wire.to].some(e => e.type === 'sensor' && e.sensorId === sensor.id)) { delete wire.waypoints; delete wire.lanes }
       }))
       return
     }

@@ -17,6 +17,23 @@ const connect = (a: ExternalSensor, pin: number, target = hole()) => {
 }
 beforeEach(() => useWorkbenchStore.setState(useWorkbenchStore.getInitialState(), true))
 describe('external module editing', () => {
+  it('preserves edited lanes on move and undo, and clears them on reconnect and rotation', () => {
+    const a = place(), wire = connect(a, 2)
+    const lanes = [{ axis: 'y' as const, value: -60 }]
+    state().updateSensorWire(wire.id, { lanes, waypoints: undefined })
+    state().select(a.id)
+    expect(state().moveSelectionTo(a.id, { x: a.position.x - 2, y: a.position.y })).toBe(true)
+    expect(state().document.sensorWires![0]!.lanes).toEqual(lanes)
+    state().undo()
+    expect(state().document.sensorWires![0]!.lanes).toEqual(lanes)
+    expect(parseDocument(JSON.parse(serializeDocument(state().document))).sensorWires![0]!.lanes).toEqual(lanes)
+    expect(state().reconnectSensorWire(wire.id, 'to', hole('t-0-0-20'))).toBe(true)
+    expect(state().document.sensorWires![0]!.lanes).toBeUndefined()
+    state().undo()
+    state().select(a.id)
+    state().rotateSelected()
+    expect(state().document.sensorWires![0]!.lanes).toBeUndefined()
+  })
   it('places outside only, rotates, cancels and records one move per undo', () => {
     expect(state().placeSensorAt('dht11', { x: 200, y: 200 })).toBe(false)
     const sensor = place()

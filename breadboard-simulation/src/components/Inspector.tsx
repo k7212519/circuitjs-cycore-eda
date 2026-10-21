@@ -268,7 +268,7 @@ export function Inspector() {
     <div className="panel-heading"><h2>模块导线</h2><p>仅接线展示，不参与仿真</p></div>
     <div className="property-stack"><div className="fixed-component-spec chip-spec sensor-spec"><strong>{endpointLabel(document, sensorWire.from)}</strong><small>连接到 {endpointLabel(document, sensorWire.to)}</small><small>拖动端点重新连接；拖动中间线段手柄调整路径。</small></div>
       <label>导线颜色 <input aria-label="模块导线颜色" type="color" value={sensorWire.color} onChange={e => updateSensorWire(sensorWire.id, { color: e.target.value })} /></label>
-      <button type="button" className="full-button" onClick={() => updateSensorWire(sensorWire.id, { waypoints: undefined })}>恢复自动布线</button>
+      <button type="button" className="full-button" onClick={() => updateSensorWire(sensorWire.id, { waypoints: undefined, lanes: undefined })}>恢复自动布线</button>
       <button type="button" className="danger full-button" onClick={deleteSelected}><Trash2 size={15} />删除导线</button>
     </div>
   </aside>

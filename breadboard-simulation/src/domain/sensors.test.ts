@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createEmptyDocument, parseDocument, serializeDocument } from './document'
 import { BOARD_HEIGHT, BOARD_WIDTH, holeById } from './board'
 import { buildCircuitJsNetlist } from './netlist'
-import { PALETTE_SENSOR_KINDS, SENSOR_MODELS, cleanOrthogonalPoints, endpointPoint, roundedOrthogonalPath, sensorBounds, sensorOutsideBoard, sensorPinLocal, sensorPinPoint, sensorWirePoints, sensorWireRoutes, wireSegments, parallelConflict, wireSegmentHandles, moveWireSegment, sensorPcbTop, type ExternalSensor, type SensorWire } from './sensors'
+import { PALETTE_SENSOR_KINDS, SENSOR_MODELS, MIN_PARALLEL_WIRE_GAP, cleanOrthogonalPoints, endpointPoint, roundedOrthogonalPath, sensorBounds, sensorOutsideBoard, sensorPinLocal, sensorPinPoint, sensorWirePoints, sensorWireRoutes, wireSegments, parallelConflict, wireSegmentHandles, moveWireLane, sensorPcbTop, type ExternalSensor, type SensorWire } from './sensors'
 import type { Point } from './types'
 
 const orthogonal = (points: Point[]) => {
@@ -15,6 +15,13 @@ const noBacktracking = (points: Point[]) => {
   for (let i = 1; i < points.length - 1; i++) {
     const a = points[i - 1]!, b = points[i]!, c = points[i + 1]!
     expect((b.x - a.x) * (c.x - b.x) + (b.y - a.y) * (c.y - b.y), JSON.stringify(points)).toBeGreaterThanOrEqual(0)
+  }
+  const segments = wireSegments(points)
+  for (let i = 0; i < segments.length; i++) for (let j = i + 2; j < segments.length; j++) {
+    const a = segments[i]!, b = segments[j]!
+    const overlapX = Math.min(Math.max(a.from.x, a.to.x), Math.max(b.from.x, b.to.x)) - Math.max(Math.min(a.from.x, a.to.x), Math.min(b.from.x, b.to.x))
+    const overlapY = Math.min(Math.max(a.from.y, a.to.y), Math.max(b.from.y, b.to.y)) - Math.max(Math.min(a.from.y, a.to.y), Math.min(b.from.y, b.to.y))
+    expect(overlapX >= 0 && overlapY >= 0, JSON.stringify(points)).toBe(false)
   }
 }
 const sensor: ExternalSensor = { id: 's1', kind: 'dht11', position: { x: 220, y: -180 }, rotation: 0 }
@@ -88,6 +95,90 @@ describe('external module geometry and persistence', () => {
 })
 
 describe('parallel lanes and one handle per segment', () => {
+  it('keeps an edited horizontal lane without stale end corners after a two-unit move', () => {
+    const module = { ...sensor }
+    const ground: SensorWire = { ...wire, from: { type: 'sensor', sensorId: module.id, pin: 2 }, to: { type: 'hole', holeId: 't-0-0-0' } }
+    const doc = { ...createEmptyDocument(), sensors: [module], sensorWires: [ground] }
+    const original = sensorWirePoints(doc, ground)
+    const horizontal = wireSegments(original).findIndex(s => s.from.y === s.to.y)
+    ground.lanes = moveWireLane(ground, original, horizontal, { x: 0, y: -60 })
+    expect(ground.lanes).toEqual([{ axis: 'y', value: -60 }])
+    for (const x of [218, 210, 200, 180, 220]) {
+      module.position = { ...module.position, x }
+      const points = sensorWirePoints(doc, ground)
+      noBacktracking(points)
+      expect(points).toHaveLength(4)
+      expect(wireSegments(points).some(s => s.from.y === -60 && s.to.y === -60)).toBe(true)
+    }
+    expect(parseDocument(JSON.parse(serializeDocument(doc)))).toEqual(doc)
+  })
+  it('repairs old saved connector corners without losing their lane', () => {
+    const module = { ...sensor, position: { x: 218, y: -180 } }
+    const ground: SensorWire = { ...wire, from: { type: 'sensor', sensorId: module.id, pin: 2 }, to: { type: 'hole', holeId: 't-0-0-0' }, waypoints: [{ x: 238, y: -60 }, { x: 58, y: -60 }, { x: 58, y: 103 }] }
+    const points = sensorWirePoints({ ...createEmptyDocument(), sensors: [module] }, ground)
+    noBacktracking(points)
+    expect(points.some(p => p.x === 238)).toBe(false)
+    expect(wireSegments(points).some(s => s.from.y === -60 && s.to.y === -60)).toBe(true)
+  })
+  for (const rotation of [0, 90, 180, 270] as const) it(`preserves safe edited lanes throughout movement at ${rotation} degrees`, () => {
+    const module = { ...sensor, rotation, position: { x: -180, y: -180 } }
+    const ground: SensorWire = { ...wire, from: { type: 'sensor', sensorId: module.id, pin: 2 } }
+    const doc = { ...createEmptyDocument(), sensors: [module], sensorWires: [ground] }
+    const original = sensorWirePoints(doc, ground)
+    const handle = wireSegments(original).findIndex(s => Math.hypot(s.to.x - s.from.x, s.to.y - s.from.y) > 40)
+    const segment = wireSegments(original)[handle]!
+    ground.lanes = moveWireLane(ground, original, handle, { x: segment.from.x - 24, y: segment.from.y + 24 })
+    let previous = sensorWireRoutes(doc)
+    for (const delta of [-2, -12, 2, 24, 0]) {
+      module.position = { x: -180 + delta, y: -180 + delta / 2 }
+      const routes = sensorWireRoutes(doc, undefined, previous)
+      const points = routes.get(ground.id)!
+      noBacktracking(points)
+      expect(points[0]).toEqual(sensorPinPoint(module, 2))
+      expect(points.length).toBeLessThanOrEqual(8)
+      previous = routes
+    }
+  })
+  it('updates just the dragged lane and keeps other edited lanes in order', () => {
+    const points = [{ x: 0, y: 0 }, { x: 0, y: 40 }, { x: 80, y: 40 }, { x: 80, y: 120 }, { x: 160, y: 120 }]
+    const adjusted: SensorWire = { ...wire, lanes: [{ axis: 'y', value: 40 }, { axis: 'x', value: 80 }] }
+    expect(moveWireLane(adjusted, points, 1, { x: 0, y: 60 })).toEqual([{ axis: 'y', value: 60 }, { axis: 'x', value: 80 }])
+  })
+  it('moves three connected pins around an edited GND lane without hooks or overlap', () => {
+    for (const columns of [[0, 20, 1], [20, 21, 22]]) {
+      const module = { ...sensor }
+      const wires: SensorWire[] = columns.map((column, pin) => ({ ...wire, id: `wire-${pin}`, from: { type: 'sensor', sensorId: module.id, pin }, to: { type: 'hole', holeId: `t-0-0-${column}` } }))
+      wires[2]!.lanes = [{ axis: 'y', value: -60 }]
+      const doc = { ...createEmptyDocument(), sensors: [module], sensorWires: wires }
+      let previous = sensorWireRoutes(doc)
+      for (const x of [218, 180, 260, 300, 220]) {
+        module.position = { x, y: -180 }
+        const routes = sensorWireRoutes(doc, undefined, previous), values = [...routes.values()]
+        for (const points of values) { noBacktracking(points); expect(points.length).toBeLessThanOrEqual(7) }
+        for (let i = 0; i < values.length; i++) for (let j = i + 1; j < values.length; j++) {
+          for (const a of wireSegments(values[i]!)) for (const b of wireSegments(values[j]!)) expect(parallelConflict(a, b, MIN_PARALLEL_WIRE_GAP)).toBe(false)
+        }
+        expect(wireSegments(routes.get('wire-2')!).some(s => s.from.y === -60 && s.to.y === -60)).toBe(true)
+        previous = routes
+      }
+    }
+  })
+  it('keeps a fan-out within two bends per peer independently of creation order', () => {
+    const doc = { ...createEmptyDocument(), sensors: [sensor], sensorWires: [0, 1, 2].map(pin => ({ ...wire, id: `wire-${pin}`, from: { type: 'sensor' as const, sensorId: sensor.id, pin }, to: { type: 'hole' as const, holeId: `t-0-0-${20 + pin}` } })) }
+    const routes = sensorWireRoutes(doc)
+    for (const points of routes.values()) { noBacktracking(points); expect(points.length).toBeLessThanOrEqual(4) }
+    expect(sensorWireRoutes({ ...doc, sensorWires: [...doc.sensorWires].reverse() })).toEqual(routes)
+    const values = [...routes.values()]
+    for (let i = 0; i < values.length; i++) for (let j = i + 1; j < values.length; j++) {
+      for (const a of wireSegments(values[i]!)) for (const b of wireSegments(values[j]!)) expect(parallelConflict(a, b, MIN_PARALLEL_WIRE_GAP)).toBe(false)
+    }
+    const moved = { ...doc, sensors: [{ ...sensor, position: { x: sensor.position.x + 2, y: sensor.position.y } }] }
+    const stable = sensorWireRoutes(moved, undefined, routes)
+    for (const [id, points] of stable) {
+      noBacktracking(points)
+      expect(points.slice(1, -1).map(p => p.y)).toEqual(routes.get(id)!.slice(1, -1).map(p => p.y))
+    }
+  })
   for (const reverse of [false, true]) it(`does not double back at GND when adjacent wires go left and GND goes right (reverse=${reverse})`, () => {
     const module = { ...sensor, position: { x: 500, y: -180 } }
     const doc = { ...createEmptyDocument(), sensors: [module], sensorWires: [0, 1, 40].map((column, pin) => {
@@ -110,7 +201,7 @@ describe('parallel lanes and one handle per segment', () => {
       for (const points of routes.values()) noBacktracking(points)
       const values = [...routes.values()]
       for (let i = 0; i < values.length; i++) for (let j = i + 1; j < values.length; j++) {
-        for (const a of wireSegments(values[i]!)) for (const b of wireSegments(values[j]!)) expect(parallelConflict(a, b), JSON.stringify({rotation,a,b})).toBe(false)
+        for (const a of wireSegments(values[i]!)) for (const b of wireSegments(values[j]!)) expect(parallelConflict(a, b, MIN_PARALLEL_WIRE_GAP), JSON.stringify({rotation,a,b})).toBe(false)
       }
       expect(sensorWireRoutes(routedDoc)).toEqual(routes)
       const pending = routedDoc.sensorWires.at(-1)!
@@ -121,12 +212,7 @@ describe('parallel lanes and one handle per segment', () => {
   it('assigns exactly one midpoint per straight segment, including long end segments', () => {
     const points = [{ x: 0, y: 0 }, { x: 0, y: 200 }, { x: 200, y: 200 }, { x: 200, y: 400 }]
     expect(wireSegmentHandles(points).map(h => h.center)).toEqual([{ x: 0, y: 100 }, { x: 100, y: 200 }, { x: 200, y: 300 }])
-    for (let index = 0; index < 3; index++) {
-      const moved = [points[0]!, ...moveWireSegment(points, index, { x: 50, y: 250 }), points.at(-1)!]
-      orthogonal(moved)
-      expect(moved[0]).toEqual(points[0])
-      expect(moved.at(-1)).toEqual(points.at(-1))
-    }
+
   })
   it('keeps the microphone on the PCB while exposing the IR heads above a narrow board', () => {
     expect(SENSOR_MODELS.sound.width).toBeLessThan(75)

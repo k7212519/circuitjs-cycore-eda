@@ -30,7 +30,8 @@ export const SENSOR_MODELS: Record<SensorKind, SensorModel> = {
 export interface ExternalSensor { id: string; kind: SensorKind; position: Point; rotation: 0 | 90 | 180 | 270 }
 export interface SensorPinRef { sensorId: string; pin: number }
 export type WireEndpoint = { type: 'hole'; holeId: string } | ({ type: 'sensor' } & SensorPinRef)
-export interface SensorWire { id: string; from: WireEndpoint; to: WireEndpoint; color: string; waypoints?: Point[] }
+export interface WireLane { axis: 'x' | 'y'; value: number }
+export interface SensorWire { id: string; from: WireEndpoint; to: WireEndpoint; color: string; waypoints?: Point[]; lanes?: WireLane[] }
 export interface Bounds { x: number; y: number; width: number; height: number }
 export const endpointKey = (e: WireEndpoint) => e.type === 'hole' ? e.holeId : `sensor:${e.sensorId}:${e.pin}`
 export function sensorPinLocal(sensor: Pick<ExternalSensor, 'kind'>, pin: number): Point & { direction: Point } {
@@ -93,10 +94,13 @@ export function nearestSensorEndpoint(document: BreadboardDocument, point: Point
 export function cleanOrthogonalPoints(points: Point[]): Point[] {
   const clean: Point[] = []
   for (const p of points) {
-    const b = clean.at(-1)
-    if (b && p.x === b.x && p.y === b.y) continue
-    const a = clean.at(-2)
-    if (a && b && ((a.x === b.x && b.x === p.x && (b.y - a.y) * (p.y - b.y) >= 0) || (a.y === b.y && b.y === p.y && (b.x - a.x) * (p.x - b.x) >= 0))) clean.pop()
+    while (clean.length) {
+      const b = clean.at(-1)!, a = clean.at(-2)
+      if (p.x === b.x && p.y === b.y) { clean.pop(); continue }
+      // Remove redundant excursions as well as forward collinear points.
+      if (a && ((a.x === b.x && b.x === p.x) || (a.y === b.y && b.y === p.y))) { clean.pop(); continue }
+      break
+    }
     clean.push(p)
   }
   return clean
@@ -108,19 +112,21 @@ function clearSegment(a: Point, b: Point, boxes: Bounds[]): boolean {
     : a.y > r.y && a.y < r.y + r.height && Math.max(a.x, b.x) > r.x && Math.min(a.x, b.x) < r.x + r.width)
 }
 export const PARALLEL_WIRE_GAP = 12
+export const MIN_PARALLEL_WIRE_GAP = 9
+const BEND_COST = 48
 export interface WireSegment { from: Point; to: Point }
 export function wireSegments(points: Point[]): WireSegment[] {
   const clean = cleanOrthogonalPoints(points)
   return clean.slice(1).map((to, i) => ({ from: clean[i]!, to }))
 }
-export function parallelConflict(a: WireSegment, b: WireSegment): boolean {
+export function parallelConflict(a: WireSegment, b: WireSegment, gap = PARALLEL_WIRE_GAP): boolean {
   const av = a.from.x === a.to.x, bv = b.from.x === b.to.x
   if (av !== bv) return false
   const distance = Math.abs(av ? a.from.x - b.from.x : a.from.y - b.from.y)
   const overlap = av
     ? Math.min(Math.max(a.from.y, a.to.y), Math.max(b.from.y, b.to.y)) - Math.max(Math.min(a.from.y, a.to.y), Math.min(b.from.y, b.to.y))
     : Math.min(Math.max(a.from.x, a.to.x), Math.max(b.from.x, b.to.x)) - Math.max(Math.min(a.from.x, a.to.x), Math.min(b.from.x, b.to.x))
-  return distance < PARALLEL_WIRE_GAP - 0.001 && overlap > 0.001
+  return distance < gap - 0.001 && overlap > 0.001
 }
 
 // The queue keeps routing responsive as additional wires add candidate lanes.
@@ -153,47 +159,126 @@ class RouteQueue {
   }
 }
 
-// Rectilinear lanes can cross perpendicular wires, but do not share parallel runs.
-function routeBetween(a: Point, b: Point, boxes: Bounds[], reserved: WireSegment[], allowConflict = false, terminalDirections: { incoming?: Point; outgoing?: Point } = {}): Point[] | null {
+type RouteGuide = WireLane | Point
+const samePoint = (a: Point, b: Point) => a.x === b.x && a.y === b.y
+const vector = (a: Point, b: Point): Point => ({ x: b.x - a.x, y: b.y - a.y })
+const dot = (a: Point, b: Point) => a.x * b.x + a.y * b.y
+const directionOf = (d: Point) => d.x > 0 ? 1 : d.x < 0 ? 2 : d.y > 0 ? 3 : d.y < 0 ? 4 : 0
+const opposite = (a: number, b: number) => (a === 1 && b === 2) || (a === 2 && b === 1) || (a === 3 && b === 4) || (a === 4 && b === 3)
+
+function wireGuides(wire: SensorWire): RouteGuide[] {
+  if (wire.lanes) return wire.lanes
+  const points = cleanOrthogonalPoints(wire.waypoints ?? [])
+  // Old files stored both ends of each lane. Recover lane intent without making
+  // the old terminal-adjacent coordinates mandatory after a module moves.
+  if (points.length < 2) return points
+  const guides: RouteGuide[] = []
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]!, b = points[i]!
+    if (a.x === b.x) guides.push({ axis: 'x', value: a.x })
+    else if (a.y === b.y) guides.push({ axis: 'y', value: a.y })
+    else guides.push(a, b)
+  }
+  return guides
+}
+function followsGuide(a: Point, b: Point, guide: RouteGuide): boolean {
+  return 'axis' in guide ? a[guide.axis] === guide.value && b[guide.axis] === guide.value
+    : (a.x === b.x && guide.x === a.x && guide.y >= Math.min(a.y, b.y) && guide.y <= Math.max(a.y, b.y)) || (a.y === b.y && guide.y === a.y && guide.x >= Math.min(a.x, b.x) && guide.x <= Math.max(a.x, b.x))
+}
+function guideProgress(points: Point[], guides: RouteGuide[]): number {
+  let stage = 0
+  if (guides[0] && !('axis' in guides[0]) && samePoint(points[0]!, guides[0])) stage++
+  for (let i = 1; i < points.length; i++) {
+    while (guides[stage] && followsGuide(points[i - 1]!, points[i]!, guides[stage]!)) stage++
+  }
+  return stage
+}
+function segmentsMeet(a: WireSegment, b: WireSegment): boolean {
+  const av = a.from.x === a.to.x, bv = b.from.x === b.to.x
+  const between = (n: number, x: number, y: number) => n >= Math.min(x, y) && n <= Math.max(x, y)
+  if (av === bv) return av
+    ? a.from.x === b.from.x && Math.max(Math.min(a.from.y, a.to.y), Math.min(b.from.y, b.to.y)) <= Math.min(Math.max(a.from.y, a.to.y), Math.max(b.from.y, b.to.y))
+    : a.from.y === b.from.y && Math.max(Math.min(a.from.x, a.to.x), Math.min(b.from.x, b.to.x)) <= Math.min(Math.max(a.from.x, a.to.x), Math.max(b.from.x, b.to.x))
+  const v = av ? a : b, h = av ? b : a
+  return between(v.from.x, h.from.x, h.to.x) && between(h.from.y, v.from.y, v.to.y)
+}
+function simpleRoute(points: Point[]): boolean {
+  if (points.length < 2) return false
+  const segments = wireSegments(points)
+  if (segments.some(s => samePoint(s.from, s.to) || (s.from.x !== s.to.x && s.from.y !== s.to.y))) return false
+  for (let i = 0; i < segments.length; i++) for (let j = i + 2; j < segments.length; j++) {
+    if (segmentsMeet(segments[i]!, segments[j]!)) return false
+  }
+  return true
+}
+function routeCost(points: Point[], reserved: WireSegment[] = []): number {
+  if (!points.length) return Infinity
+  let cost = Math.max(0, points.length - 2) * BEND_COST
+  for (const s of wireSegments(points)) {
+    const length = Math.abs(s.to.x - s.from.x) + Math.abs(s.to.y - s.from.y)
+    const close = reserved.some(r => parallelConflict(s, r))
+    cost += length * (close ? 1.25 : 1)
+  }
+  return cost
+}
+
+// Search the whole wire, including ordered user lanes. Signed directions prevent
+// U-turns at intermediate guides as well as at the fixed terminal exits.
+function routeBetween(a: Point, b: Point, boxes: Bounds[], reserved: WireSegment[], guides: RouteGuide[], incoming: Point, outgoing: Point, gap: number, preferred: Point[] = []): Point[] | null {
   if (boxes.some(box => inside(a, box) || inside(b, box))) return null
-  const minX = Math.min(a.x, b.x, ...boxes.map(r => r.x)) - 48
-  const maxX = Math.max(a.x, b.x, ...boxes.map(r => r.x + r.width)) + 48
-  const minY = Math.min(a.y, b.y, ...boxes.map(r => r.y)) - 48
-  const maxY = Math.max(a.y, b.y, ...boxes.map(r => r.y + r.height)) + 48
+  const guidePoints = guides.filter((g): g is Point => !('axis' in g))
+  const guideX = [...guidePoints.map(p => p.x), ...guides.flatMap(g => 'axis' in g && g.axis === 'x' ? [g.value] : [])]
+  const guideY = [...guidePoints.map(p => p.y), ...guides.flatMap(g => 'axis' in g && g.axis === 'y' ? [g.value] : [])]
+  const minX = Math.min(a.x, b.x, ...boxes.map(r => r.x), ...guideX, ...preferred.map(p => p.x)) - 48
+  const maxX = Math.max(a.x, b.x, ...boxes.map(r => r.x + r.width), ...guideX, ...preferred.map(p => p.x)) + 48
+  const minY = Math.min(a.y, b.y, ...boxes.map(r => r.y), ...guideY, ...preferred.map(p => p.y)) - 48
+  const maxY = Math.max(a.y, b.y, ...boxes.map(r => r.y + r.height), ...guideY, ...preferred.map(p => p.y)) + 48
   const nearby = reserved.filter(s => Math.max(s.from.x, s.to.x) >= minX && Math.min(s.from.x, s.to.x) <= maxX && Math.max(s.from.y, s.to.y) >= minY && Math.min(s.from.y, s.to.y) <= maxY)
-  const laneX = nearby.flatMap(s => s.from.x === s.to.x ? [s.from.x - PARALLEL_WIRE_GAP, s.from.x + PARALLEL_WIRE_GAP] : [Math.min(s.from.x, s.to.x) - PARALLEL_WIRE_GAP, Math.max(s.from.x, s.to.x) + PARALLEL_WIRE_GAP])
-  const laneY = nearby.flatMap(s => s.from.y === s.to.y ? [s.from.y - PARALLEL_WIRE_GAP, s.from.y + PARALLEL_WIRE_GAP] : [Math.min(s.from.y, s.to.y) - PARALLEL_WIRE_GAP, Math.max(s.from.y, s.to.y) + PARALLEL_WIRE_GAP])
-  const xs = [...new Set([a.x, b.x, ...boxes.flatMap(r => [r.x, r.x + r.width]), ...laneX.filter(x => x >= minX && x <= maxX)])].sort((x, y) => x - y)
-  const ys = [...new Set([a.y, b.y, ...boxes.flatMap(r => [r.y, r.y + r.height]), ...laneY.filter(y => y >= minY && y <= maxY)])].sort((x, y) => x - y)
+  const gaps = gap === PARALLEL_WIRE_GAP ? [gap] : [gap, PARALLEL_WIRE_GAP]
+  const laneX = nearby.flatMap(s => gaps.flatMap(d => s.from.x === s.to.x ? [s.from.x - d, s.from.x + d] : [Math.min(s.from.x, s.to.x) - d, Math.max(s.from.x, s.to.x) + d]))
+  const laneY = nearby.flatMap(s => gaps.flatMap(d => s.from.y === s.to.y ? [s.from.y - d, s.from.y + d] : [Math.min(s.from.y, s.to.y) - d, Math.max(s.from.y, s.to.y) + d]))
+  const xs = [...new Set([a.x, b.x, minX, maxX, ...boxes.flatMap(r => [r.x, r.x + r.width]), ...guideX, ...preferred.map(p => p.x), ...laneX.filter(x => x >= minX && x <= maxX)])].sort((x, y) => x - y)
+  const ys = [...new Set([a.y, b.y, minY, maxY, ...boxes.flatMap(r => [r.y, r.y + r.height]), ...guideY, ...preferred.map(p => p.y), ...laneY.filter(y => y >= minY && y <= maxY)])].sort((x, y) => x - y)
   const points = xs.flatMap(x => ys.map(y => ({ x, y })))
   const start = xs.indexOf(a.x) * ys.length + ys.indexOf(a.y), end = xs.indexOf(b.x) * ys.length + ys.indexOf(b.y)
-  // Direction is part of the state so equal-distance routes prefer fewer bends.
-  const distances = new Float64Array(points.length * 3).fill(Infinity)
-  const previous = new Int32Array(points.length * 3).fill(-1)
+  const stride = points.length * 5
+  const distances = new Float64Array(stride * (guides.length + 1)).fill(Infinity)
+  const previous = new Int32Array(distances.length).fill(-1)
   const queue = new RouteQueue()
-  const { incoming, outgoing } = terminalDirections
-  const axis = (d?: Point) => d?.x ? 2 : d?.y ? 1 : 0
-  const startState = start * 3 + axis(incoming)
+  let initialStage = 0
+  const pin = { x: a.x - incoming.x, y: a.y - incoming.y }
+  while (guides[initialStage]) {
+    const guide = guides[initialStage]!
+    if ((!('axis' in guide) && samePoint(a, guide)) || (directionOf(incoming) && followsGuide(pin, a, guide))) initialStage++
+    else break
+  }
+  const startState = initialStage * stride + start * 5 + directionOf(incoming)
   distances[startState] = 0
   queue.push({ state: startState, cost: 0 })
   let final = -1
   for (let entry = queue.pop(); entry; entry = queue.pop()) {
     if (entry.cost !== distances[entry.state]) continue
-    const current = Math.floor(entry.state / 3), direction = entry.state % 3
-    if (current === end) { final = entry.state; break }
+    const stage = Math.floor(entry.state / stride), current = Math.floor((entry.state % stride) / 5), direction = entry.state % 5
+    if (current === end && stage === guides.length) { final = entry.state; break }
     const p = points[current]!
     for (const next of [current - 1, current + 1, current - ys.length, current + ys.length]) {
       const q = points[next]
       if (!q || (p.x !== q.x && p.y !== q.y) || !clearSegment(p, q, boxes)) continue
-      // The fixed pin exits are part of the path: never turn back over them.
-      const reverses = (d?: Point) => d && (q.x - p.x) * d.x + (q.y - p.y) * d.y < 0
-      if ((current === start && reverses(incoming)) || (next === end && reverses(outgoing))) continue
-      const collision = nearby.some(s => parallelConflict({ from: p, to: q }, s))
-      if (collision && !allowConflict) continue
-      const nextDirection = p.x === q.x ? 1 : 2, nextState = next * 3 + nextDirection
+      const nextDirection = directionOf(vector(p, q))
+      if (opposite(direction, nextDirection) || (next === end && dot(vector(p, q), outgoing) < 0)) continue
+      const s = { from: p, to: q }
+      if (nearby.some(r => parallelConflict(s, r, gap))) continue
+      let nextStage = stage
+      while (guides[nextStage] && followsGuide(p, q, guides[nextStage]!)) nextStage++
+      if (next === end && directionOf(outgoing)) {
+        const terminal = { x: b.x + outgoing.x, y: b.y + outgoing.y }
+        while (guides[nextStage] && followsGuide(b, terminal, guides[nextStage]!)) nextStage++
+      }
+      const nextState = nextStage * stride + next * 5 + nextDirection
       const length = Math.abs(p.x - q.x) + Math.abs(p.y - q.y)
-      const endBend = next === end && axis(outgoing) && axis(outgoing) !== nextDirection ? 12 : 0
-      const cost = entry.cost + length + (direction && direction !== nextDirection ? 12 : 0) + endBend + (collision ? 1000 + length * 100 : 0)
+      const endBend = next === end && nextStage === guides.length && directionOf(outgoing) && directionOf(outgoing) !== nextDirection ? BEND_COST : 0
+      const close = nearby.some(r => parallelConflict(s, r))
+      const cost = entry.cost + length * (close ? 1.25 : 1) + (direction && direction !== nextDirection ? BEND_COST : 0) + endBend
       if (cost < distances[nextState]!) {
         distances[nextState] = cost
         previous[nextState] = entry.state
@@ -203,8 +288,8 @@ function routeBetween(a: Point, b: Point, boxes: Bounds[], reserved: WireSegment
   }
   if (final < 0) return null
   const result: Point[] = []
-  for (let i = final; i >= 0; i = previous[i]!) result.unshift(points[Math.floor(i / 3)]!)
-  return cleanOrthogonalPoints(result)
+  for (let i = final; i >= 0; i = previous[i]!) result.push(points[Math.floor((i % stride) / 5)]!)
+  return cleanOrthogonalPoints(result.reverse())
 }
 
 type EndpointPreview = { end: 'from' | 'to'; point: Point }
@@ -214,56 +299,123 @@ function pinStub(document: BreadboardDocument, endpoint: WireEndpoint, point: Po
   const d = rotate(sensorPinLocal(sensor, endpoint.pin).direction, sensor.rotation)
   return { x: point.x + d.x * 22, y: point.y + d.y * 22 }
 }
-
-function routeSensorWire(document: BreadboardDocument, wire: SensorWire, reserved: WireSegment[], preview?: { end: 'from' | 'to'; point: Point }): Point[] {
+function adaptRoute(points: Point[], a: Point, b: Point): Point[] {
+  if (points.length < 3) return []
+  const moved = points.map(p => ({ ...p }))
+  moved[0] = a; moved[moved.length - 1] = b
+  if (points[0]!.x === points[1]!.x) moved[1]!.x = a.x
+  else moved[1]!.y = a.y
+  if (points.at(-1)!.x === points.at(-2)!.x) moved[moved.length - 2]!.x = b.x
+  else moved[moved.length - 2]!.y = b.y
+  return cleanOrthogonalPoints(moved)
+}
+function routeSensorWire(document: BreadboardDocument, wire: SensorWire, reserved: WireSegment[], preview?: EndpointPreview, preferred?: Point[], planned?: Point[]): Point[] {
   const a = preview?.end === 'from' ? preview.point : endpointPoint(document, wire.from)
   const b = preview?.end === 'to' ? preview.point : endpointPoint(document, wire.to)
   if (!a || !b) return []
-  const endpointSensors = [wire.from, wire.to].flatMap((e, i) => {
-    if (e.type !== 'sensor' || preview?.end === (i === 0 ? 'from' : 'to')) return []
-    const s = document.sensors?.find(s => s.id === e.sensorId)
-    return s ? [s] : []
-  })
-  const boxes = endpointSensors.map(s => { const b = sensorBounds(s, false); return { x: b.x - 8, y: b.y - 8, width: b.width + 16, height: b.height + 16 } })
+  const boxes = (document.sensors ?? []).map(s => { const r = sensorBounds(s, false); return { x: r.x - 8, y: r.y - 8, width: r.width + 16, height: r.height + 16 } })
   const start = pinStub(document, wire.from, a, preview?.end === 'from'), finish = pinStub(document, wire.to, b, preview?.end === 'to')
-  const route = (waypoints: Point[], allowConflict = false) => {
-    const points = [start, ...waypoints, finish], result: Point[] = [a]
-    for (let i = 1; i < points.length; i++) {
-      const segment = routeBetween(points[i - 1]!, points[i]!, boxes, reserved, allowConflict, {
-        incoming: i === 1 ? { x: start.x - a.x, y: start.y - a.y } : undefined,
-        outgoing: i === points.length - 1 ? { x: b.x - finish.x, y: b.y - finish.y } : undefined,
-      })
-      if (!segment) return null
-      result.push(...segment)
-    }
-    result.push(b)
-    return cleanOrthogonalPoints(result)
+  const incoming = vector(a, start), outgoing = vector(finish, b)
+  const ownStubs = [{ from: a, to: start }, { from: finish, to: b }].filter(s => !samePoint(s.from, s.to))
+  const obstacles = [...reserved, ...ownStubs]
+  const guides = wireGuides(wire)
+  const valid = (points: Point[], required: RouteGuide[], gap: number) => {
+    if (!simpleRoute(points) || !samePoint(points[0]!, a) || !samePoint(points.at(-1)!, b) || guideProgress(points, required) !== required.length) return false
+    const first = vector(a, points[1]!), last = vector(points.at(-2)!, b)
+    if ((directionOf(incoming) && (directionOf(first) !== directionOf(incoming) || dot(first, first) < dot(incoming, incoming))) || (directionOf(outgoing) && (directionOf(last) !== directionOf(outgoing) || dot(last, last) < dot(outgoing, outgoing)))) return false
+    // Exits can touch their own terminal body (notably the motor); the rest
+    // of the path must avoid every module, including unconnected modules.
+    const core = cleanOrthogonalPoints([start, ...points.slice(1, -1), finish])
+    return wireSegments(core).every(s => clearSegment(s.from, s.to, boxes)) && wireSegments(points).every(s => !reserved.some(r => parallelConflict(s, r, gap)))
   }
-  return route(wire.waypoints ?? []) ?? route([]) ?? route(wire.waypoints ?? [], true) ?? route([], true) ?? []
+  const old = preferred ? adaptRoute(preferred, a, b) : []
+  const plan = planned ? cleanOrthogonalPoints(planned) : []
+  if (plan.length && valid(plan, guides, PARALLEL_WIRE_GAP)) return plan
+  const search = (required: RouteGuide[], gap: number) => {
+    const core = routeBetween(start, finish, boxes, obstacles, required, incoming, outgoing, gap, old)
+    if (!core) return null
+    const result = cleanOrthogonalPoints([a, ...core, b])
+    return valid(result, required, gap) ? result : null
+  }
+  // Respect the user's lanes whenever feasible. Only relax an invalid lane
+  // after testing both preferred and minimum safe wire separation.
+  for (const required of guides.length ? [guides, []] : [[]]) {
+    let best = search(required, PARALLEL_WIRE_GAP)
+    if (!best || routeCost(best) >= Math.abs(b.x - a.x) + Math.abs(b.y - a.y) + 3 * BEND_COST) {
+      const compact = search(required, MIN_PARALLEL_WIRE_GAP)
+      if (compact && (!best || routeCost(compact, reserved) < routeCost(best, reserved))) best = compact
+    }
+    if (old.length && valid(old, required, PARALLEL_WIRE_GAP) && (!best || routeCost(old, reserved) <= routeCost(best, reserved) + PARALLEL_WIRE_GAP)) return old
+    if (best) return best
+  }
+  return []
 }
-export function sensorWireRoutes(document: BreadboardDocument, preview?: EndpointPreview & { wireId: string }): Map<string, Point[]> {
+
+// A shared fan-out gives peers a chance to move together instead of forcing the
+// last wire to snake around every greedy choice made before it.
+function fanOutPlans(document: BreadboardDocument): Map<string, Point[]> {
+  const groups = new Map<string, { wire: SensorWire; pin: Point; target: Point; n: Point; t: Point; side: number }[]>()
+  for (const wire of document.sensorWires ?? []) {
+    if (wireGuides(wire).length) continue
+    const source = wire.from.type === 'sensor' && wire.to.type === 'hole' ? wire.from : wire.to.type === 'sensor' && wire.from.type === 'hole' ? wire.to : undefined
+    if (!source) continue
+    const sensor = document.sensors?.find(s => s.id === source.sensorId)
+    const pin = endpointPoint(document, source), target = endpointPoint(document, source === wire.from ? wire.to : wire.from)
+    if (!sensor || !pin || !target) continue
+    const n = rotate(sensorPinLocal(sensor, source.pin).direction, sensor.rotation), t = { x: n.y, y: -n.x }
+    const side = Math.sign(dot(vector(pin, target), t))
+    if (!side || dot(vector(pin, target), n) < 22) continue
+    const key = `${source.sensorId}:${n.x}:${n.y}:${side}`
+    const group = groups.get(key) ?? []
+    group.push({ wire, pin, target, n, t, side }); groups.set(key, group)
+  }
+  const plans = new Map<string, Point[]>()
+  for (const group of groups.values()) {
+    if (group.length < 2) continue
+    group.sort((a, b) => b.side * dot(vector(a.pin, b.pin), a.t))
+    for (const [rank, { wire, pin, target, n, t }] of group.entries()) {
+      const turn = { x: pin.x + n.x * (22 + rank * PARALLEL_WIRE_GAP), y: pin.y + n.y * (22 + rank * PARALLEL_WIRE_GAP) }
+      const shift = dot(vector(turn, target), t)
+      const points = [pin, turn, { x: turn.x + t.x * shift, y: turn.y + t.y * shift }, target]
+      plans.set(wire.id, wire.from.type === 'sensor' ? points : points.reverse())
+    }
+  }
+  return plans
+}
+export function sensorWireRoutes(document: BreadboardDocument, preview?: EndpointPreview & { wireId: string }, preferred?: Map<string, Point[]>): Map<string, Point[]> {
   const wires = document.sensorWires ?? []
-  const routes = new Map<string, Point[]>()
-  const reserved = document.wires.flatMap(w => {
+  const boardSegments = document.wires.flatMap(w => {
     const a = holeById.get(w.from), b = holeById.get(w.to)
     return a && b && (a.x === b.x || a.y === b.y) ? [{ from: a, to: b }] : []
   }) as WireSegment[]
-  // Reserve all terminal exits before routing, including wires that are drawn later.
   const stubs = wires.map(wire => ({ id: wire.id, segments: (['from', 'to'] as const).flatMap(end => {
     const p = preview?.wireId === wire.id && preview.end === end ? preview.point : endpointPoint(document, wire[end])
     if (!p) return []
     const stub = pinStub(document, wire[end], p, preview?.wireId === wire.id && preview.end === end)
-    return p.x === stub.x && p.y === stub.y ? [] : [{ from: p, to: stub }]
+    return samePoint(p, stub) ? [] : [{ from: p, to: stub }]
   }) }))
-  // User-adjusted paths get first choice; automatically routed peers move around them.
-  const ordered = [...wires].sort((a, b) => Number(Boolean(b.waypoints?.length)) - Number(Boolean(a.waypoints?.length)))
-  for (const wire of ordered) {
-    const obstacles = [...reserved, ...stubs.filter(s => s.id !== wire.id).flatMap(s => s.segments)]
-    const points = routeSensorWire(document, wire, obstacles, preview?.wireId === wire.id ? preview : undefined)
-    routes.set(wire.id, points)
-    reserved.push(...wireSegments(points))
+  // Geometry and endpoint identity make routing independent of creation order.
+  const key = (w: SensorWire) => [endpointKey(w.from), endpointKey(w.to)].sort().join('|')
+  const ordered = [...wires].sort((a, b) => Number(Boolean(wireGuides(b).length)) - Number(Boolean(wireGuides(a).length)) || key(a).localeCompare(key(b)))
+  const pass = (plans?: Map<string, Point[]>) => {
+    const routes = new Map<string, Point[]>(), reserved = [...boardSegments]
+    for (const wire of ordered) {
+      const obstacles = [...reserved, ...stubs.filter(s => s.id !== wire.id).flatMap(s => s.segments)]
+      const points = routeSensorWire(document, wire, obstacles, preview?.wireId === wire.id ? preview : undefined, preferred?.get(wire.id), preview?.wireId === wire.id ? undefined : plans?.get(wire.id))
+      routes.set(wire.id, points); reserved.push(...wireSegments(points))
+    }
+    return routes
   }
-  return routes
+  const baseline = pass()
+  const plans = fanOutPlans(document)
+  if (!plans.size) return baseline
+  const bundled = pass(plans)
+  const score = (routes: Map<string, Point[]>) => {
+    const segments = [...routes].map(([id, points]) => ({ id, segments: wireSegments(points) }))
+    return [...routes].reduce((sum, [id, points]) => sum + routeCost(points, [...boardSegments, ...segments.filter(s => s.id !== id).flatMap(s => s.segments)]), 0)
+  }
+  // Hysteresis keeps a valid previous topology when the improvement is tiny.
+  return score(bundled) + (preferred ? PARALLEL_WIRE_GAP : 0) < score(baseline) ? bundled : baseline
 }
 
 export function sensorWirePoints(document: BreadboardDocument, wire: SensorWire, preview?: EndpointPreview): Point[] {
@@ -278,24 +430,20 @@ export function wireSegmentHandles(points: Point[]) {
   }))
 }
 
-// Moving an end segment adds a short dogleg while keeping its terminal anchored.
-export function moveWireSegment(points: Point[], index: number, point: Point): Point[] {
-  const clean = cleanOrthogonalPoints(points), a = clean[index], b = clean[index + 1]
-  if (!a || !b) return []
-  const vertical = a.x === b.x
-  const shift = (p: Point): Point => vertical ? { x: point.x, y: p.y } : { x: p.x, y: point.y }
-  const inset = Math.min(22, Math.hypot(b.x - a.x, b.y - a.y) / 3)
-  const direction = { x: Math.sign(b.x - a.x), y: Math.sign(b.y - a.y) }
-  const first = index === 0, last = index === clean.length - 2
-  const nearA = { x: a.x + direction.x * inset, y: a.y + direction.y * inset }
-  const nearB = { x: b.x - direction.x * inset, y: b.y - direction.y * inset }
-  const moved = [
-    ...clean.slice(0, index),
-    ...(first ? [a, nearA, shift(nearA)] : [shift(a)]),
-    ...(last ? [shift(nearB), nearB, b] : [shift(b)]),
-    ...clean.slice(index + 2),
-  ]
-  return cleanOrthogonalPoints(moved).slice(1, -1)
+// Retain only edited lanes, in traversal order. Automatic connector corners
+// remain free to follow moved terminals. Editing a lane replaces its old value.
+export function moveWireLane(wire: SensorWire, points: Point[], index: number, point: Point): WireLane[] {
+  const segments = wireSegments(points), segment = segments[index]
+  if (!segment) return wire.lanes ?? []
+  const axis = segment.from.x === segment.to.x ? 'x' : 'y'
+  const lane: WireLane = { axis, value: point[axis] }
+  const existing = wireGuides(wire).filter((g): g is WireLane => 'axis' in g)
+  const placed = existing.flatMap(g => {
+    const i = segments.findIndex(s => followsGuide(s.from, s.to, g))
+    return i < 0 || i === index ? [] : [{ lane: g, index: i }]
+  })
+  placed.push({ lane, index })
+  return placed.sort((a, b) => a.index - b.index).map(p => p.lane)
 }
 
 export function roundedOrthogonalPath(points: Point[]): string {

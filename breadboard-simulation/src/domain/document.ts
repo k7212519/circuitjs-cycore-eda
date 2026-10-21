@@ -39,7 +39,7 @@ const endpointSchema = z.discriminatedUnion('type', [
 ])
 const pointSchema = z.object({ x: z.number().finite(), y: z.number().finite() })
 const sensorWireSchema = z.union([
-  z.object({ id: z.string().min(1), from: endpointSchema, to: endpointSchema, color: z.string().min(1), waypoints: z.array(pointSchema).optional() }),
+  z.object({ id: z.string().min(1), from: endpointSchema, to: endpointSchema, color: z.string().min(1), waypoints: z.array(pointSchema).optional(), lanes: z.array(z.object({ axis: z.enum(['x', 'y']), value: z.number().finite() })).optional() }),
   z.object({
     id: z.string().min(1), source: z.object({ sensorId: z.string().min(1), pin: z.number().int().nonnegative() }),
     holeId: z.string().min(1), color: z.string().min(1), lane: z.number().finite().optional(),

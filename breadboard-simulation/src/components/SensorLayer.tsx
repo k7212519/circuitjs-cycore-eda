@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import { Circle, Group, Path, Rect, Text } from 'react-konva'
 import { useWorkbenchStore } from '@/store/useWorkbenchStore'
-import { SENSOR_MODELS, endpointPoint, nearestSensorEndpoint, roundedOrthogonalPath, sensorBounds, sensorOutsideBoard, sensorPinPoint, sensorWireRoutes, wireSegmentHandles, moveWireSegment, type SensorWire } from '@/domain/sensors'
+import { SENSOR_MODELS, endpointPoint, nearestSensorEndpoint, roundedOrthogonalPath, sensorBounds, sensorOutsideBoard, sensorPinPoint, sensorWireRoutes, wireSegmentHandles, moveWireLane, type SensorWire, type WireLane } from '@/domain/sensors'
 import { nearestHole } from '@/domain/board'
-import type { Point } from '@/domain/types'
+import type { BreadboardDocument, Point } from '@/domain/types'
 import { SensorBody } from './SensorBody'
 
 type DragPreview = { leaderId: string; delta: Point } | null
@@ -20,7 +20,9 @@ export function SensorLayer({ isDark, pointer, selectionDrag, onSelectionDrag }:
   const reconnect = useWorkbenchStore(s => s.reconnectSensorWire)
   const wireColor = useWorkbenchStore(s => s.wireColor)
   const [laneDrag, setLaneDrag] = useState<{ id: string; points: Point[] } | null>(null)
-  const [edit, setEdit] = useState<{ id: string; end?: 'from' | 'to'; point?: Point; handleIndex?: number; waypoints?: Point[] } | null>(null)
+  const [edit, setEdit] = useState<{ id: string; end?: 'from' | 'to'; point?: Point; handleIndex?: number; lanes?: WireLane[] } | null>(null)
+  const [routingSnapshot, setRoutingSnapshot] = useState<{ document: BreadboardDocument; routes: Map<string, Point[]> } | null>(null)
+  const baseRoutes = useMemo(() => routingSnapshot?.document === document ? routingSnapshot.routes : sensorWireRoutes(document), [document, routingSnapshot])
   const interactive = activeTool === 'select' && !activeSensor
   const previewDocument = useMemo(() => selectionDrag ? { ...document, sensors: document.sensors?.map(s => selectedIds.includes(s.id) ? { ...s, position: { x: s.position.x + selectionDrag.delta.x, y: s.position.y + selectionDrag.delta.y } } : s) } : document, [document, selectionDrag, selectedIds])
   const previewSensor = activeSensor && pointer ? { id: 'preview', kind: activeSensor, position: pointer, rotation } : null
@@ -29,12 +31,16 @@ export function SensorLayer({ isDark, pointer, selectionDrag, onSelectionDrag }:
   const target = useMemo(() => targetSensor ?? (targetHole ? { type: 'hole' as const, holeId: targetHole.id } : undefined), [targetSensor, targetHole])
   const pending = useMemo<SensorWire | null>(() => start && pointer && (start.type === 'sensor' || target?.type === 'sensor') ? { id: 'pending', from: start, to: target ?? { type: 'hole', holeId: '' }, color: wireColor } : null, [start, pointer, target, wireColor])
   const routedDocument = useMemo(() => ({ ...previewDocument, sensorWires: [
-    ...(previewDocument.sensorWires ?? []).map(w => edit?.id === w.id && edit.waypoints ? { ...w, waypoints: edit.waypoints } : w),
+    ...(previewDocument.sensorWires ?? []).map(w => edit?.id === w.id && edit.lanes ? { ...w, waypoints: undefined, lanes: edit.lanes } : w),
     ...(pending ? [pending] : []),
   ] }), [previewDocument, edit, pending])
   const endpointPreview = useMemo(() => edit?.end && edit.point ? { wireId: edit.id, end: edit.end, point: edit.point }
     : pending && pointer && !target ? { wireId: pending.id, end: 'to' as const, point: pointer } : undefined, [edit, pending, pointer, target])
-  const routes = useMemo(() => sensorWireRoutes(routedDocument, endpointPreview), [routedDocument, endpointPreview])
+  const routes = useMemo(() => selectionDrag || edit || pending ? sensorWireRoutes(routedDocument, endpointPreview, baseRoutes) : baseRoutes, [routedDocument, endpointPreview, baseRoutes, selectionDrag, edit, pending])
+  const retainRoutes = () => {
+    const committed = useWorkbenchStore.getState().document
+    setRoutingSnapshot({ document: committed, routes: sensorWireRoutes(committed, undefined, routes) })
+  }
   return <>
     {(document.sensorWires ?? []).map(wire => {
       const selected = selectedIds.includes(wire.id)
@@ -51,16 +57,16 @@ export function SensorLayer({ isDark, pointer, selectionDrag, onSelectionDrag }:
           return p ? <Circle key={end} x={p.x} y={p.y} radius={6} fill="#f5b83b" stroke="#233536" strokeWidth={2} draggable
             onDragStart={e => { e.cancelBubble = true }}
             onDragMove={e => { e.cancelBubble = true; setEdit({ id: wire.id, end, point: e.target.position() }) }}
-            onDragEnd={e => { e.cancelBubble = true; const moved = reconnect(wire.id, end, e.target.position()); setEdit(null); if (!moved) e.target.position(endPoint(end)!) }} /> : null
+            onDragEnd={e => { e.cancelBubble = true; const moved = reconnect(wire.id, end, e.target.position()); if (moved) retainRoutes(); setEdit(null); if (!moved) e.target.position(endPoint(end)!) }} /> : null
         })}
         {selected && interactive && wireSegmentHandles(handlePoints).map(({ index, vertical, center }) => {
-          const dragged = (point: Point) => moveWireSegment(handlePoints, index, point)
+          const dragged = (point: Point) => moveWireLane(wire, handlePoints, index, point)
           const handleCenter = laneDrag?.id === wire.id && current?.handleIndex === index && current.point
             ? vertical ? { x: current.point.x, y: center.y } : { x: center.x, y: current.point.y } : center
           return <Circle key={`lane-${index}`} name="wire-segment-handle" x={handleCenter.x} y={handleCenter.y} radius={4} fill="#f6d78d" stroke="#2e413e" strokeWidth={1} hitStrokeWidth={8} draggable
             onDragStart={e => { e.cancelBubble = true; setLaneDrag({ id: wire.id, points }) }}
-            onDragMove={e => { e.cancelBubble = true; const point = vertical ? { x: e.target.x(), y: center.y } : { x: center.x, y: e.target.y() }; e.target.position(point); setEdit({ id: wire.id, handleIndex: index, point, waypoints: dragged(point) }) }}
-            onDragEnd={e => { e.cancelBubble = true; updateWire(wire.id, { waypoints: dragged(e.target.position()) }); setLaneDrag(null); setEdit(null) }} />
+            onDragMove={e => { e.cancelBubble = true; const point = vertical ? { x: e.target.x(), y: center.y } : { x: center.x, y: e.target.y() }; e.target.position(point); setEdit({ id: wire.id, handleIndex: index, point, lanes: dragged(point) }) }}
+            onDragEnd={e => { e.cancelBubble = true; updateWire(wire.id, { waypoints: undefined, lanes: dragged(e.target.position()) }); retainRoutes(); setLaneDrag(null); setEdit(null) }} />
         })}
       </Group>
     })}
@@ -73,7 +79,7 @@ export function SensorLayer({ isDark, pointer, selectionDrag, onSelectionDrag }:
         onPointerDown={e => { if (e.evt.button !== 0) return; e.cancelBubble = true; select(sensor.id, e.evt.shiftKey) }}
         onDragStart={e => { e.cancelBubble = true }}
         onDragMove={e => { e.cancelBubble = true; onSelectionDrag({ leaderId: sensor.id, delta: { x: e.target.x() - sensor.position.x, y: e.target.y() - sensor.position.y } }) }}
-        onDragEnd={e => { e.cancelBubble = true; const point = e.target.position(); onSelectionDrag(null); if (!moveSelectionTo(sensor.id, point)) e.target.position(sensor.position) }}>
+        onDragEnd={e => { e.cancelBubble = true; const point = e.target.position(); const moved = moveSelectionTo(sensor.id, point); if (moved) retainRoutes(); onSelectionDrag(null); if (!moved) e.target.position(sensor.position) }}>
         <Rect name="selection-bounds" x={bounds.x - sensor.position.x} y={bounds.y - sensor.position.y} width={bounds.width} height={bounds.height} fill="rgba(0,0,0,0)" />
         <SensorBody sensor={sensor} selected={selected} invalid={!sensorOutsideBoard(shown)} />
         <Text x={-95} y={bounds.y - sensor.position.y - 23} width={190} align="center" text={SENSOR_MODELS[sensor.kind].name} fontSize={13} fontStyle="bold" fill={isDark ? '#e0e8e2' : '#263b30'} listening={false} />

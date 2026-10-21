@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { PALETTE_SENSOR_KINDS, SENSOR_MODELS, sensorPinPoint, sensorWirePoints, sensorWireRoutes, wireSegments, parallelConflict, type SensorKind } from '../src/domain/sensors'
+import { PALETTE_SENSOR_KINDS, SENSOR_MODELS, MIN_PARALLEL_WIRE_GAP, sensorPinPoint, sensorWirePoints, sensorWireRoutes, wireSegments, parallelConflict, type SensorKind } from '../src/domain/sensors'
 import type { BreadboardDocument, Point } from '../src/domain/types'
 
 async function screen(page: Page, p: Point) {
@@ -68,7 +68,7 @@ test('connects board and module pins, edits routes, moves, reconnects and undoes
   await clickWorld(page, center)
   await expect(page.getByLabel('属性与测量').getByRole('heading', { name: '模块导线' })).toBeVisible()
   await dragWorld(page, center, { x: center.x, y: center.y + 24 })
-  await expect.poll(async () => (await saved(page))?.sensorWires?.[0]?.waypoints?.length ?? 0).toBeGreaterThan(0)
+  await expect.poll(async () => (await saved(page))?.sensorWires?.[0]?.lanes?.length ?? 0).toBeGreaterThan(0)
   await dragWorld(page, { x: 396, y: 103 }, { x: 450, y: 103 })
   await expect.poll(async () => (await saved(page))?.sensorWires?.[0]?.to).toEqual({ type: 'hole', holeId: 't-0-0-23' })
   await clickWorld(page, a.position)
@@ -109,7 +109,7 @@ test('fans out three parallel wires and keeps adjusted paths separated', async (
   const assertSeparated = (doc: BreadboardDocument) => {
     const values = [...sensorWireRoutes(doc).values()]
     for (let i = 0; i < values.length; i++) for (let j = i + 1; j < values.length; j++) {
-      for (const a of wireSegments(values[i]!)) for (const b of wireSegments(values[j]!)) expect(parallelConflict(a, b)).toBe(false)
+      for (const a of wireSegments(values[i]!)) for (const b of wireSegments(values[j]!)) expect(parallelConflict(a, b, MIN_PARALLEL_WIRE_GAP)).toBe(false)
     }
   }
   let doc = await saved(page)
@@ -122,10 +122,52 @@ test('fans out three parallel wires and keeps adjusted paths separated', async (
   await expect(page.getByLabel('属性与测量').getByRole('heading', { name: '模块导线' })).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('parallel-wire-handles.png') })
   await dragWorld(page, center, { x: center.x, y: center.y + 30 })
-  await expect.poll(async () => (await saved(page))?.sensorWires?.[0]?.waypoints?.length ?? 0).toBeGreaterThan(0)
+  await expect.poll(async () => (await saved(page))?.sensorWires?.[0]?.lanes?.length ?? 0).toBeGreaterThan(0)
   doc = await saved(page)
   assertSeparated(doc)
   await page.screenshot({ path: testInfo.outputPath('parallel-wire-adjusted.png') })
   await page.reload()
   assertSeparated(await saved(page))
+})
+
+test('moves a module after editing GND without hooks and restores automatic routing', async ({ page }, testInfo) => {
+  await setup(page)
+  await place(page, 'dht11', { x: 220, y: -150 })
+  await expect.poll(async () => (await saved(page))?.sensors?.length).toBe(1)
+  const sensor = (await saved(page)).sensors![0]!
+  await page.getByTestId('part-wire').click()
+  await dragWorld(page, sensorPinPoint(sensor, 2), { x: 36, y: 103 })
+  await expect.poll(async () => (await saved(page))?.sensorWires?.length).toBe(1)
+  await page.getByRole('button', { name: '选择模式', exact: true }).click()
+  let doc = await saved(page)
+  const horizontal = wireSegments(sensorWirePoints(doc, doc.sensorWires![0]!)).find(s => s.from.y === s.to.y)!
+  const center = { x: (horizontal.from.x + horizontal.to.x) / 2, y: horizontal.from.y }
+  await clickWorld(page, center)
+  await dragWorld(page, center, { x: center.x, y: -35 })
+  await expect.poll(async () => (await saved(page)).sensorWires![0]!.lanes?.length).toBe(1)
+  const lanes = (await saved(page)).sensorWires![0]!.lanes!
+  await clickWorld(page, sensor.position)
+  // Cross Konva's screen-pixel drag threshold, then finish two world units away.
+  const origin = await screen(page, sensor.position)
+  const overshoot = await screen(page, { x: sensor.position.x - 16, y: sensor.position.y })
+  const destination = await screen(page, { x: sensor.position.x - 2, y: sensor.position.y })
+  await page.mouse.move(origin.x, origin.y); await page.mouse.down()
+  await page.mouse.move(overshoot.x, overshoot.y, { steps: 5 })
+  await page.mouse.move(destination.x, destination.y, { steps: 5 }); await page.mouse.up()
+  await expect.poll(async () => Math.abs((await saved(page)).sensors![0]!.position.x - (sensor.position.x - 2))).toBeLessThan(1)
+  doc = await saved(page)
+  expect(doc.sensorWires![0]!.lanes).toEqual(lanes)
+  expect(doc.sensorWires![0]!.waypoints).toBeUndefined()
+  const points = sensorWirePoints(doc, doc.sensorWires![0]!)
+  expect(points).toHaveLength(4)
+  for (let i = 1; i < points.length - 1; i++) {
+    const a = points[i - 1]!, b = points[i]!, c = points[i + 1]!
+    expect((b.x - a.x) * (c.x - b.x) + (b.y - a.y) * (c.y - b.y)).toBeGreaterThanOrEqual(0)
+  }
+  await page.screenshot({ path: testInfo.outputPath('ground-after-small-move.png') })
+  await page.reload()
+  expect((await saved(page)).sensorWires![0]!.lanes).toEqual(lanes)
+  await clickWorld(page, { x: (points[1]!.x + points[2]!.x) / 2, y: points[1]!.y })
+  await page.getByRole('button', { name: '恢复自动布线' }).click()
+  await expect.poll(async () => (await saved(page)).sensorWires![0]!.lanes).toBeUndefined()
 })
